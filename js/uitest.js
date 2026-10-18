@@ -13,7 +13,8 @@
     await wait(30);
     fed.value = 'Sample A'; fed.dispatchEvent(new Event('input'));
     key(fed, 'Enter');
-    await wait(60);
+    // the next lane's editor opens on the next animation frame
+    for (let t = 0; t < 100 && fed.classList.contains('hidden'); t++) await wait(50);
     R.enterNext = { name1: App.S.lanes[fl[1]].name, editorOpen: !fed.classList.contains('hidden'), placeholderIsLane: fed.placeholder };
     document.title = 'UITEST-AT 2 ' + JSON.stringify(R);
     // 2. IME composing Enter must NOT commit/jump
@@ -40,7 +41,8 @@
     const mk = App.S.markers[0];
     const b = mk.bands.find(x => x.matched && x.bp === 1000) || mk.bands.find(x => x.matched);
     App.placeArrow(App.S.lanes[mk.lane].x, b.y + 4);
-    await wait(60);
+    // the popover opens on the next animation frame, which slow headless browsers can delay
+    for (let t = 0; t < 100 && !document.getElementById('pOk'); t++) await wait(50);
     const a = App.S.arrows[App.S.arrows.length - 1];
     R.arrow = { snappedTo: Math.round(a.y), band: Math.round(b.y), label: App.arrowLabel(a), popoverOpen: !document.getElementById('popover').classList.contains('hidden'), stage: document.querySelector('.coach') ? 'same screen' : '' };
     document.getElementById('pOk').click();
@@ -259,6 +261,6 @@
       await App.dropDraft();
       R.draftDropped = !(await App.peekDraft());
     }
-  } catch (e) { R.error = e.stack || String(e); }
+  } catch (e) { R.error = String(e) + '\n' + (e.stack || ''); }
   document.title = 'UITEST ' + JSON.stringify(R);
 })(window);
