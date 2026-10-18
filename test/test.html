@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>GelFigure self-test</title></head>
+<body><pre id="out">running</pre>
+<script src="../js/i18n.js"></script>
+<script src="../js/tiff.js"></script>
+<script src="../js/ladders.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/render.js"></script>
+<script src="../js/demo.js"></script>
+<script>
+// TIFF LZW encoder (libtiff semantics) for decoder verification
+function lzwEncode(bytes) {
+  const out = []; let acc = 0, nacc = 0, width = 9;
+  const emit = c => { acc = (acc << width) | c; nacc += width; while (nacc >= 8) { out.push((acc >>> (nacc - 8)) & 255); nacc -= 8; } acc &= (1 << nacc) - 1; };
+  let dict = new Map(), next = 258;
+  emit(256);
+  let w = String.fromCharCode(bytes[0]), wcode = bytes[0];
+  for (let i = 1; i < bytes.length; i++) {
+    const c = bytes[i], key = wcode + ',' + c;
+    if (dict.has(key)) { wcode = dict.get(key); continue; }
+    emit(wcode);
+    dict.set(key, next++);
+    if (next > (1 << width) - 1) { if (width < 12) width++; }
+    if (next >= 4094) { emit(256); dict = new Map(); next = 258; width = 9; }
+    wcode = c;
+  }
+  emit(wcode); emit(257);
+  if (nacc) out.push((acc << (8 - nacc)) & 255);
+  return new Uint8Array(out);
+}
+function lzwTiff8(w, h, px) {
+  const comp = lzwEncode(px);
+  const n = 9, ifd = 8, dataOff = ifd + 2 + n * 12 + 4;
+  const buf = new ArrayBuffer(dataOff + comp.length), dv = new DataView(buf);
+  dv.setUint16(0, 0x4d4d); dv.setUint16(2, 42); dv.setUint32(4, ifd); // big-endian to test byte order
+  let p = ifd; dv.setUint16(p, n); p += 2;
+  const tag = (t, ty, v) => { dv.setUint16(p, t); dv.setUint16(p + 2, ty); dv.setUint32(p + 4, 1); if (ty === 3) dv.setUint16(p + 8, v); else dv.setUint32(p + 8, v); p += 12; };
+  tag(256, 4, w); tag(257, 4, h); tag(258, 3, 8); tag(259, 3, 5); tag(262, 3, 1); tag(273, 4, dataOff); tag(277, 3, 1); tag(278, 4, h); tag(279, 4, comp.length);
+  new Uint8Array(buf).set(comp, dataOff);
+  return buf;
+}
+
+(async () => {
+  const R = {};
+  try {
+    const E = Engine;
+    // 1. LZW roundtrip on noisy-ish data
+    const w = 333, h = 211, px = new Uint8Array(w * h);
+    for (let i = 0; i < px.length; i++) px[i] = ((i % w) * 3 + ((i / w) | 0) + (i * 7919 % 13)) & 255;
+    const dl = await TIFF.decode(lzwTiff8(w, h, px));
+    let bad = 0; for (let i = 0; i < px.length; i++) if (Math.round(dl.data[i] * 255) !== px[i]) bad++;
+    R.lzw = { ok: bad === 0, bad };
+
+    // 2. synthetic 16-bit gel
+    const g = Demo.makeGel();
+    const t0 = performance.now();
+    const d = await TIFF.decode(Demo.encodeTiff16(g));
+    let maxErr = 0; for (let i = 0; i < g.data.length; i += 97) maxErr = Math.max(maxErr, Math.abs(d.data[i] - g.data[i]));
+    R.tiff16 = { ok: maxErr < 2e-5, maxErr, bits: d.bits, dpi: d.dpi, ms: Math.round(performance.now() - t0) };
+
+    const src = { w: d.width, h: d.height, data: d.data };
+    const bright = E.detectBright(src);
+    R.bright = bright;
+    let t = performance.now();
+    const rot = E.deskew(src, bright);
+    R.deskew = { deg: rot, ok: Math.abs(rot + 1.2) <= 0.4, ms: Math.round(performance.now() - t) };
+    const img = E.rotate(src, rot);
+    t = performance.now();
+    const crop = E.autoCrop(img, bright);
+    // last lane of the synthetic gel is empty (well only) — crop must cover lanes 1..11
+    const T = g.truth, firstLane = T.x0 - 26, lastLane = T.x0 + (T.lanes - 2) * T.pitch + 26;
+    R.crop = Object.assign({}, crop, { ms: Math.round(performance.now() - t),
+      ok: crop.x <= firstLane && crop.x + crop.w >= lastLane && crop.y <= 150 && crop.y + crop.h >= 840 && crop.w < 1300 });
+    const c = E.cropImg(img, crop);
+    t = performance.now();
+    const lanes = E.detectLanes(c, bright);
+    const truthX = Array.from({ length: T.lanes }, (_, i) => T.x0 + i * T.pitch - crop.x).filter(x => x > 0 && x < crop.w);
+    const laneErr = lanes.centers.length === truthX.length ? Math.max(...lanes.centers.map((x, i) => Math.abs(x - truthX[i]))) : null;
+    R.lanes = { n: lanes.centers.length, pitch: lanes.pitch, dbg: JSON.stringify(E.detectLanes.debug), truth: JSON.stringify(truthX), got: JSON.stringify(lanes.centers), maxErrPx: laneErr, ok: laneErr != null && laneErr < 6, ms: Math.round(performance.now() - t) };
+
+    const lad = Ladders.get('gr1kbplus');
+    const prof = E.laneProfile(c, bright, lanes.centers[0], lanes.pitch * 0.3);
+    const peaks = E.detectBands(prof);
+    t = performance.now();
+    const m = E.matchLadder(peaks, lad.sizes, c.h);
+    const errs = lad.sizes.map((bp, i) => m[i].matched ? Math.abs(m[i].y + crop.y - T.yOf(bp)) : null);
+    const matched = errs.filter(e => e != null);
+    R.ladder = { peaks: peaks.length, matched: matched.length, of: lad.sizes.length, maxErrPx: Math.max(...matched).toFixed(1),
+      wrong: matched.filter(e => e > 8).length, ok: matched.length >= lad.sizes.length - 3 && matched.every(e => e < 8), ms: Math.round(performance.now() - t) };
+
+    /* Deskew is judged end-to-end: after correction the lane lattice and the size-vs-distance curve
+     * must come out clean. This is what the tool actually depends on, and it is sign-convention
+     * proof — a wrong sign doubles the tilt and breaks the following steps. */
+    R.deskewRange = [-8, -3.5, 0.7, 5, 12].map(t => {
+      const gg = Demo.makeGel({ tilt: t, seed: 11, lanes: 8 });
+      const dd = { w: gg.width, h: gg.height, data: gg.data };
+      const br = E.detectBright(dd);
+      const corr = E.deskew(dd, br);
+      const fixed = E.rotate(dd, corr);
+      const crop = E.autoCrop(fixed, br);
+      const c = E.cropImg(fixed, crop);
+      const lanes = E.detectLanes(c, br);
+      const T = gg.truth;
+      const truthX = Array.from({ length: T.lanes }, (_, i) => T.x0 + i * T.pitch - crop.x).filter(x => x > 0 && x < crop.w);
+      const laneErr = lanes.centers.length === truthX.length
+        ? Math.max(...lanes.centers.map((x, i) => Math.abs(x - truthX[i]))) : null;
+      return {
+        set: t, corr,
+        lanes: lanes.centers.length, expectLanes: truthX.length,
+        pitch: +lanes.pitch.toFixed(1), expectPitch: T.pitch,
+        laneErr: laneErr == null ? null : +laneErr.toFixed(1),
+        ok: laneErr != null && laneErr < 6 && Math.abs(lanes.pitch - T.pitch) < 6
+      };
+    });
+
+    /* Independent sign measurement: one leaning bright bar; measure the lean from the pixels
+     * directly via the centroid of each row inside a window around the expected bar centre. */
+    function leanOfBar(im, W, H) {
+      const px = im.data, colSum = new Float64Array(W);
+      for (let i = 0; i < W * H; i++) colSum[i % W] += px[i];
+      let y0 = 0; for (let x = 0; x < W; x++) if (colSum[x] > colSum[y0]) y0 = x;
+      let sy = 0, sx = 0, syy = 0, syx = 0, n = 0;
+      for (let y = 0; y < H; y++) {
+        const mid = Math.round(y0 + (y - H / 2) * 0.2);
+        let sw = 0, swx = 0;
+        for (let x = Math.max(0, mid - 20); x < Math.min(W, mid + 21); x++) { const v = px[y * W + x]; sw += v; swx += v * x; }
+        if (sw < 1) continue;
+        const cx = swx / sw;
+        sy += y; sx += cx; syy += y * y; syx += y * cx; n++;
+      }
+      return (n * syx - sy * sx) / (n * syy - sy * sy);
+    }
+    function makeBar() {
+      const W = 300, H = 300, px = new Float32Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const cx = 150 + (y - 150) * 0.2;
+        px[y * W + x] = Math.exp(-((x - cx) ** 2) / 18) + 0.001;
+      }
+      return { w: W, h: H, data: px };
+    }
+    R.barLean = [0, 3, -3].map(d => {
+      const im = E.rotate(makeBar(), d);
+      return { deg: d, lean: +leanOfBar(im, im.w, im.h).toFixed(3) };
+    });
+    R.barDeskew = [4, -6].map(d => {
+      const rotated = E.rotate(makeBar(), d);
+      const asks = E.deskew(rotated, true);
+      return {
+        rotatedBy: d, leanAfterRotate: +leanOfBar(rotated, rotated.w, rotated.h).toFixed(3),
+        deskew: asks,
+        leanAfterCorrection: +leanOfBar(E.rotate(rotated, asks), rotated.w, rotated.h).toFixed(3)
+      };
+    });
+
+    // 3. render smoke test
+    const S = {
+      crop, levels: { black: 0, white: 0.5, gamma: 1, invert: true },
+      style: { gelWidthMm: 45, fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneNumbers: false, frame: false, panelLetter: 'a', panelPt: 8, spliceStyle: 'gap', spliceGapPt: 1.5, tickLenPt: 2.5, labelGapPt: 2.5, unitHeader: true, groupTicks: false },
+      lanes: lanes.centers.map((x, i) => ({ x, name: i ? 'Sample long name ' + i : 'M', hidden: i === 4 })),
+      conditions: [], groups: [{ from: 1, to: 3, text: 'A' }, { from: 2, to: 6, text: 'B' }],
+      markers: [{ lane: 0, unit: 'bp', side: 'left', bands: lad.sizes.map((bp, i) => ({ bp, y: m[i].y, show: true })) }],
+      arrows: [{ y: 300, text: 'x' }]
+    };
+    const cc = document.createElement('canvas'); cc.width = c.w; cc.height = c.h;
+    const gel = Render.composeGel(S, cc, 0.1);
+    const out = Render.build(S, gel, 'data:,');
+    R.render = { ok: out.svg.startsWith('<svg') && out.angle > 0 && gel.segs.length === 2, angle: out.angle, segs: gel.segs.length, warnings: out.warnings, wMm: (out.w / Render.MM).toFixed(1), hMm: (out.h / Render.MM).toFixed(1) };
+  } catch (e) { R.error = e.stack || String(e); }
+  R.allOk = !R.error && ['lzw', 'tiff16', 'deskew', 'crop', 'lanes', 'ladder', 'render'].every(k => R[k] && R[k].ok) && R.deskewRange.every(d => d.ok);
+  document.getElementById('out').textContent = JSON.stringify(R, null, 1);
+})();
+</script></body></html>

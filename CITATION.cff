@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use GelFigure in your research, please cite it as below."
+title: "GelFigure: publication-ready DNA gel figures in the browser"
+type: software
+authors:
+  - alias: poplarity
+version: 0.5.0
+date-released: "2026-10-19"
+license: MIT
+repository-code: "https://github.com/poplarity/GelFigure"
+url: "https://poplarity.github.io/GelFigure/"
+keywords:
+  - gel electrophoresis
+  - agarose gel
+  - DNA ladder
+  - scientific figures
+  - image integrity

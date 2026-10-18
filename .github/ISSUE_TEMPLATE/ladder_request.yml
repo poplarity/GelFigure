@@ -1,0 +1,29 @@
+name: Add a DNA ladder / 添加 Ladder 型号
+description: Ask for a ladder to be built in. 申请把某个 Marker 型号加入内置库。
+labels: [ladder]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Vendor, product and catalogue number / 厂商、产品名与货号
+      placeholder: e.g. NEB Quick-Load 1 kb Extend DNA Ladder (N3239)
+    validations:
+      required: true
+  - type: input
+    id: sizes
+    attributes:
+      label: Visible band sizes in bp, largest to smallest / 可见条带大小（bp，从大到小）
+      placeholder: 48500, 20000, 15000, 10000, 8000, 6000, 5000, 4000, 3000, 2000, 1500, 1000, 500
+    validations:
+      required: true
+  - type: input
+    id: ref
+    attributes:
+      label: Brighter reference bands, if any / 加亮的参考条带（如有）
+  - type: input
+    id: source
+    attributes:
+      label: Link to the manufacturer's datasheet / 厂商说明书链接
+      description: Required; sizes cannot be added without a source. 必填，没有出处无法加入。
+    validations:
+      required: true

@@ -1,0 +1,26 @@
+name: Release
+
+# push a tag like v0.5.0 to publish a downloadable zip of the app
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build zip
+        run: |
+          mkdir -p dist/GelFigure
+          cp -r index.html css js test LICENSE README.md README.zh-CN.md dist/GelFigure/
+          cd dist && zip -r "GelFigure-${GITHUB_REF_NAME}.zip" GelFigure
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk "/^## \[${GITHUB_REF_NAME#v}\]/{f=1;next} /^## \[/{f=0} f" CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" "dist/GelFigure-${GITHUB_REF_NAME}.zip" --title "GelFigure $GITHUB_REF_NAME" --notes "$notes"

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+_site/
+test-results/
+*.log
+.DS_Store
+Thumbs.db
+# never commit gel images or projects by accident (docs/ screenshots are synthetic)
+*.tif
+*.tiff
+*.gelfig

@@ -1,0 +1,310 @@
+/* Minimal TIFF decoder (no dependencies).
+ * Supports: 8/16/32-bit integer and 32-bit float, 1-4 samples per pixel,
+ * strips or tiles, compression none / LZW / PackBits / Deflate, predictor 2,
+ * PhotometricInterpretation WhiteIsZero/BlackIsZero/RGB.
+ * Output: grayscale Float32Array normalized to 0..1 (1 = sensor max for integer data).
+ */
+(function (G) {
+  'use strict';
+
+  const TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8, 16: 8 };
+
+  function readIFDs(dv) {
+    const bo = dv.getUint16(0);
+    const le = bo === 0x4949;
+    if (!le && bo !== 0x4d4d) throw new Error(G.L('不是有效的 TIFF 文件', 'Not a valid TIFF file'));
+    const magic = dv.getUint16(2, le);
+    if (magic === 43) throw new Error(G.L('暂不支持 BigTIFF', 'BigTIFF is not supported yet'));
+    if (magic !== 42) throw new Error(G.L('不是有效的 TIFF 文件', 'Not a valid TIFF file'));
+    const ifds = [];
+    let off = dv.getUint32(4, le);
+    const seen = new Set();
+    while (off && off < dv.byteLength && !seen.has(off) && ifds.length < 64) {
+      seen.add(off);
+      const n = dv.getUint16(off, le);
+      const tags = {};
+      for (let i = 0; i < n; i++) {
+        const e = off + 2 + i * 12;
+        const tag = dv.getUint16(e, le);
+        const type = dv.getUint16(e + 2, le);
+        const count = dv.getUint32(e + 4, le);
+        const size = (TYPE_SIZE[type] || 1) * count;
+        const vo = size <= 4 ? e + 8 : dv.getUint32(e + 8, le);
+        tags[tag] = readValues(dv, type, count, vo, le);
+      }
+      ifds.push(tags);
+      off = dv.getUint32(off + 2 + n * 12, le);
+    }
+    return { ifds, le };
+  }
+
+  function readValues(dv, type, count, off, le) {
+    const out = [];
+    if (off + (TYPE_SIZE[type] || 1) * count > dv.byteLength) return out;
+    for (let i = 0; i < count; i++) {
+      switch (type) {
+        case 1: case 2: case 7: out.push(dv.getUint8(off + i)); break;
+        case 6: out.push(dv.getInt8(off + i)); break;
+        case 3: out.push(dv.getUint16(off + i * 2, le)); break;
+        case 8: out.push(dv.getInt16(off + i * 2, le)); break;
+        case 4: out.push(dv.getUint32(off + i * 4, le)); break;
+        case 9: out.push(dv.getInt32(off + i * 4, le)); break;
+        case 5: out.push(dv.getUint32(off + i * 8, le) / (dv.getUint32(off + i * 8 + 4, le) || 1)); break;
+        case 10: out.push(dv.getInt32(off + i * 8, le) / (dv.getInt32(off + i * 8 + 4, le) || 1)); break;
+        case 11: out.push(dv.getFloat32(off + i * 4, le)); break;
+        case 12: out.push(dv.getFloat64(off + i * 8, le)); break;
+        default: out.push(0);
+      }
+    }
+    return out;
+  }
+
+  function lzwDecode(src, expected) {
+    const out = new Uint8Array(expected + 4096);
+    const prefix = new Int32Array(4096), suffix = new Uint8Array(4096);
+    const len = new Int32Array(4096), first = new Uint8Array(4096);
+    for (let i = 0; i < 256; i++) { prefix[i] = -1; suffix[i] = i; len[i] = 1; first[i] = i; }
+    let next = 258, width = 9, bitPos = 0, old = -1, op = 0;
+    const nbits = src.length * 8;
+    const writeStr = (code) => {
+      const L = len[code];
+      if (op + L > out.length) return false;
+      let p = op + L - 1, c = code;
+      while (c !== -1) { out[p--] = suffix[c]; c = prefix[c]; }
+      op += L;
+      return true;
+    };
+    while (bitPos + width <= nbits && op < expected) {
+      const b = bitPos >> 3, sh = bitPos & 7;
+      const v = (((src[b] << 16) | ((src[b + 1] | 0) << 8) | (src[b + 2] | 0)) >>> (24 - sh - width)) & ((1 << width) - 1);
+      bitPos += width;
+      const code = v;
+      if (code === 257) break;
+      if (code === 256) { next = 258; width = 9; old = -1; continue; }
+      if (old === -1) { out[op++] = code; old = code; continue; }
+      let f;
+      if (code < next) {
+        if (!writeStr(code)) break;
+        f = first[code];
+      } else {
+        if (!writeStr(old)) break;
+        out[op++] = first[old];
+        f = first[old];
+      }
+      if (next < 4096) {
+        prefix[next] = old; suffix[next] = f; first[next] = first[old]; len[next] = len[old] + 1;
+        next++;
+      }
+      if (next >= (1 << width) - 1 && width < 12) width++;
+      old = code;
+    }
+    return out.subarray(0, Math.min(op, expected));
+  }
+
+  function packBitsDecode(src, expected) {
+    const out = new Uint8Array(expected);
+    let i = 0, op = 0;
+    while (i < src.length && op < expected) {
+      let n = src[i++];
+      if (n > 127) n -= 256;
+      if (n >= 0) { for (let k = 0; k <= n && op < expected; k++) out[op++] = src[i++]; }
+      else if (n !== -128) { const b = src[i++]; for (let k = 0; k < 1 - n && op < expected; k++) out[op++] = b; }
+    }
+    return out;
+  }
+
+  async function inflate(src) {
+    if (typeof DecompressionStream === 'undefined') throw new Error(G.L('浏览器不支持 Deflate 解压，请更新浏览器', 'This browser cannot decompress Deflate; please update it'));
+    const stream = new Blob([src]).stream().pipeThrough(new DecompressionStream('deflate'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  async function decompress(comp, bytes, expected) {
+    switch (comp) {
+      case 1: return bytes;
+      case 5: return lzwDecode(bytes, expected);
+      case 8: case 32946: return inflate(bytes);
+      case 32773: return packBitsDecode(bytes, expected);
+      default: throw new Error(G.L('不支持的 TIFF 压缩方式: ' + comp + '（请从成像软件导出为未压缩或 LZW TIFF）', 'Unsupported TIFF compression: ' + comp + ' (export an uncompressed or LZW TIFF from the imaging software)'));
+    }
+  }
+
+  // Undo horizontal differencing predictor on a decoded block (chunky layout)
+  function undoPredictor(view, w, h, spp, bits, le) {
+    if (bits === 8) {
+      for (let y = 0; y < h; y++) {
+        const r = y * w * spp;
+        for (let i = spp; i < w * spp; i++) view[r + i] = (view[r + i] + view[r + i - spp]) & 0xff;
+      }
+    } else if (bits === 16) {
+      const dv = new DataView(view.buffer, view.byteOffset, view.byteLength);
+      for (let y = 0; y < h; y++) {
+        const r = y * w * spp * 2;
+        for (let i = spp; i < w * spp; i++) {
+          const a = dv.getUint16(r + i * 2, le), p = dv.getUint16(r + (i - spp) * 2, le);
+          dv.setUint16(r + i * 2, (a + p) & 0xffff, le);
+        }
+      }
+    }
+  }
+
+  async function decode(buffer) {
+    const dv = new DataView(buffer);
+    const { ifds, le } = readIFDs(dv);
+    if (!ifds.length) throw new Error(G.L('TIFF 中没有图像', 'The TIFF contains no image'));
+    // choose the largest page (skip thumbnails)
+    let t = ifds[0], best = 0;
+    for (const d of ifds) {
+      const a = (d[256] ? d[256][0] : 0) * (d[257] ? d[257][0] : 0);
+      if (a > best) { best = a; t = d; }
+    }
+    const w = t[256][0], h = t[257][0];
+    const bitsArr = t[258] || [1];
+    const bits = bitsArr[0];
+    const spp = (t[277] || [1])[0];
+    const comp = (t[259] || [1])[0];
+    const photo = (t[262] || [1])[0];
+    const planar = (t[284] || [1])[0];
+    const predictor = (t[317] || [1])[0];
+    const fmt = (t[339] || [1])[0]; // 1 uint, 2 int, 3 float
+    if (![8, 16, 32].includes(bits)) throw new Error(G.L('不支持的位深: ', 'Unsupported bit depth: ') + bits + ' bit');
+    if (photo === 3) throw new Error(G.L('暂不支持调色板 TIFF', 'Palette TIFFs are not supported yet'));
+    const bps = bits / 8;
+    const tiled = !!t[322];
+    const total = new Uint8Array(w * h * spp * bps);
+    const planes = planar === 2 ? spp : 1;
+    const sppBlock = planar === 2 ? 1 : spp;
+
+    if (!tiled) {
+      const offs = t[273], counts = t[279];
+      const rps = Math.min((t[278] || [h])[0], h);
+      const stripsPerPlane = Math.ceil(h / rps);
+      for (let s = 0; s < offs.length; s++) {
+        const plane = Math.floor(s / stripsPerPlane);
+        if (plane >= planes) break;
+        const sy = (s % stripsPerPlane) * rps;
+        const rows = Math.min(rps, h - sy);
+        const expected = rows * w * sppBlock * bps;
+        const cnt = counts ? counts[s] : expected;
+        let block = await decompress(comp, new Uint8Array(buffer, offs[s], Math.min(cnt, buffer.byteLength - offs[s])), expected);
+        if (block === undefined) continue;
+        block = new Uint8Array(block.buffer.slice(block.byteOffset, block.byteOffset + Math.min(block.byteLength, expected)));
+        if (predictor === 2) undoPredictor(block, w, rows, sppBlock, bits, le);
+        const dst = plane * w * h * bps + sy * w * sppBlock * bps;
+        total.set(block.subarray(0, Math.min(block.length, total.length - dst)), dst);
+      }
+    } else {
+      const tw = t[322][0], th = t[323][0];
+      const offs = t[324], counts = t[325];
+      const across = Math.ceil(w / tw), down = Math.ceil(h / th);
+      const perPlane = across * down;
+      for (let k = 0; k < offs.length; k++) {
+        const plane = Math.floor(k / perPlane);
+        if (plane >= planes) break;
+        const idx = k % perPlane;
+        const tx = (idx % across) * tw, ty = Math.floor(idx / across) * th;
+        const expected = tw * th * sppBlock * bps;
+        let block = await decompress(comp, new Uint8Array(buffer, offs[k], counts[k]), expected);
+        block = new Uint8Array(block.buffer.slice(block.byteOffset, block.byteOffset + Math.min(block.byteLength, expected)));
+        if (predictor === 2) undoPredictor(block, tw, th, sppBlock, bits, le);
+        const rowBytes = tw * sppBlock * bps;
+        const copyW = Math.min(tw, w - tx) * sppBlock * bps;
+        for (let r = 0; r < th && ty + r < h; r++) {
+          const dst = plane * w * h * bps + ((ty + r) * w + tx) * sppBlock * bps;
+          total.set(block.subarray(r * rowBytes, r * rowBytes + copyW), dst);
+        }
+      }
+    }
+
+    // Convert to grayscale float
+    const n = w * h;
+    const gray = new Float32Array(n);
+    const tdv = new DataView(total.buffer);
+    const get = (byteIdx) => {
+      if (bits === 8) return fmt === 2 ? tdv.getInt8(byteIdx) : total[byteIdx];
+      if (bits === 16) return fmt === 2 ? tdv.getInt16(byteIdx, le) : tdv.getUint16(byteIdx, le);
+      return fmt === 3 ? tdv.getFloat32(byteIdx, le) : (fmt === 2 ? tdv.getInt32(byteIdx, le) : tdv.getUint32(byteIdx, le));
+    };
+    const color = spp >= 3 && photo === 2;
+    for (let i = 0; i < n; i++) {
+      let v;
+      if (color) {
+        const a = planar === 2 ? [i * bps, (n + i) * bps, (2 * n + i) * bps]
+          : [(i * spp) * bps, (i * spp + 1) * bps, (i * spp + 2) * bps];
+        v = 0.299 * get(a[0]) + 0.587 * get(a[1]) + 0.114 * get(a[2]);
+      } else {
+        v = get((planar === 2 ? i : i * spp) * bps);
+      }
+      gray[i] = v;
+    }
+    let maxVal;
+    if (fmt === 3) {
+      maxVal = 0; for (let i = 0; i < n; i++) if (gray[i] > maxVal) maxVal = gray[i];
+      maxVal = maxVal || 1;
+    } else {
+      maxVal = Math.pow(2, bits) - 1;
+      // Some imagers store 12/14-bit data in 16-bit containers: honour MaxSampleValue if given
+      if (t[281] && t[281][0] > 0 && t[281][0] < maxVal) maxVal = t[281][0];
+    }
+    let actualMax = 0;
+    for (let i = 0; i < n; i++) {
+      let v = gray[i] / maxVal;
+      if (photo === 0) v = 1 - v;
+      gray[i] = v;
+      if (v > actualMax) actualMax = v;
+    }
+    const xres = t[282] ? t[282][0] : 0;
+    const unit = (t[296] || [2])[0];
+    return { width: w, height: h, data: gray, bits, spp, compression: comp, actualMax,
+      dpi: unit === 3 ? xres * 2.54 : xres };
+  }
+
+  // Decode PNG/JPG etc. via the browser
+  function decodeBrowserImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const d = ctx.getImageData(0, 0, c.width, c.height).data;
+        const n = c.width * c.height;
+        const gray = new Float32Array(n);
+        let mx = 0;
+        for (let i = 0; i < n; i++) {
+          const v = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255;
+          gray[i] = v; if (v > mx) mx = v;
+        }
+        URL.revokeObjectURL(url);
+        resolve({ width: c.width, height: c.height, data: gray, bits: 8, spp: 3, compression: 0, actualMax: mx, dpi: 0 });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(G.L('无法读取该图片', 'Cannot read this image'))); };
+      img.src = url;
+    });
+  }
+
+  async function loadFile(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.tif') || name.endsWith('.tiff')) {
+      return decode(await file.arrayBuffer());
+    }
+    return decodeBrowserImage(file);
+  }
+
+  // decode raw file bytes, whatever the format; notes lossy conversions in .warnings
+  async function decodeBuffer(buffer, name) {
+    const b = new Uint8Array(buffer, 0, Math.min(32, buffer.byteLength));
+    const isTiff = (b[0] === 0x49 && b[1] === 0x49 && b[2] === 42) || (b[0] === 0x4d && b[1] === 0x4d && b[3] === 42);
+    if (isTiff) { const r = await decode(buffer); r.warnings = []; return r; }
+    const r = await decodeBrowserImage(new File([buffer], name || 'image'));
+    r.warnings = [];
+    const isPng = b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+    if (isPng && b[24] === 16) r.warnings.push(G.L('这是 16 位 PNG，浏览器只能按 8 位读取，动态范围已降低。建议改用 16 位 TIFF。', 'This is a 16-bit PNG; browsers read it as 8-bit, so dynamic range is reduced. A 16-bit TIFF is better.'));
+    else if (!isPng || b[24] < 16) r.warnings.push(G.L('非 TIFF 图像按 8 位处理；如有原始 16 位 TIFF，建议用 TIFF。', 'Non-TIFF images are handled as 8-bit; use the raw 16-bit TIFF if you have it.'));
+    return r;
+  }
+
+  G.TIFF = { decode, loadFile, decodeBuffer, _lzwDecode: lzwDecode };
+})(window);

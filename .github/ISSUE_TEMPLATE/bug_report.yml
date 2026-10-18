@@ -1,0 +1,54 @@
+name: Bug report / 问题反馈
+description: Something does not work or detection is wrong. 功能出错或识别不准。
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! English or Chinese are both fine. 中英文均可。
+        **Only attach gel images you are allowed to share publicly.** 只上传你有权公开的胶图。
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / 发生了什么？
+      description: What did you expect, and what happened instead? Screenshots help. 期望的结果和实际结果，截图很有帮助。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      placeholder: |
+        1. Open …
+        2. Click …
+  - type: input
+    id: imager
+    attributes:
+      label: Imager and file type / 成像仪与文件类型
+      placeholder: e.g. iBright FL1500, 16-bit TIFF
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS / 浏览器与系统
+      placeholder: e.g. Chrome 140 on macOS 15
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How did you open GelFigure? / 打开方式
+      options:
+        - Online (poplarity.github.io)
+        - Local index.html (double-click) / 本地双击
+        - Other / 其他
+  - type: input
+    id: version
+    attributes:
+      label: GelFigure version / 版本
+      description: Shown in the processing log ("version"). 见处理日志中的 "version"。
+  - type: textarea
+    id: log
+    attributes:
+      label: Processing log (optional) / 处理日志（可选）
+      description: Export ▾ → Processing log (JSON). It has settings and statistics but no pixels; remove confidential lane names. 导出 ▾ → 处理日志 JSON，不含像素；保密的泳道名请先删掉。
+      render: json

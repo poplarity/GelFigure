@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Everything runs locally. This policy forbids the page from contacting any server, so images can never leave the computer. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="description" content="GelFigure: turn a raw agarose gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
+<title>GelFigure</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Cg fill='%23fff'%3E%3Crect x='6' y='8' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='13' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='18' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='23' width='6' height='2.2' rx='1'/%3E%3Crect x='19' y='15' width='7' height='3' rx='1.2'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">GelFigure</div>
+  <button class="chip" id="imgChip" title="打开 / 更换图片" data-en-title="Open / replace image"><span class="chip-dot"></span><span id="imgChipName" data-en="Open image">打开图片</span></button>
+  <div class="coach" id="coach"><span class="coach-dot"></span><span id="coachText" data-en="Drop a gel image into the window to start">把凝胶图拖进窗口即可开始</span></div>
+  <div class="topbar-right">
+    <button class="icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)" data-en-title="Undo (Ctrl+Z)">↺</button>
+    <button class="icon-btn" id="btnRedo" title="重做 (Ctrl+Shift+Z)" data-en-title="Redo (Ctrl+Shift+Z)">↻</button>
+    <div class="menu-wrap">
+      <button class="btn ghost" id="btnTplMenu" data-en="File ▾">文件 ▾</button>
+      <div class="menu hidden" id="tplMenu">
+        <label><span data-en="Open image…">打开图片…</span><small data-en="Select several exposures of one gel to pick the best automatically">可一次选多张同一块胶的不同曝光，自动挑最佳</small><input type="file" id="fileInput3" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp" multiple hidden></label>
+        <label><span data-en="Open project…">打开项目…</span><small data-en=".gelfig project file (original image and all annotations)">.gelfig 项目文件（含原图和全部标注）</small><input type="file" id="projInput" accept=".gelfig,.json" hidden></label>
+        <button id="btnSaveProj"><span data-en="Save project…">保存项目…</span><small data-en="Original image + every setting and annotation; continue on any computer">原图 + 全部参数和标注，可在任何电脑接着做</small></button>
+        <div class="menu-sep"></div>
+        <button id="btnSaveTpl"><span data-en="Save style…">保存样式…</span><small data-en="Lane names, markers, groups, layout — reuse for similar gels">泳道名、Marker、分组、版式，下次同类胶一键套用</small></button>
+        <label><span data-en="Apply style…">载入样式…</span><input type="file" id="tplInput" accept=".json" hidden></label>
+        <div class="menu-sep"></div>
+        <button id="btnResetAll" class="danger" data-en="Reset everything (back to import)">重置整图（回到刚导入时）</button>
+      </div>
+    </div>
+    <button class="icon-btn" id="btnHelp" title="使用说明" data-en-title="Help">?</button>
+    <button class="icon-btn lang-btn" id="btnLang">EN</button>
+    <span class="divider"></span>
+    <select id="dpiTop" title="导出分辨率" data-en-title="Export resolution"><option value="300">300 dpi</option><option value="600" selected>600 dpi</option><option value="1200">1200 dpi</option></select>
+    <div class="menu-wrap">
+      <div class="split">
+        <button class="btn primary" id="btnPNG" data-en="Export PNG">导出 PNG</button><button class="btn primary caret" id="btnExportMenu">▾</button>
+      </div>
+      <div class="menu hidden right" id="exportMenu">
+        <button id="btnTIFF"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></button>
+        <button id="btnSVG" data-en="SVG (vector, editable in Illustrator)">SVG（矢量，可在 AI 中编辑）</button>
+        <div class="menu-sep"></div>
+        <button id="btnUncropped"><span data-en="Uncropped image (same processing)">未裁切图（与成图同处理）</span><small data-en="For the supplement: same contrast and orientation, crop box and well numbers marked">补充材料用：同一对比度/方向，标出裁切框与孔号</small></button>
+        <button id="btnOriginal"><span data-en="Original data (file + SHA-256)">原始数据（原文件 + SHA-256）</span><small data-en="The untouched source file, byte-identical">未经任何处理的原始文件，逐字节一致</small></button>
+        <button id="btnLog"><span data-en="Processing log (JSON)">处理日志 JSON</span><small data-en="File fingerprint, all parameters, clipping, effective resolution">文件指纹、全部参数、削顶统计、有效分辨率</small></button>
+        <div class="menu-sep"></div>
+        <label class="menu-check"><input type="checkbox" id="preflightOn" checked> <span data-en="Check before export">导出前检查</span></label>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig" multiple hidden>
+  </div>
+</header>
+
+<div id="app">
+  <aside id="panel">
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">▣</div>
+      <h2 data-en="Drop a gel image here">把凝胶图拖进来</h2>
+      <p data-en-html="TIFF from iBright and other imagers (16 / 8-bit), PNG or JPG.<br>Straightening, cropping, lanes and marker sizes are automatic —<br>you only type the lane names and export.">iBright 等成像仪导出的 TIFF（16 / 8 位）、PNG、JPG 都可以。<br>转正、裁切、泳道、Marker 全部自动完成，<br>你只需要填泳道名然后导出。</p>
+      <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig" multiple hidden></label>
+      <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
+      <div id="draftBox" class="draft hidden">
+        <div><span data-en="Unfinished figure from last time:">上次有未完成的图：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
+        <div class="inline"><button class="btn sm primary" id="btnDraftRestore" data-en="Restore">恢复</button><button class="btn sm ghost" id="btnDraftDrop" data-en="Discard">丢弃</button></div>
+      </div>
+      <p class="hint" data-en="You can drop several exposures of the same gel at once; the best one is picked automatically.">可以一次拖入同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
+      <p class="privacy" data-en="Images are processed only in this browser and never uploaded.">图片只在本机浏览器处理，不会上传。</p>
+    </div>
+
+    <div id="sections" class="hidden">
+      <!-- image -->
+      <section class="sec">
+        <div class="sec-head"><span class="sec-n">1</span><span data-en="Image">图像</span><span class="sec-status" id="stImage"></span></div>
+        <div class="seg full" id="polSeg">
+          <button data-inv="0" data-en="White bands on black (raw)">黑底白带（原样）</button><button data-inv="1" data-en="Black bands on white (inverted)">白底黑带（反色）</button>
+        </div>
+        <p class="hint" id="invNote"></p>
+        <div class="field">
+          <label><span data-en="Rotation">旋转</span> <b id="rotV"></b> <span class="h3-note" id="rotAuto"></span></label>
+          <div class="inline nowrap">
+            <button class="btn sm ghost step-btn" id="rotMinus" title="−0.5°">−</button>
+            <input type="range" id="rot" min="-45" max="45" step="0.1" value="0">
+            <button class="btn sm ghost step-btn" id="rotPlus" title="+0.5°">+</button>
+            <input type="number" id="rotNum" step="0.1" min="-45" max="45" class="num" style="width:58px">
+          </div>
+          <div class="inline mt">
+            <button class="btn sm" id="btnDeskew" data-en="Auto straighten">自动转正</button>
+            <button class="btn sm ghost" id="btnResetRot" data-en="Back to auto angle">回到自动角度</button>
+            <label class="switch"><input type="checkbox" id="showGrid"><span data-en="Grid">参考网格</span></label>
+          </div>
+        </div>
+        <div class="field"><label><span data-en="Black point">暗部</span> <b id="lvBlackV"></b></label><input type="range" id="lvBlack" min="0" max="1000"></div>
+        <div class="field"><label><span data-en="White point">亮部</span> <b id="lvWhiteV"></b></label><input type="range" id="lvWhite" min="0" max="1000"></div>
+        <canvas id="histo" height="40"></canvas>
+        <div class="clipline" id="clipLine"></div>
+        <div class="field inline">
+          <button class="btn sm" id="btnResetLv" title="回到导入时的自动对比度，Gamma 归 1，黑白极性不变" data-en-title="Back to the automatic contrast from import; gamma 1; polarity unchanged" data-en="Reset contrast">重置对比度</button>
+          <button class="btn sm ghost" id="btnAutoLv" data-en="Auto for current crop">按当前范围自动</button>
+          <label class="switch"><input type="checkbox" id="showSat"><span data-en="Show saturated pixels">标红过曝像素</span></label>
+        </div>
+        <details class="adv">
+          <summary data-en="Gamma (non-linear, must be stated in the legend)">Gamma（非线性，需在图注说明）</summary>
+          <div class="field inline">
+            <label class="switch"><input type="checkbox" id="gammaUnlock"><span data-en="Unlock">解锁</span></label>
+            <input type="number" id="gamma" min="0.2" max="5" step="0.05" value="1" class="num" disabled>
+          </div>
+        </details>
+      </section>
+
+      <!-- range -->
+      <section class="sec">
+        <div class="sec-head"><span class="sec-n">2</span><span data-en="Lanes in figure">出图范围</span><span class="sec-status" id="stRange"></span></div>
+        <div class="field inline range-row">
+          <span data-en="Wells">孔</span> <select id="rangeA"></select> – <select id="rangeB"></select>
+          <button class="btn sm ghost" id="btnRangeAuto" title="只保留有条带的泳道" data-en-title="Keep only lanes with bands" data-en="Auto">自动</button>
+        </div>
+        <p class="hint" data-en="Changing the range never loses names. You can also drag the red box on the image (its sides snap to the gaps between lanes; hold Alt to move freely).">换范围不会丢名称。也可在原图上拖红框（左右边轻吸附到泳道间隙，按住 Alt 完全自由）。</p>
+        <div class="crop-lanes">
+          <div class="cl-head"><span data-en="Lanes detected wrongly?">泳道识别不对？</span><span class="h3-note" data-en="Uses only the image inside the red box; lanes outside are untouched">只看红框内的图像，框外泳道不受影响</span></div>
+          <div class="field inline">
+            <button class="btn sm" id="btnRedetectCrop" data-en="Re-detect in box">框内重新识别</button>
+            <span class="inline-label"><span data-en="or">或 框内</span> <input type="number" id="cropLaneN" min="1" max="60" class="num" style="width:52px"> <span data-en="lanes">条</span></span>
+            <button class="btn sm" id="btnEvenCrop" title="按这个条数在红框内等间距排布" data-en-title="Space this many lanes evenly inside the red box" data-en="Space evenly">等间距排布</button>
+          </div>
+          <p class="hint" data-en="Tip: put the sides of the red box on the outer edges of the two outermost lanes, then click “Space evenly” — this is almost always right. Names are kept left to right.">建议先把红框左右边贴着最外侧两条泳道的外沿，再点"等间距排布"——几乎总是对的。名称按从左到右顺序保留。</p>
+        </div>
+        <div class="suggest hidden" id="emptyBar">
+          <div id="emptyText"></div>
+          <div class="inline"><button class="btn sm primary" id="btnCutEmpty" data-en="Remove">剪除</button><button class="btn sm ghost" id="btnIgnoreEmpty" data-en="Keep (don’t ask again)">保留（不再提示）</button></div>
+        </div>
+        <details class="adv" id="laneAdv">
+          <summary><span data-en="Individual lanes: remove / adjust">逐条泳道：剪除 / 微调</span><span class="h3-note" id="laneCountNote"></span></summary>
+          <div id="laneList" class="list"></div>
+          <div class="field inline">
+            <label class="inline-label"><span data-en="Splice gap">拼接间隙</span> <input type="range" id="spliceGap" min="0" max="5" step="0.25" style="width:110px"> <b id="spliceGapV"></b></label>
+            <select id="spliceStyle" style="width:auto"><option value="gap" data-en="White gap">白色间隙</option><option value="line" data-en="Divider line">分隔线</option></select>
+          </div>
+          <p class="hint" data-en-html="Select a lane on the image and press <code>H</code> to remove / restore it.">在原图上选中一条泳道后按 <code>H</code> 剪除 / 恢复。</p>
+          <div class="field inline">
+            <button class="btn sm ghost" id="btnAutoLanes" title="按整块胶重新识别所有泳道（会覆盖框内的调整）" data-en-title="Re-detect all lanes on the whole gel (overwrites adjustments)" data-en="Re-detect whole gel">整块胶重新识别</button>
+          </div>
+          <p class="hint" data-en="Unticking “Show” removes the lane from the figure (a splice gap is added). Drag lane lines left/right on the image; double-click empty space to add a lane; select one and press Delete to remove it.">取消"显示"= 从成图剪除该泳道（自动加拼接间隙）。原图上可左右拖泳道线；双击空白处加泳道；选中后按 Delete 删除。</p>
+        </details>
+      </section>
+
+      <!-- names -->
+      <section class="sec">
+        <div class="sec-head"><span class="sec-n">3</span><span data-en="Lane names">泳道名称</span><span class="sec-status" id="stNames"></span></div>
+        <p class="lead" data-en-html="<b>Click a lane name</b> on the figure to type it; Enter jumps to the next. Or paste a whole row of names here:">直接在右侧成图上<b>点击泳道名</b>输入，回车跳到下一条。也可以把一整行名称粘贴到这里：</p>
+        <textarea id="laneBulk" rows="2" placeholder="M, WT, KO-1, NTC …（逗号、Tab、换行都行，可直接从 Excel 复制一行）" data-en-placeholder="M, WT, KO-1, NTC … (commas, tabs or new lines; a row copied from Excel works)"></textarea>
+        <p class="hint" data-en-html="Filled into the lanes in the figure from left to right. <code>*lacZ*</code> becomes italic.">按从左到右的顺序填入出图范围内的泳道。<code>*lacZ*</code> 写成斜体。</p>
+      </section>
+
+      <!-- marker -->
+      <section class="sec">
+        <div class="sec-head"><span class="sec-n">4</span>Marker<span class="sec-status" id="stMarker"></span></div>
+        <div id="markerList"></div>
+        <div class="field inline">
+          <button class="btn sm" id="btnAddMarker" data-en="+ Add marker lane">+ 添加 Marker 泳道</button>
+          <button class="btn sm ghost" id="btnAutoMarkers" data-en="Re-detect">重新识别</button>
+        </div>
+        <details class="adv" id="favAdv">
+          <summary><span data-en="Favourite ladders ★">常用型号 ★</span><span class="h3-note" id="favNote"></span></summary>
+          <p class="hint" style="margin-top:2px" data-en="Click ★ on a marker card to make it a favourite. Detection prefers favourites but still switches (with a notice) when none fits.">点 Marker 卡片里的 ★ 收藏。自动识别优先选常用型号；明显不吻合时仍会换型号并提示。</p>
+          <div id="favList" class="list"></div>
+          <label class="switch"><input type="checkbox" id="onlyFav"><span data-en="Detect among favourites only (falls back to all if none fits)">只在常用型号中识别（不吻合时自动回退全库）</span></label>
+        </details>
+        <details class="adv">
+          <summary data-en="Custom ladder">自定义 Ladder</summary>
+          <div class="field"><input type="text" id="customName" placeholder="名称" data-en-placeholder="Name"></div>
+          <div class="field"><input type="text" id="customSizes" placeholder="条带大小 bp，逗号分隔：5000,3000,2000,1000,500" data-en-placeholder="Band sizes in bp, comma separated: 5000,3000,2000,1000,500"></div>
+          <button class="btn sm" id="btnSaveLadder" data-en="Save and use">保存并使用</button>
+          <div id="customList" class="list"></div>
+        </details>
+      </section>
+
+      <!-- annotations -->
+      <section class="sec">
+        <div class="sec-head"><span class="sec-n">5</span><span data-en="Annotations">标注</span> <span class="h3-note" data-en="optional">可选</span></div>
+        <div class="tools">
+          <button class="tool" id="btnAddGroup"><span class="ti">⎴</span><span data-en="Group line">分组横线</span><small data-en="Drag across lane names on the figure">在成图上拖过几个泳道名</small></button>
+          <button class="tool" id="btnAddArrow"><span class="ti">◀</span><span data-en="Target band">目标条带</span><small data-en="Click a band; its size is estimated">点一下条带，自动标大小</small></button>
+          <button class="tool" id="btnAddCond"><span class="ti">±</span><span data-en="Condition row">条件行</span><small data-en="+ / − matrix">+ / − 矩阵</small></button>
+        </div>
+        <div id="annoList" class="list"></div>
+      </section>
+
+      <!-- layout -->
+      <section class="sec">
+        <details class="adv flush">
+          <summary class="sec-head as-summary"><span class="sec-n">6</span><span data-en="Layout">版式</span> <span class="h3-note" id="stLayout"></span></summary>
+          <div class="field inline">
+            <label class="switch"><input type="checkbox" id="autoWidth" checked><span data-en="Auto width">宽度自动</span></label>
+            <label class="inline-label"><span data-en="Gel width">凝胶宽</span> <input type="number" id="gelW" min="10" max="180" step="1" class="num"> mm</label>
+            <select id="widthPreset" style="width:auto" title="期刊栏宽（成图总宽，含标签）" data-en-title="Journal column width (total figure width, labels included)"><option value="" data-en="Column…">栏宽…</option><option value="85" data-en="Single column 85 mm">单栏 85 mm</option><option value="120" data-en="1.5 columns 120 mm">1.5 栏 120 mm</option><option value="180" data-en="Double column 180 mm">双栏 180 mm</option></select>
+          </div>
+          <div class="dpiline" id="dpiLine"></div>
+          <div class="field inline">
+            <label class="inline-label"><span data-en="Font">字号</span> <input type="number" id="fontPt" min="4" max="14" step="0.5" class="num"> pt</label>
+            <label class="inline-label"><span data-en="Line">线宽</span> <input type="number" id="lineW" min="0.25" max="2" step="0.25" class="num"> pt</label>
+          </div>
+          <div class="field inline">
+            <label class="inline-label" data-en="Label angle">泳道名角度</label>
+            <select id="labelAngle" style="width:auto">
+              <option value="auto" data-en="Auto">自动</option><option value="0">0°</option><option value="45">45°</option><option value="60">60°</option><option value="90">90°</option>
+            </select>
+            <span class="h3-note" id="angleInfo"></span>
+          </div>
+          <div class="field inline wrap">
+            <label class="switch"><input type="checkbox" id="unitHeader" checked><span data-en="(bp) header">(bp) 标题</span></label>
+            <label class="switch"><input type="checkbox" id="laneNumbers"><span data-en="Lane numbers">泳道编号</span></label>
+            <label class="switch"><input type="checkbox" id="frame"><span data-en="Frame">边框</span></label>
+            <label class="switch"><input type="checkbox" id="groupTicks"><span data-en="Group line ends">分组线端点</span></label>
+          </div>
+          <div class="field inline">
+            <label class="inline-label"><span data-en="Numbering">编号</span> <select id="laneNumberMode" style="width:auto"><option value="well" data-en="By well">按加样孔号</option><option value="seq" data-en="In figure order">按图中顺序</option></select></label>
+            <label class="inline-label"><span data-en="Panel letter">面板字母</span> <input type="text" id="panelLetter" maxlength="2" class="num" placeholder="a"></label>
+          </div>
+          <button class="btn sm ghost" id="btnResetLayout" data-en="Reset layout">重置版式</button>
+        </details>
+      </section>
+
+      <div id="legendHints" class="legend"></div>
+    </div>
+  </aside>
+
+  <main id="stage">
+    <section class="pane-col" id="rawCol">
+      <div class="col-head">
+        <span class="col-title" data-en="Raw image">原图</span>
+        <span class="col-sub" data-en="Red box = figure area · blue = lanes · yellow = marker bands">红框 = 出图范围 · 蓝线 = 泳道 · 黄线 = Marker 条带</span>
+        <span class="flex"></span>
+        <button class="btn sm ghost" id="fitFull" title="显示整张图" data-en-title="Show the whole image" data-en="Full">全图</button>
+        <button class="btn sm ghost" id="fitCrop" title="放大到出图范围" data-en-title="Zoom to the figure area" data-en="Crop">范围</button>
+        <span class="zoomlabel" id="zoomLabel"></span>
+      </div>
+      <div id="expoStrip" class="expo hidden"></div>
+      <div id="editorBox" tabindex="0">
+        <canvas id="editor"></canvas>
+        <div id="dropHint">
+          <div class="dh-icon">▣</div>
+          <div class="dh-text" data-en="Drop the gel image here">把凝胶图拖到这里</div>
+          <div class="dh-sub" data-en="A .tif straight from the imager works">成像仪导出的 .tif 直接拖进来</div>
+        </div>
+      </div>
+    </section>
+    <section class="pane-col" id="figCol">
+      <div class="col-head">
+        <span class="col-title" data-en="Figure">成图</span>
+        <span class="col-sub" id="figSub" data-en="Click any text to edit it">点文字可直接编辑</span>
+        <span class="flex"></span>
+        <span class="zoomlabel" id="figSize"></span>
+      </div>
+      <div id="previewBox">
+        <div id="preview"></div>
+        <div id="modeBanner" class="mode-banner hidden"><span id="modeText"></span><button id="modeCancel" data-en="Cancel (Esc)">取消 (Esc)</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="popover" class="popover hidden"></div>
+<input id="floatEd" class="float-ed hidden" type="text" autocomplete="off" spellcheck="false">
+<div id="warnings"></div>
+<div id="toasts"></div>
+
+<div id="helpDlg" class="dlg hidden"><div class="dlg-body">
+  <button class="dlg-x" id="btnHelpClose">×</button>
+  <div data-en-html="
+  <h3>Fastest way to a figure</h3>
+  <ol>
+    <li>Drop the gel image — straightening, cropping, lanes, markers and contrast are automatic. Several exposures of one gel can be dropped together; the best is chosen.</li>
+    <li><b>Click a lane name</b> on the figure and type; Enter jumps to the next (or paste a whole row on the left).</li>
+    <li>Check the marker ladder on the left.</li>
+    <li>“Export PNG” at the top right. A pre-flight check points out problems first.</li>
+  </ol>
+  <h3>Common tasks</h3>
+  <ul>
+    <li><b>Show only some lanes</b>: pick wells under “Lanes in figure”, or drag the sides of the red box. Names are never lost.</li>
+    <li><b>Remove a lane in the middle</b>: select it on the image and press <code>H</code> (or untick “Show”). A splice gap is added; state it in the legend.</li>
+    <li><b>Group line</b>: drag from one lane name to another on the figure.</li>
+    <li><b>Target band arrow</b>: click “Target band”, then the band. The size is estimated from the marker; values outside the ladder are marked ≈.</li>
+    <li><b>+ / − rows</b>: add a row, then click cells on the figure to cycle + / − / empty.</li>
+    <li><b>A marker band is wrong</b>: drag its yellow line on the image; the others re-fit around it.</li>
+    <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
+  </ul>
+  <h3>Image integrity</h3>
+  <ul>
+    <li>Only linear, whole-image adjustments; gamma is locked at 1 unless unlocked.</li>
+    <li>Camera saturation (re-image needed) and contrast clipping (fixable) are reported separately.</li>
+    <li>Removed lanes get a splice mark; never splice different gels into one panel.</li>
+    <li>Also export the uncropped image and the original file for the supplement.</li>
+  </ul>
+  <p class='muted small'>Shortcuts: Ctrl+Z undo · Ctrl+Shift+Z redo · Space+drag pan · wheel zoom · H remove/restore lane · Esc cancel</p>
+  <p class='muted small'>Open source (MIT): <a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a> — bug reports and ladder additions welcome.</p>">
+  <h3>最快的出图方式</h3>
+  <ol>
+    <li>拖入胶图 —— 转正、裁切、泳道、Marker、对比度全部自动完成。同一块胶的多张曝光可以一起拖进来，自动挑最好的一张。</li>
+    <li>在右侧成图上<b>点泳道名</b>输入，回车自动跳到下一条（也可在左侧一次粘贴一整行名称）。</li>
+    <li>核对左侧 Marker 型号是否正确。</li>
+    <li>右上角"导出 PNG"。导出前会自动检查常见问题。</li>
+  </ol>
+  <h3>常用操作</h3>
+  <ul>
+    <li><b>只出一部分泳道</b>：左侧"出图范围"选孔号，或在原图上拖红框左右边。泳道名称不会丢。</li>
+    <li><b>剪掉中间某条泳道</b>：在原图上选中后按 <code>H</code>（或取消"显示"），会自动加拼接间隙，图注中需说明。</li>
+    <li><b>分组横线</b>：在成图上从一个泳道名拖到另一个泳道名。</li>
+    <li><b>目标条带箭头</b>：点"目标条带"，再点那条带；大小按 Marker 估算，超出 Marker 范围会标 ≈。</li>
+    <li><b>+ / − 条件行</b>：加一行后，在成图上点格子即可在 + / − / 空 之间切换。</li>
+    <li><b>Marker 条带不对</b>：在原图上上下拖那条黄线，其余条带会围绕它重新匹配。</li>
+    <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
+  </ul>
+  <h3>图像规范</h3>
+  <ul>
+    <li>只做全图线性调整；Gamma 默认锁定为 1。</li>
+    <li>区分相机过曝（只能重拍）和色阶削顶（可调回）。</li>
+    <li>剪除泳道会自动加拼接分隔；不同凝胶不可拼进同一面板。</li>
+    <li>建议同时导出"未裁切图"和"原始数据"放补充材料。</li>
+  </ul>
+  <p class="muted small">快捷键：Ctrl+Z 撤销 · Ctrl+Shift+Z 重做 · 空格+拖动 平移 · 滚轮 缩放 · H 剪除/恢复泳道 · Esc 取消当前操作</p>
+  <p class="muted small">开源（MIT）：<a href="https://github.com/poplarity/GelFigure" target="_blank" rel="noopener">github.com/poplarity/GelFigure</a> —— 欢迎反馈问题、补充 Ladder 型号。</p>
+  </div>
+</div></div>
+
+<div id="preflightDlg" class="dlg hidden"><div class="dlg-body pf">
+  <h3 data-en="Pre-flight check">导出前检查</h3>
+  <div id="pfList"></div>
+  <div class="pf-actions">
+    <label class="switch"><input type="checkbox" id="pfOff"><span data-en="Don’t check again">以后不再检查</span></label>
+    <span class="flex"></span>
+    <button class="btn" id="pfBack" data-en="Go back and fix">返回修改</button>
+    <button class="btn primary" id="pfGo" data-en="Export anyway">仍然导出</button>
+  </div>
+</div></div>
+
+<div id="busy" class="hidden"><div class="spinner"></div><div class="busy-text" id="busyText"></div></div>
+
+<script src="js/i18n.js"></script>
+<script src="js/tiff.js"></script>
+<script src="js/ladders.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script src="js/export.js"></script>
+<script src="js/demo.js"></script>
+<script src="js/app.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/figedit.js"></script>
+</body>
+</html>

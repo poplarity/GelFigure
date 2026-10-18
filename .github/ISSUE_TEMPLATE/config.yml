@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security or privacy issue / 安全或隐私问题
+    url: https://github.com/poplarity/GelFigure/security/advisories/new
+    about: Please report vulnerabilities privately. 请私下报告漏洞。
