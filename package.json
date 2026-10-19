@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "gelfigure",
-  "version": "0.5.0",
+  "version": "0.6.0-dev",
   "private": true,
   "description": "Turn a raw agarose gel image into a publication-ready figure in the browser. The app itself has no dependencies; this file only installs the test runner.",
   "license": "MIT",

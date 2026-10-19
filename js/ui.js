@@ -74,6 +74,7 @@
   $('projInput').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) openProject(f); });
   $('imgChip').onclick = () => $('fileInput').click();
   const demoFile = () => new File([G.Demo.encodeTiff16(G.Demo.makeGel())], 'demo_gel.tif', { type: 'image/tiff' });
+  const demoProteinFile = () => new File([G.Demo.encodeTiff16(G.Demo.makeProteinGel())], 'demo_protein_gel.tif', { type: 'image/tiff' });
   $('btnDemo').onclick = () => load([demoFile()]);
   // drop anywhere in the window
   let dragDepth = 0;
@@ -213,6 +214,14 @@
   };
 
   /* ---------- 1 image ---------- */
+  document.querySelectorAll('#gelSeg button').forEach(b => b.onclick = done(() => {
+    if (b.dataset.gel === App.gelKind()) return;
+    const kind = b.dataset.gel;
+    App.setGelType(kind);
+    toast(kind === 'protein'
+      ? L('已切换为蛋白胶模式：Marker 单位为 kDa，Ladder 库和匹配容差都换成了蛋白胶的', 'Switched to protein mode: kDa marker units, protein ladder library and tolerances')
+      : L('已切换为 DNA 胶模式：Marker 单位为 bp', 'Switched to DNA mode: marker units in bp'));
+  }));
   document.querySelectorAll('#polSeg button').forEach(b => b.onclick = done(() => { S().levels.invert = b.dataset.inv === '1'; App.invertInherited = false; }));
   $('lvBlack').addEventListener('input', live(e => { S().levels.black = Math.min(fromSlider(+e.target.value), S().levels.white - 0.0005); $('lvBlackV').textContent = pct(S().levels.black); drawHisto(); updateClipLine(); }));
   $('lvWhite').addEventListener('input', live(e => { S().levels.white = Math.max(fromSlider(+e.target.value), S().levels.black + 0.0005); $('lvWhiteV').textContent = pct(S().levels.white); drawHisto(); updateClipLine(); }));
@@ -362,12 +371,13 @@
   $('btnSaveLadder').onclick = () => {
     const name = $('customName').value.trim();
     const sizes = $('customSizes').value.split(/[,，\s]+/).map(Number).filter(v => v > 0);
+    const unit = App.gelKind() === 'protein' ? 'kDa' : 'bp';
     if (!name || sizes.length < 2) { alert(L('请输入名称和至少 2 个条带大小', 'Enter a name and at least 2 band sizes')); return; }
-    const lad = G.Ladders.saveCustom(name, sizes);
+    const lad = G.Ladders.saveCustom(name, sizes, App.gelKind());
     if (!G.Ladders.isFavorite(lad.id)) G.Ladders.toggleFavorite(lad.id);   // new custom ladders start as favourites
     if (S() && S().markers.length) { S().markers[0].ladderId = lad.id; App.matchMarkers(true); App.commit(); }
     renderFavs();
-    toast(L('已保存自定义 Ladder（已加入常用）', 'Custom ladder saved (added to favourites)'));
+    toast(L(`已保存自定义 Ladder（单位 ${unit}，已加入常用）`, `Custom ladder saved in ${unit} (added to favourites)`));
   };
   /* favourites: biased first in auto-detection, listed first in menus */
   $('onlyFav').checked = !!App.prefs().onlyFavLadders;
@@ -377,11 +387,11 @@
       : L('自动识别在全部型号中挑选（常用型号略优先）', 'Detection picks from all ladders (favourites slightly preferred)'));
   });
   function renderFavs() {
-    const favs = G.Ladders.favorites();
+    const favs = G.Ladders.favorites(), kind = App.gelKind();
     $('favNote').textContent = favs.length ? L(`${favs.length} 个`, `${favs.length}`) : L('未设置', 'none');
-    $('favList').innerHTML = G.Ladders.all().map(l => `<div class="item"><button class="star${G.Ladders.isFavorite(l.id) ? '' : ' off'}" data-fav="${l.id}" title="${L('设为/取消常用', 'Add to / remove from favourites')}">★</button><span style="flex:1">${esc(l.name)}</span></div>`).join('');
+    $('favList').innerHTML = G.Ladders.all(kind).map(l => `<div class="item"><button class="star${G.Ladders.isFavorite(l.id) ? '' : ' off'}" data-fav="${l.id}" title="${L('设为/取消常用', 'Add to / remove from favourites')}">★</button><span style="flex:1">${esc(l.name)}</span></div>`).join('');
     $('favList').querySelectorAll('[data-fav]').forEach(b => b.onclick = () => { G.Ladders.toggleFavorite(b.dataset.fav); renderFavs(); if (S()) renderMarkers(); });
-    const custom = G.Ladders.all().filter(l => l.custom);
+    const custom = G.Ladders.all(kind).filter(l => l.custom);
     $('customList').innerHTML = custom.map(l => `<div class="item"><span style="flex:1">${esc(l.name)} <span class="h3-note">${L(`${l.sizes.length} 条`, `${l.sizes.length} bands`)}</span></span><button class="x" data-cdel="${l.id}" title="${L('删除', 'Delete')}">×</button></div>`).join('');
     $('customList').querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => {
       const used = S() && S().markers.some(m => m.ladderId === b.dataset.cdel);
@@ -393,7 +403,7 @@
   renderFavs();
   function laneOpt(i, sel) { const l = S().lanes[i]; return `<option value="${i}"${i === sel ? ' selected' : ''}>${i + 1}${l.name ? ' · ' + esc(l.name.replace(/\*/g, '')).slice(0, 10) : ''}</option>`; }
   function renderMarkers() {
-    const st = S(), all = G.Ladders.ordered(), r = range();
+    const st = S(), all = G.Ladders.ordered(App.gelKind()), r = range();
     $('markerList').innerHTML = st.markers.map((m, mi) => {
       const sc = m.score != null ? Math.round(m.score * 100) : null;
       const out = !r || m.lane < r[0] || m.lane > r[1];
@@ -406,11 +416,13 @@
         <select data-f="ladder">${all.map(l => `<option value="${l.id}"${l.id === m.ladderId ? ' selected' : ''}>${G.Ladders.isFavorite(l.id) ? '★ ' : ''}${esc(l.name)}</option>`).join('')}</select>
         <div class="row2">
           <select data-f="side"><option value="auto">${L('标签：自动分侧', 'Labels: auto side')}</option><option value="left">${L('标签在左', 'Labels left')}</option><option value="right">${L('标签在右', 'Labels right')}</option></select>
-          <select data-f="unit"><option value="bp">bp</option><option value="kb">kb</option><option value="auto">bp/kb</option></select>
+          <select data-f="unit">${App.gelKind() === 'protein'
+            ? `<option value="kDa">kDa</option>`
+            : `<option value="bp">bp</option><option value="kb">kb</option><option value="auto">bp/kb</option>`}</select>
         </div>
         <details class="adv"><summary>${L(`条带（显示 ${shown}/${m.bands.length}）`, `Bands (${shown}/${m.bands.length} shown)`)}</summary>
           <div class="list">${m.bands.map((b, k) => `<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" ${b.show ? 'checked' : ''}></label>
-            <span style="flex:1">${b.bp} bp${b.ref ? ' ★' : ''}</span><span class="tag ${b.manual ? 'man' : b.matched ? 'ok' : ''}">${b.manual ? L('手动', 'manual') : b.matched ? L('已对上', 'matched') : L('推测', 'predicted')}</span></div>`).join('')}</div>
+            <span style="flex:1">${App.fmtSize(b.bp)}${b.ref ? ' ★' : ''}</span><span class="tag ${b.manual ? 'man' : b.matched ? 'ok' : ''}">${b.manual ? L('手动', 'manual') : b.matched ? L('已对上', 'matched') : L('推测', 'predicted')}</span></div>`).join('')}</div>
           <div class="field inline"><button class="btn sm" data-f="thin">${L('精简标签', 'Thin labels')}</button><button class="btn sm ghost" data-f="match">${L('重新匹配', 'Re-match')}</button></div>
           <p class="hint">${L('某条带对错了：在原图上把那条黄线拖到正确位置，其余会围绕它重新匹配。', 'A band is wrong? Drag its yellow line on the image to the right place; the others re-fit around it.')}</p>
         </details>
@@ -556,6 +568,14 @@
     $('lvBlackV').textContent = pct(st.levels.black); $('lvWhiteV').textContent = pct(st.levels.white);
     $('rot').value = st.rotation; $('rotNum').value = st.rotation; $('rotV').textContent = st.rotation + '°';
     $('rotAuto').textContent = App.autoRotation != null ? L(`自动检测 ${App.autoRotation}°`, `auto ${App.autoRotation}°`) : '';
+    const kind = App.gelKind();
+    document.querySelectorAll('#gelSeg button').forEach(b => b.classList.toggle('on', b.dataset.gel === kind));
+    const det = App.gelDetection;
+    $('gelTypeNote').textContent = det ? (det.manual ? L('手动指定', 'set by you') : L(`自动判断 ${Math.round((det.confidence || 0) * 100)}%`, `detected ${Math.round((det.confidence || 0) * 100)}%`)) : '';
+    $('gelTypeWhy').textContent = det && det.reasons && det.reasons.length
+      ? (det.manual ? L('识别错了可以在这里切换；切换会保留泳道名、分组和箭头。', 'Detection can be wrong — switch here. Names, groups and arrows are kept.')
+        : L('判断依据：', 'Detected from: ') + det.reasons.filter(r => (r.w > 0) === (kind === 'protein')).slice(0, 3).map(r => App.gelReasonText(r)).filter(Boolean).join(L('；', '; ')))
+      : '';
     $('invNote').textContent = App.invertInherited ? L(`黑白方向沿用了你上次的选择（${st.levels.invert ? '白底黑带' : '黑底白带'}），可在上方切换`,
       `Polarity follows your last choice (${st.levels.invert ? 'inverted' : 'raw'}); switch it above`) : '';
     $('spliceGap').value = y.spliceGapPt != null ? y.spliceGapPt : 1.5; $('spliceGapV').textContent = $('spliceGap').value + ' pt';
@@ -632,7 +652,18 @@
 
   App.on(what => {
     if (!S()) return;
-    if (what === 'loaded') { $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden'); histCache = null; renderExposures(); }
+    if (what === 'loaded') {
+      $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden');
+      histCache = null; renderExposures();
+      // say which kind of gel was recognised: the user must notice before typing anything
+      const det = App.gelDetection;
+      if (det && !det.manual) {
+        const pct = Math.round((det.confidence || 0) * 100);
+        if (App.gelKind() === 'protein') toast(L(`识别为蛋白胶（${pct}%）：Marker 按 kDa 标注。不是蛋白胶？在左侧第 1 步切换。`,
+          `Read as a protein gel (${pct}%): marker sizes in kDa. Not protein? Switch in step 1 on the left.`), 5200);
+        else if (pct >= 60) toast(L(`识别为 DNA 胶（${pct}%）：Marker 按 bp 标注`, `Read as a DNA gel (${pct}%): marker sizes in bp`), 3200);
+      }
+    }
     if (what === 'refresh') { livePreview(); return; }
     clearTimeout(liveTimer);
     if (what === 'select') { renderLanes(); renderAnno(); return; }
@@ -648,21 +679,26 @@
    * ?demo=1 loads the synthetic gel; ?uitest=1 runs js/uitest.js; ?annot=1, ?names=, ?range=, ?groups=,
    * ?arm=arrow and ?png=<dpi> set up states for screenshots; ?src=<url> loads a local file (for tests). */
   const qs = new URLSearchParams(location.search);
-  if (qs.get('demo') === '1' || qs.get('src')) setTimeout(async () => {
+  if (qs.get('demo') === '1' || qs.get('demo') === 'protein' || qs.get('src')) setTimeout(async () => {
     App.forceJsHash = true;
     if (qs.get('src')) {
       const src = qs.get('src'), buf = await (await fetch(src)).arrayBuffer();
       await App.load({ name: decodeURIComponent(src.split('/').pop()), buffer: buf });
-    } else await App.load(demoFile());
+    } else await App.load(qs.get('demo') === 'protein' ? demoProteinFile() : demoFile());
     const st = S();
     if (qs.get('annot') === '1') {
-      const names = ['M', 'WT', 'WT', 'KO-1', 'NTC', '*lacZ*-1', '*lacZ*-2', 'pUC19', 'pUC19', 'Clone A', 'Clone B'];
+      const prot = App.gelKind() === 'protein';
+      const names = prot
+        ? ['M', 'WT', 'WT', 'KO-1', 'NTC', '*lacZ*-1', '*lacZ*-2', 'IP', 'IP', 'Clone A', 'Clone B']
+        : ['M', 'WT', 'WT', 'KO-1', 'NTC', '*lacZ*-1', '*lacZ*-2', 'pUC19', 'pUC19', 'Clone A', 'Clone B'];
       figLanes().forEach((li, k) => { st.lanes[li].name = names[k] || ''; });
       const fl = figLanes();
-      st.groups = [{ from: fl[1], to: fl[3], text: 'Genotyping' }, { from: fl[5], to: fl[8], text: 'Plasmid' }];
-      st.conditions = [{ name: 'EcoRI', values: st.lanes.map((l, i) => (fl.indexOf(i) > 0 ? (fl.indexOf(i) % 2 ? '+' : '−') : '')) }];
-      const b15 = st.markers[0] && st.markers[0].bands.find(b => b.bp === 1500);
-      st.arrows = b15 ? [{ y: b15.y, text: 'Product', size: true, side: '' }] : [];
+      st.groups = prot ? [{ from: fl[1], to: fl[3], text: 'Input' }, { from: fl[5], to: fl[8], text: 'IP' }]
+        : [{ from: fl[1], to: fl[3], text: 'Genotyping' }, { from: fl[5], to: fl[8], text: 'Plasmid' }];
+      st.conditions = [{ name: prot ? 'Dox' : 'EcoRI', values: st.lanes.map((l, i) => (fl.indexOf(i) > 0 ? (fl.indexOf(i) % 2 ? '+' : '−') : '')) }];
+      const target = prot ? 55 : 1500;
+      const bt = st.markers[0] && st.markers[0].bands.find(b => b.bp === target);
+      st.arrows = bt ? [{ y: bt.y, text: prot ? 'Target' : 'Product', size: true, side: '' }] : [];
     }
     if (qs.get('names')) { const n = qs.get('names').split(','); figLanes().forEach((li, k) => { if (n[k] != null) st.lanes[li].name = n[k]; }); }
     if (qs.get('range')) { const [a, b] = qs.get('range').split('-').map(Number); App.setLaneRange(a - 1, b - 1); App.afterRangeChange(); }
@@ -680,7 +716,8 @@
     const r = range();
     document.title = 'READY ' + JSON.stringify({
       file: st.file.name, rot: st.rotation, crop: st.crop, lanes: st.lanes.map(l => Math.round(l.x)), range: r && [r[0] + 1, r[1] + 1],
-      halfW: Math.round(st.laneHalfW), markers: st.markers.map(m => ({ lane: m.lane + 1, ladder: m.ladderId, score: Math.round((m.score || 0) * 100) / 100 })),
+      halfW: Math.round(st.laneHalfW), markers: st.markers.map(m => ({ lane: m.lane + 1, ladder: m.ladderId, unit: m.unit, score: Math.round((m.score || 0) * 100) / 100 })),
+      gelType: App.gelKind(), gelConfidence: App.gelDetection ? Math.round((App.gelDetection.confidence || 0) * 100) / 100 : null,
       coach: $('coachText').textContent
     });
   }, 50);

@@ -39,6 +39,29 @@ Product pages checked when the entry was added (others: look the catalogue numbe
 - Yeasen GoldBand 1 kb, 10510ES — [yeasen.com](https://www.yeasen.com/products/detail/492) · [EN](https://www.yeasenbio.com/products/10510)
 - Yeasen GoldBand 100 bp Plus, 10516ES — [yeasen.com](https://www.yeasen.com/products/detail/2693) · [EN](https://www.yeasenbio.com/products/10516)
 
+## Protein ladders / 蛋白 Ladder
+
+Protein ladders are stored in kDa: the **apparent** molecular weights of the prestained bands, as the manufacturer prints them. They are calibrated in a Tris-glycine (Laemmli) system and shift with gel percentage, buffer and running conditions, so a size read from a prestained marker is an estimate — the export pre-flight check reminds you to write "apparent molecular weight" in the legend.
+
+蛋白 Ladder 以 kDa 记录：预染条带的**表观**分子量，与厂商标注一致。这些数值在 Tris-glycine（Laemmli）体系下标定，换胶浓度、缓冲体系或电泳条件都会偏移，因此从预染 Marker 读出的数值是估算值——导出前的预检会提醒在图注中注明 "apparent molecular weight"。
+
+| id | Ladder | Cat. no. | Bands | Range (kDa) | ref |
+|---|---|---|---|---|---|
+| `thermo_26616` | Thermo PageRuler 10–180 kDa | 26616 | 10 | 10–180 | 70, 25, 10 |
+| `thermo_26619` | Thermo PageRuler Plus 10–250 kDa | 26619 | 9 | 10–250 | 70, 25, 10 |
+| `biorad_dual` | Bio-Rad Precision Plus Dual Color | 161-0374 | 10 | 10–250 | 75, 25 |
+| `yeasen_p180` | Yeasen GoldBand Plus 3-color 10–180 kDa | 26616ES | 10 | 10–180 | 70, 25, 10 |
+| `yeasen_p250` | Yeasen 3-color 10–250 kDa | — | 11 | 10–250 | 70, 25 |
+
+- Thermo PageRuler 10–180, 26616 — [thermofisher.com](https://www.thermofisher.com/order/catalog/product/26616)
+- Thermo PageRuler Plus 10–250, 26619 — [thermofisher.com](https://www.thermofisher.com/order/catalog/product/26619)
+- Bio-Rad Precision Plus Protein Dual Color Standards, 161-0374 — [bio-rad.com](https://www.bio-rad.com/en-us/sku/1610374-precision-plus-protein-dual-color-standards)
+- Yeasen GoldBand Plus 3-color 10–180 kDa, 26616ES — [yeasen.com](https://www.yeasen.com/)
+
+Yeasen 26616ES and Thermo 26616 have identical band sizes (10–180 kDa, 10 bands): automatic detection cannot tell them apart, so mark the tube you use as a favourite. The same applies to any other pair with identical lists.
+
+翌圣 26616ES 与 Thermo 26616 的条带大小完全相同（10–180 kDa，10 条带），自动识别无法区分，请把你实际使用的设为常用型号。其他条带表相同的型号同理。
+
 ## Ladders that cannot be told apart / 无法自动区分的型号
 
 Some products have **exactly the same band sizes**. Automatic detection cannot distinguish them — it can only tell you which sizes fit, not which vendor's tube you loaded. Mark the one you actually use as a favourite (★ on the marker card) and detection will prefer it; otherwise the figure may name a different vendor's equivalent ladder.
@@ -47,6 +70,7 @@ Some products have **exactly the same band sizes**. Automatic detection cannot d
 
 - Thermo GeneRuler 100 bp Plus (SM0321) ≡ Yeasen GoldBand 100 bp Plus (10516ES) — both 100–3000 bp, 14 bands
 - Takara DL2000 (3427A) ≡ TransGen Trans2K (BM101) ≡ Tiangen Marker D2000 (MD114) — all 100–2000 bp, 6 bands
+- Thermo PageRuler 10–180 (26616) ≡ Yeasen GoldBand Plus 3-color 10–180 (26616ES) — both 10–180 kDa, 10 bands (protein)
 
 The reference (brighter) bands still differ between them, so picking the right one changes which labels survive thinning — and it is what the figure legend will say.
 

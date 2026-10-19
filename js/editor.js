@@ -131,7 +131,7 @@
         ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
         ctx.setLineDash([]);
         if (bd.show || hov) {
-          const txt = G.Ladders.fmt(bd.bp, 'bp');
+          const txt = App.fmtSize(bd.bp);
           const tx = right ? x1 + 5 : x0 - 5, ty = y + 3.8;
           ctx.lineWidth = 3;
           ctx.strokeStyle = 'rgba(255,255,255,.85)';
@@ -153,7 +153,7 @@
       ctx.fillStyle = '#c026d3';
       ctx.beginPath(); ctx.moveTo(b.x + 2, y); ctx.lineTo(b.x + 13, y - 5.5); ctx.lineTo(b.x + 13, y + 5.5); ctx.fill();
       const est = App.estimateBp(ar.y);
-      const t = (ar.text || G.L('箭头', 'Arrow')) + (est ? `  ≈${Math.round(est)} bp` : '');
+      const t = (ar.text || G.L('箭头', 'Arrow')) + (est ? `  ≈${App.fmtSize(est)}` : '');
       const tw = ctx.measureText(t).width;
       ctx.fillStyle = 'rgba(192,38,211,.12)';
       roundRect(ctx, b.x + 17, y - 9, tw + 12, 18, 6); ctx.fill();

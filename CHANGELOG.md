@@ -5,8 +5,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Added
+- **Protein gel mode.** The gel type is now part of the state (`dna` / `protein`) and drives the ladder library, the matching tolerances, band detection and the size unit.
+- Automatic gel-type detection on import: colour statistics (Coomassie blue), band width relative to the lane pitch, ladder band count and the curvature of the migration curve each cast an explainable vote; the reasons are shown under the switch.
+- A DNA / protein switch at the top of the Image panel overrides a wrong guess: lane names, groups, conditions and arrows are kept, markers are re-labelled in the new unit, and a toast on import says which type was recognised and how sure it is.
+- Five protein ladders (apparent kDa): Thermo PageRuler 10–180 (26616) and PageRuler Plus 10–250 (26619), Bio-Rad Precision Plus Dual Color (161-0374), Yeasen GoldBand Plus 3-color 10–180 (26616ES) and 3-color 10–250.
+- Protein-specific tuning: broader band smoothing, wider assignment tolerance and window, more size skipping, markers accepted from 4 bands, and `(kDa)` column header, `55 kDa` labels and kDa arrow estimates.
+- Pre-flight note in protein mode that prestained sizes are apparent molecular weights.
+- Gel type and detection confidence are written to the processing log (JSON) and to style templates.
+- Synthetic protein gel (`G.Demo.makeProteinGel`, `?demo=protein`) and four new interface checks.
 - Two Yeasen (翌圣生物) ladders: GoldBand 1 kb (10510ES) and GoldBand 100 bp Plus (10516ES).
 - `docs/ladders.md`: every built-in ladder with its catalogue number, band count, range and reference bands, plus the groups of ladders whose band sizes are identical and therefore cannot be told apart automatically.
+
+### Fixed
+- A loaded outer lane could be mistaken for the gel edge during lattice detection, which trimmed the marker lane from the lane list.
+- Colour statistics were discarded for PNG/JPG input, so colour-based classification only worked for TIFF.
 
 ## [0.5.0] - 2026-10-19
 

@@ -74,6 +74,13 @@
       <!-- image -->
       <section class="sec">
         <div class="sec-head"><span class="sec-n">1</span><span data-en="Image">图像</span><span class="sec-status" id="stImage"></span></div>
+        <div class="field gel-type">
+          <label><span data-en="Gel type">胶的类型</span> <span class="h3-note" id="gelTypeNote"></span></label>
+          <div class="seg full" id="gelSeg">
+            <button data-gel="dna" data-en="DNA / agarose (bp)">DNA / 琼脂糖胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button>
+          </div>
+          <p class="hint" id="gelTypeWhy"></p>
+        </div>
         <div class="seg full" id="polSeg">
           <button data-inv="0" data-en="White bands on black (raw)">黑底白带（原样）</button><button data-inv="1" data-en="Black bands on white (inverted)">白底黑带（反色）</button>
         </div>
@@ -171,7 +178,7 @@
         <details class="adv">
           <summary data-en="Custom ladder">自定义 Ladder</summary>
           <div class="field"><input type="text" id="customName" placeholder="名称" data-en-placeholder="Name"></div>
-          <div class="field"><input type="text" id="customSizes" placeholder="条带大小 bp，逗号分隔：5000,3000,2000,1000,500" data-en-placeholder="Band sizes in bp, comma separated: 5000,3000,2000,1000,500"></div>
+          <div class="field"><input type="text" id="customSizes" placeholder="条带大小，逗号分隔：5000,3000,2000,1000,500（DNA 胶填 bp，蛋白胶填 kDa）" data-en-placeholder="Band sizes, comma separated: 5000,3000,2000,1000,500 (bp for DNA gels, kDa for protein)"></div>
           <button class="btn sm" id="btnSaveLadder" data-en="Save and use">保存并使用</button>
           <div id="customList" class="list"></div>
         </details>

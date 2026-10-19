@@ -258,7 +258,7 @@
         overlap(G.L('部分 Marker 标签间距过小会重叠，可点"精简标签"或手动取消勾选', 'Some marker labels are too close and overlap; click "Thin labels" or untick some')); break;
       }
       if (st.unitHeader && shown.length && mk.unit !== 'auto') {
-        const u = mk.unit === 'kb' ? 'kb' : 'bp';
+        const u = mk.unit === 'kb' ? 'kb' : mk.unit === 'kDa' ? 'kDa' : 'bp';
         const ux = side === 'left' ? -tick - 2.5 - off : W + tick + 2.5 + off;
         const uy = unitRowY;
         els.push(textEl(`(${u})`, ux, uy, pt, side === 'left' ? 'end' : 'start'));

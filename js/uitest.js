@@ -248,6 +248,34 @@
       const sw = await App.switchExposure(other);
       R.exposures = { scores: App.exposures.map(e => [e.name, +e.score.toFixed(2), +e.clipFrac.toFixed(4)]), picked: pick, switched: sw, nameKept: App.S.lanes[fl2[1]].name, stripItems: document.querySelectorAll('#expoStrip .expo-item').length };
     }
+    // 20. protein gel: detected automatically, kDa labels, manual switch keeps annotations, DNA regression
+    {
+      const pg = G.Demo.makeProteinGel({ tilt: 0.6 });
+      await App.load(new File([G.Demo.encodeTiff16(pg)], 'demo_protein.tif', { type: 'image/tiff' }));
+      const prot = {
+        kind: App.gelKind(), unit: App.sizeUnit(), confidence: App.gelDetection && App.gelDetection.confidence,
+        ladderKind: (G.Ladders.get((App.S.markers[0] || {}).ladderId) || {}).kind,
+        markerUnit: (App.S.markers[0] || {}).unit,
+        ladderCount: G.Ladders.all('protein').length,
+        label: App.S.markers[0] ? App.fmtSize(App.S.markers[0].bands[0].bp) : null,
+        header: (App.buildFigure(false).svg.match(/\(kDa\)/g) || []).length
+      };
+      // rename a lane and annotate, then switch to DNA and back: the typing must survive
+      const fl2 = G.UI.figLanes();
+      App.S.lanes[fl2[1]].name = 'Prot A';
+      App.S.arrows = [{ y: App.S.markers[0].bands[3].y, text: 'p55', size: true, side: '' }];
+      App.commit();
+      App.setGelType('dna');
+      const asDna = { kind: App.gelKind(), ladderKind: (G.Ladders.get(App.S.markers[0].ladderId) || {}).kind, unit: App.S.markers[0].unit, name: App.S.lanes[fl2[1]].name, arrows: App.S.arrows.length };
+      App.setGelType('protein');
+      const back = { kind: App.gelKind(), unit: App.S.markers[0].unit, name: App.S.lanes[fl2[1]].name, arrows: App.S.arrows.length, bands: App.S.markers[0].bands.filter(b => b.show).length };
+      R.protein = { prot, asDna, back };
+
+      // DNA regression: the standard demo is still detected as DNA with bp labels
+      await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeGel())], 'demo_gel.tif', { type: 'image/tiff' }));
+      R.dnaAfter = { kind: App.gelKind(), unit: (App.S.markers[0] || {}).unit, ladderKind: (G.Ladders.get((App.S.markers[0] || {}).ladderId) || {}).kind };
+    }
+    document.title = 'UITEST-AT 20 ' + JSON.stringify(R);
     // 19. autosaved draft survives a reload (needs a browser with working IndexedDB: ?uitest=1&draft=1;
     // headless Edge never answers indexedDB.open and holds its virtual clock)
     if (/[?&]draft=1/.test(location.search)) {

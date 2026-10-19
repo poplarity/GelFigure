@@ -28,7 +28,8 @@
   function savePrefs() {
     const S = App.S; if (!S) return;
     const m0 = S.markers[0] || {};
-    localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(prefs(), { style: S.style, ladderId: m0.ladderId || App.prefLadder, unit: m0.unit || App.prefUnit, invert: S.levels.invert })));
+    const unit = m0.unit || (App.gelKind() === 'protein' ? 'kDa' : App.prefUnit);
+    localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(prefs(), { style: S.style, ladderId: m0.ladderId || App.prefLadder, unit, invert: S.levels.invert })));
   }
 
   function busy(on, text) {
@@ -39,7 +40,7 @@
   App.defaultStyle = defaultStyle;
   App.onDropFile = null;   // set by the UI layer
 
-  App.VERSION = '0.5.0';
+  App.VERSION = '0.6.0-dev';
   App.prefs = prefs;
   App.setPref = function (k, v) { const p = prefs(); p[k] = v; localStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 
@@ -99,6 +100,7 @@
       levels: { black: 0, white: 1, gamma: 1, invert: p.invert != null ? p.invert : false },
       crop: { x: 0, y: 0, w: img.width, h: img.height },
       lanes: [], laneHalfW: 10,
+      gelType: null,          // 'dna' | 'protein'; decided from the image below, the user can override
       markers: [],
       groups: [], conditions: [], arrows: [],
       style: Object.assign(defaultStyle(), p.style || {}),
@@ -108,6 +110,8 @@
     App.prefLadder = G.Ladders.get(p.ladderId) ? p.ladderId : 'gr1kbplus';
     App.prefUnit = p.unit || 'bp';
     App.loadWarnings = img.warnings || [];
+    App._colorStats = img.colorStats || null;
+    App.gelDetection = null;
     App.hist = []; App.future = [];
     App.autoAll(true);
     // the state right after automatic processing: target of "reset everything"
@@ -530,12 +534,97 @@
 
   // ---------- markers (one or more ladder lanes, matched jointly: same gel = same migration curve) ----------
   App.newMarker = function (lane, ladderId) {
-    return { lane, ladderId: ladderId || G.Ladders.favorites()[0] || App.prefLadder || 'gr1kbplus', unit: App.prefUnit || 'bp', side: 'auto', bands: [] };
+    const kind = App.gelKind();
+    const fav = (G.Ladders.favoritesOf(kind)[0] || {}).id;
+    const prefOk = G.Ladders.get(App.prefLadder) && G.Ladders.kindOf(G.Ladders.get(App.prefLadder)) === kind ? App.prefLadder : null;
+    const def = kind === 'protein' ? 'thermo_26616' : 'gr1kbplus';
+    const id = ladderId && G.Ladders.get(ladderId) && G.Ladders.kindOf(G.Ladders.get(ladderId)) === kind ? ladderId : fav || prefOk || def;
+    // the remembered unit belongs to whichever gel type was open last; never carry kDa into a DNA gel
+    const prefUnit = App.prefUnit === 'kDa' || App.prefUnit === 'kb' || App.prefUnit === 'auto' ? App.prefUnit : 'bp';
+    return { lane, ladderId: id, unit: kind === 'protein' ? 'kDa' : (prefUnit === 'kDa' ? 'bp' : prefUnit), side: 'auto', bands: [] };
   };
 
   App.lanePeaks = function (i) {
     const S = App.S, c = App._peakCrop || App.bandStrip();
-    return E.detectBands(E.laneProfile(c, S.bright, S.lanes[i].x, S.laneHalfW));
+    return E.detectBands(E.laneProfile(c, S.bright, S.lanes[i].x, S.laneHalfW), App.gelKind());
+  };
+  App.gelKind = function () { return App.S && App.S.gelType === 'protein' ? 'protein' : 'dna'; };
+  App.sizeUnit = function () { return App.gelKind() === 'protein' ? 'kDa' : 'bp'; };
+
+  /* Which kind of gel is this? Called once after the automatic pipeline has found lanes and before the
+   * markers are matched, so every later step (band detection, tolerances, ladder library, units) runs in
+   * the right mode. The vote itself lives in the engine; here we pick the most ladder-like lane and the
+   * ladder that fits it best as evidence. A weak guess never overrides the user's favourites. */
+  App.guessGelType = function () {
+    const S = App.S;
+    if (!S || !S.lanes.length) return null;
+    const c = App.bandStrip(), h = c.h, rg = App.laneRange() || [0, S.lanes.length - 1];
+    let best = null;
+    for (let i = rg[0]; i <= rg[1]; i++) {
+      const prof = E.laneProfile(c, S.bright, S.lanes[i].x, S.laneHalfW);
+      const a = E.detectBands(prof, 'dna'), b = E.detectBands(prof, 'protein');
+      const pk = E.sharpBandCount(a) >= E.sharpBandCount(b) ? a : b;
+      const n = E.sharpBandCount(pk);
+      if (!best || n > best.n) best = { i, prof, pk, n };
+    }
+    if (!best) return null;
+    // a ladder that fits well is decisive evidence for the shape of the migration curve; only accept a
+    // strong fit so a spurious alignment cannot sway the vote
+    const rD = E.rankLadders(best.pk, G.Ladders.all('dna'), h, 'dna')[0];
+    const rP = E.rankLadders(best.pk, G.Ladders.all('protein'), h, 'protein')[0];
+    let ladder = null;
+    if (rP && rP.matched >= 3 && rP.score >= 0.55 && (!rD || rP.score >= rD.score - 0.05)) ladder = G.Ladders.get(rP.id);
+    else if (rD && rD.matched >= 3 && rD.score >= 0.6) ladder = G.Ladders.get(rD.id);
+    const det = E.detectGelType({ colorStats: App._colorStats, peaks: best.pk, profile: best.prof, pitch: S.lanePitch, h, ladder });
+    // an ambiguous image with favourites of only one kind follows the favourites (they say what this lab runs)
+    if (det.confidence < 0.35) {
+      const kinds = new Set(G.Ladders.favorites().map(id => G.Ladders.kindOf(G.Ladders.get(id))));
+      if (kinds.size === 1) det.kind = kinds.has('protein') ? 'protein' : 'dna';
+      det.prior = true;
+    }
+    det.lane = best.i; det.ladderId = ladder ? ladder.id : null;
+    S.gelType = det.kind;
+    App.gelDetection = det;
+    return det;
+  };
+
+  // one detection reason in words (the engine reports codes so the UI can translate them)
+  App.gelReasonText = function (r) {
+    const v = r.v || {};
+    switch (r.code) {
+      case 'colour': return L(`彩色图像，蓝色像素占 ${v.blue}%`, `Colour image, ${v.blue}% blue-dominant pixels`);
+      case 'grey': return L('灰度图像', 'Grey image');
+      case 'broad': return L(`条带较宽（占泳道间距 ${v.pct}%）`, `Bands are broad (${v.pct}% of the lane pitch)`);
+      case 'thin': return L(`条带很细（占泳道间距 ${v.pct}%）`, `Bands are thin (${v.pct}% of the lane pitch)`);
+      case 'manyBands': return L(`一条泳道里 ${v.n} 条清晰条带`, `${v.n} crisp bands in one lane`);
+      case 'fewBands': return L(`一条泳道里 ${v.n} 条条带`, `${v.n} bands in one lane`);
+      case 'curve': return L(`迁移曲线弯曲（偏离直线 ${v.pct}%）`, `Migration curve bends (${v.pct}% off a straight line)`);
+      case 'linear': return L('迁移接近 log 线性', 'Migration is close to log-linear');
+      default: return '';
+    }
+  };
+
+  /* Manual switch of the gel type (detection can be wrong). Keeps lane names, groups, conditions,
+   * arrows and which lanes are markers; only the ladder library, units and matching change. */
+  App.setGelType = function (kind) {
+    const S = App.S;
+    if (!S) return false;
+    kind = kind === 'protein' ? 'protein' : 'dna';
+    if (kind === App.gelKind()) return false;
+    S.gelType = kind;
+    App.gelDetection = { kind, confidence: 1, reasons: [], manual: true };
+    const def = kind === 'protein' ? 'thermo_26616' : 'gr1kbplus';
+    const fav = (G.Ladders.favoritesOf(kind)[0] || {}).id;
+    S.markers.forEach(m => {
+      const l = G.Ladders.get(m.ladderId);
+      if (!l || G.Ladders.kindOf(l) !== kind) m.ladderId = fav || def;
+      m.unit = G.Ladders.unitOfKind(kind);
+      m.bands = [];
+    });
+    App.matchMarkers(true);
+    S.markers.forEach(m => { if (m.bands.length) App.thinMarkerLabels(m, true); });
+    App.commit();
+    return true;
   };
 
   // find ladder lanes (many sharp bands) and pick ladders for them
@@ -547,30 +636,34 @@
       const counts = peaks.map(p => E.sharpBandCount(p));
       const rg = App.laneRange() || [0, S.lanes.length - 1];
       // only lanes that will be in the figure
-      let lanes = counts.map((c, i) => i).filter(i => i >= rg[0] && i <= rg[1] && counts[i] >= 6);
+      const kind = App.gelKind(), mode = kind;
+      // prestained protein markers have fewer bands than DNA ladders, so the ladder-lane bar is lower
+      const minBands = kind === 'protein' ? 4 : 6;
+      let lanes = counts.map((c, i) => i).filter(i => i >= rg[0] && i <= rg[1] && counts[i] >= minBands);
       // keep at most 3 (the lanes with the most bands), in lane order
       lanes = lanes.sort((a, b) => counts[b] - counts[a]).slice(0, 3).sort((a, b) => a - b);
-      const all = G.Ladders.all(), favs = G.Ladders.favorites();
+      const all = G.Ladders.all(kind), favs = G.Ladders.favoritesOf(kind).map(l => l.id);
       // "my ladders" get a bonus; without favourites the last used ladder plays that role
-      const prefer = favs.length ? favs : [App.prefLadder];
+      const prefOk = App.prefLadder && G.Ladders.get(App.prefLadder) && G.Ladders.kindOf(G.Ladders.get(App.prefLadder)) === kind;
+      const prefer = favs.length ? favs : [prefOk ? App.prefLadder : (kind === 'protein' ? 'thermo_26616' : 'gr1kbplus')];
       const h = App._peakCrop.h, pk = lanes.map(i => peaks[i]);
       let picks = null;
       App.ladderNotice = null;
       if (lanes.length) {
         if (favs.length && prefs().onlyFavLadders) {
-          picks = E.jointLadders(pk, favs.map(G.Ladders.get), h, favs);
+          picks = E.jointLadders(pk, favs.map(G.Ladders.get), h, favs, mode);
           // never lock in a clearly wrong favourite: a partial fit (e.g. a 100 bp ladder matching the
           // lower half of a 1 kb ladder) still scores fairly, so compare with the whole library
-          const full = E.jointLadders(pk, all, h, favs);
+          const full = E.jointLadders(pk, all, h, favs, mode);
           if (full && (!picks || picks.score < 0.55 || full.score > picks.score + 0.08)) {
             picks = full; App.ladderNotice = L(`常用型号都不吻合，已改用：${full.map(p => G.Ladders.get(p.id).name).join('、')}`, `None of your favourite ladders fits; using ${full.map(p => G.Ladders.get(p.id).name).join(', ')}`);
           }
-        } else picks = E.jointLadders(pk, all, h, prefer);
+        } else picks = E.jointLadders(pk, all, h, prefer, mode);
       }
       if (picks && lanes.length === 1) {
         // a single lane cannot tell ladders apart well: stay with a preferred ladder unless it clearly misfits
         let bestPref = null;
-        prefer.forEach(id => { const l = G.Ladders.get(id); if (!l) return; const s = E.matchLadder(peaks[lanes[0]], l.sizes, h).score; if (!bestPref || s > bestPref.score) bestPref = { id, score: s }; });
+        prefer.forEach(id => { const l = G.Ladders.get(id); if (!l) return; const s = E.matchLadder(peaks[lanes[0]], l.sizes, h, null, mode).score; if (!bestPref || s > bestPref.score) bestPref = { id, score: s }; });
         if (bestPref && bestPref.score >= picks[0].score - 0.12) picks = [bestPref];
       }
       if (picks && favs.length && picks.some(p => !favs.includes(p.id)) && !App.ladderNotice)
@@ -594,7 +687,7 @@
         const anchors = fresh ? [] : m.bands.filter(b => b.manual && lad.sizes.includes(b.bp)).map(b => ({ k: lad.sizes.indexOf(b.bp), y: b.y - S.crop.y }));
         return { peaks: App.lanePeaks(m.lane), sizes: lad.sizes, anchors };
       });
-      const res = E.matchMulti(input, c.h);
+      const res = E.matchMulti(input, c.h, App.gelKind());
       ms.forEach((m, i) => {
         const lad = G.Ladders.get(m.ladderId), r = res[i];
         const prev = new Map(m.bands.map(b => [b.bp, b]));
@@ -658,6 +751,7 @@
     const loaded = App.loadedLaneRange();
     if (loaded) App.setLaneRange(loaded[0], loaded[1]);
     T('marker');
+    App.guessGelType();
     App.autoMarkers();
     T('fix');
     App.fixIndices();
@@ -681,9 +775,10 @@
     } finally { App._peakCrop = null; }
   };
 
-  // short label for a size: 1.5 kb / 480 bp
+  // short label for a size in the gel's own unit: 1.5 kb / 480 bp / 55 kDa
   App.fmtSize = function (v) {
     if (!v) return '';
+    if (App.gelKind() === 'protein') return (v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100) + ' kDa';
     if (v >= 995) { const kb = Math.round(v / 100) / 10; return (kb % 1 ? kb.toFixed(1) : kb.toFixed(0)) + ' kb'; }
     return (v >= 200 ? Math.round(v / 10) * 10 : Math.round(v)) + ' bp';
   };
@@ -823,6 +918,9 @@
     if (S.lanes.some(l => l.hidden)) add('info', L('有剪除的泳道：成图已加拼接间隙，图注中需说明（见"图注可参考"）。', 'Lanes were removed: splice gaps are added; state this in the legend (see "Legend notes").'));
     if (S.arrows.some(a => a.size && !a.sizeText && (App.estimateInfo(a.y) || {}).extrap)) add('info', L('有箭头大小为外推估算值（已标 ≈）。', 'Some arrow sizes are extrapolated (marked ≈).'));
     if (!S.markers.length) add('warn', L('成图中没有 Marker。', 'The figure has no marker lane.'));
+    // prestained protein sizes are apparent molecular weights, not the true mass
+    if (App.gelKind() === 'protein') add('info', L('蛋白胶：预染 Marker 标注的是表观分子量（Tris-glycine 体系），不同胶浓度/缓冲体系下会偏移；图注中建议写 "apparent molecular weight"。',
+      'Protein gel: prestained marker sizes are apparent molecular weights (Tris-glycine system) that shift with gel percentage and buffer; state "apparent molecular weight" in the legend.'));
     return out;
   };
 
@@ -882,7 +980,7 @@
       const m = S.markers.find(x => x.lane === i);
       lanes.push({ name: S.lanes[i].name, hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side } : null });
     }
-    return { gelfigTemplate: 3, app: 'GelFigure ' + App.VERSION, lanes,
+    return { gelfigTemplate: 3, app: 'GelFigure ' + App.VERSION, gelType: App.gelKind(), lanes,
       // custom ladders travel with the template, so another computer gets the same Markers
       ladders: G.Ladders.defsFor(S.markers.map(m => m.ladderId)),
       groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text })),
@@ -909,11 +1007,19 @@
     if (chk.missingLadders.length) throw new Error(L(`样式里的 Ladder 在本机不存在，且文件中没有它的定义：${chk.missingLadders.join(', ')}。请先在"自定义 Ladder"里添加同名型号。`, `The style uses ladders that are not on this computer and carries no definition for them: ${chk.missingLadders.join(', ')}. Add them under "Custom ladder" first.`));
     // v1 files stored absolute lanes: treat them as starting at the figure's first lane
     const tl = t.lanes || (t.laneNames || []).map((name, i) => ({ name, hidden: !!(t.hidden || [])[i], marker: null }));
+    // a style saved on a protein gel carries kDa markers: switch the gel type before the markers are built
+    if (t.gelType === 'protein' || t.gelType === 'dna') {
+      const want = t.gelType;
+      if (want !== App.gelKind()) {
+        App.S.gelType = want;
+        App.gelDetection = { kind: want, confidence: 1, reasons: [], manual: true };
+      }
+    }
     let r = App.laneRange() || [0, S.lanes.length - 1];
     if (tl.length && r[0] + tl.length - 1 !== r[1]) { App.setLaneRange(r[0], Math.min(S.lanes.length - 1, r[0] + tl.length - 1)); r = App.laneRange(); }
     const abs = k => Math.min(S.lanes.length - 1, r[0] + k);
     tl.forEach((l, k) => { const i = abs(k); S.lanes[i].name = l.name || ''; S.lanes[i].hidden = !!l.hidden; });
-    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || 'bp', side: l.marker.side || 'auto' }) : null)).filter(Boolean);
+    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto' }) : null)).filter(Boolean);
     if (mk.length) S.markers = mk;
     S.groups = (t.groups || []).map(g => ({ from: abs(g.from), to: abs(g.to), text: g.text || '' }));
     S.conditions = (t.conditions || []).map(c => ({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }));
@@ -974,6 +1080,15 @@
     App.exposures = null;
     App.S = state;
     App.S.style = Object.assign(defaultStyle(), App.S.style || {});
+    // projects made before protein mode existed carry no gelType: take it from the marker ladder
+    if (App.S.gelType !== 'dna' && App.S.gelType !== 'protein') {
+      const l = (App.S.markers[0] || {}).ladderId && G.Ladders.get(App.S.markers[0].ladderId);
+      App.S.gelType = l && G.Ladders.kindOf(l) === 'protein' ? 'protein' : 'dna';
+    }
+    App.gelDetection = { kind: App.S.gelType, confidence: 1, reasons: [], manual: true };
+    App._colorStats = input.img.colorStats || null;
+    if (App.S.markers.some(m => m.unit === 'bp' || m.unit === 'kb' || m.unit === 'auto') && G.Ladders.kindOf(G.Ladders.get(App.S.markers[0].ladderId)) === 'protein')
+      App.S.markers.forEach(m => { m.unit = 'kDa'; });
     App.loadWarnings = input.img.warnings || [];
     App.initial = initial || App.snapshot();
     App.autoRotation = autoRotation != null ? autoRotation : state.rotation;

@@ -37,6 +37,7 @@
 ## 功能
 
 - **全自动出初稿**：转正（±15°）、裁切、泳道识别、Ladder 型号识别与条带大小标注、线性对比度。
+- **DNA 胶和蛋白胶**：导入时自动判断胶种（颜色、条带宽度、条带数、迁移曲线），打开对应的模式——Ladder 库、匹配容差和单位（bp / kDa）一起切换。判断错了可在"图像"面板顶部一键切换，泳道名、分组和箭头都不会丢。
 - **直接在成图上编辑**：点泳道名就能输入，回车跳到下一条；从一个泳道名拖到另一个画分组横线；点格子切换 `+` / `−`。中文输入法选字时的回车不会误跳。
 - **泳道按加样孔编号**：裁切只是选择显示哪几孔，改裁切不会丢名称、Marker 和分组。
 - **目标条带箭头自动标大小**：点一下条带，箭头吸附过去并按 Marker 估算大小。超出 Marker 范围或两个 Marker 估算相差超过 10% 时标 `≈`。
@@ -85,7 +86,8 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 | 转正 | 在 ±15° 内寻找让加样孔和条带水平的角度。更大角度可手动设置（±45°），并有参考网格。不能校正透视/梯形畸变。 |
 | 裁切 | 根据加样孔所在行和条带区域找到胶块，默认包含加样孔。 |
 | 泳道 | 结合条带信号、胶块边缘和加样孔形状（模板匹配），不会把胶边当成泳道，空孔也能找到。识别错了可以只对红框内重新识别，或指定条数等间距排布。 |
-| Marker 泳道 | 条带多且清晰的泳道。同一块胶上的多个 Marker 共用一条迁移曲线，与 21 种内置 Ladder 联合匹配（常用型号优先）。 |
+| 胶的类型 | 导入时自动判断 DNA 胶还是蛋白胶：Coomassie 蓝染（蓝通道占优）和宽条带指向蛋白胶，细条带和条带多的 Ladder 指向 DNA 胶，迁移曲线的弯曲程度也参与投票。判断依据显示在切换按钮下方。蛋白胶用更宽的平滑和匹配容差，预染 Marker 从 4 条带起即可识别。 |
+| Marker 泳道 | 条带多且清晰的泳道。同一块胶上的多个 Marker 共用一条迁移曲线，与当前胶种的内置 Ladder 联合匹配（常用型号优先）。 |
 | 条带大小 | 稳健拟合（RANSAC + 多项式）加保序匹配；拖动一条条带，其余会围绕它重新拟合。 |
 
 ## 导出
@@ -118,6 +120,8 @@ Thermo Scientific GeneRuler：1 kb、1 kb Plus、100 bp、100 bp Plus、50 bp、
 
 [`docs/ladders.md`](docs/ladders.md) 里列出了每个型号的货号、条带数和参考带，也写明了哪几个型号条带完全相同、无法自动区分（把你常用的那个设为常用型号即可）。
 
+**蛋白 Ladder**（kDa，预染条带的表观分子量）：Thermo PageRuler 10–180（26616）、PageRuler Plus 10–250（26619）· Bio-Rad Precision Plus Dual Color（161-0374）· 翌圣 Yeasen GoldBand Plus 三色 10–180（26616ES）、三色 10–250。预染条带的大小是在 Tris-glycine 体系下标定的，换胶浓度或缓冲体系会偏移，读出的数值是估算值；导出前的预检会提醒在图注中写 "apparent molecular weight"。
+
 其他型号可在 **Marker → 自定义 Ladder** 中添加，自定义 Ladder 会随样式和项目文件一起保存。想把型号加进内置库供所有人使用，请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 浏览器支持
@@ -128,8 +132,8 @@ Windows、macOS、Linux 上较新的 Chrome、Edge、Firefox，以及 Safari 16.
 
 ## 已知局限
 
-- 自动识别目前主要在 Thermo Fisher iBright 拍摄的 DNA 琼脂糖凝胶和合成胶图上验证过。其他成像仪应该也能用；如果在你的图上识别失败，欢迎[提交 issue](https://github.com/poplarity/GelFigure/issues/new/choose)。
-- 暂不支持 Western blot、蛋白 Marker 和灰度定量。
+- 自动识别目前主要在 Thermo Fisher iBright 拍摄的 DNA 琼脂糖凝胶和合成胶图上验证过。蛋白胶模式基于合成胶和厂家 Ladder 规格开发，欢迎用真实胶图测试并反馈。其他成像仪应该也能用；如果在你的图上识别失败，欢迎[提交 issue](https://github.com/poplarity/GelFigure/issues/new/choose)。
+- 暂不支持 Western blot 条带灰度定量（蛋白胶模式处理的是泳道、Ladder 和条带位置）。
 - Bio-Rad `.scn` / `.1sc` 等专有格式需先导出为 TIFF。不支持 BigTIFF 和调色板 TIFF。
 - 16 位 PNG 会被浏览器按 8 位读取。
 

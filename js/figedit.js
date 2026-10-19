@@ -99,7 +99,7 @@
     let estHtml = L('没有可用的 Marker，无法估算大小', 'No usable marker; the size cannot be estimated');
     if (info) {
       const v = `<b>${info.extrap || info.disagree ? '≈' : ''}${App.fmtSize(est)}</b>`;
-      estHtml = L(`按 Marker 估算 ${v}（${Math.round(est)} bp）`, `Estimated from marker: ${v} (${Math.round(est)} bp)`);
+      estHtml = L(`按 Marker 估算 ${v}`, `Estimated from marker: ${v}`);
       if (info.extrap) estHtml += '<br><span class="warn-t">' + L('超出 Marker 范围，为外推值，成图会标 ≈', 'Outside the marker range: extrapolated, shown with ≈') + '</span>';
       if (info.perMarker.length > 1) estHtml += '<br>' + info.perMarker.map(p => L(`孔 ${p.lane + 1}：`, `well ${p.lane + 1}: `) + App.fmtSize(p.bp) + (p.extrap ? L('（外推）', ' (extrapolated)') : '')).join(L('；', '; '))
         + (info.disagree ? ' <span class="warn-t">' + L('两者相差 &gt;10%', 'differ by &gt;10%') + '</span>' : '');
@@ -108,7 +108,7 @@
       <div class="field"><input type="text" id="pName" placeholder="${L('名称（可空），如 GAPDH、PCR 产物', 'Name (optional), e.g. GAPDH, PCR product')}" value="${esc(a.text)}"></div>
       <div class="est">${estHtml}</div>
       <div class="field inline"><label class="switch"><input type="checkbox" id="pSize" ${a.size ? 'checked' : ''}><span>${L('标注大小', 'Show size')}</span></label>
-        <input type="text" id="pSizeText" placeholder="${est ? App.fmtSize(est) : L('如 452 bp', 'e.g. 452 bp')}" value="${esc(a.sizeText || '')}" style="flex:1" title="${L('留空 = 用估算值；也可填理论大小', 'Empty = use the estimate; or type the expected size')}"></div>
+        <input type="text" id="pSizeText" placeholder="${est ? App.fmtSize(est) : L('如 452 bp / 55 kDa', 'e.g. 452 bp / 55 kDa')}" value="${esc(a.sizeText || '')}" style="flex:1" title="${L('留空 = 用估算值；也可填理论大小', 'Empty = use the estimate; or type the expected size')}"></div>
       <div class="field inline"><label class="inline-label">${L('位置', 'Side')}</label>
         <select id="pSide" style="width:auto"><option value="">${L('自动', 'Auto')}</option><option value="right">${L('右侧', 'Right')}</option><option value="left">${L('左侧', 'Left')}</option></select>
         <span class="hint" style="margin:0">${L('上下位置在原图上拖品红线', 'Drag the magenta line on the image to move it')}</span></div>

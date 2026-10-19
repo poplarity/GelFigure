@@ -55,6 +55,11 @@ const UI_CHECKS = [
   ['project file round trip', r => r.project.same],
   ['best exposure is picked', r => r.exposures.picked === 'exp_x0.7.tif'],
   ['switching exposure keeps annotations', r => r.exposures.switched.kept && r.exposures.nameKept === 'keepme' && r.exposures.stripItems === 3],
+  ['protein gel detected automatically', r => r.protein.prot.kind === 'protein' && r.protein.prot.ladderKind === 'protein' && r.protein.prot.markerUnit === 'kDa'],
+  ['protein values are labelled in kDa', r => /kDa\)?/.test(r.protein.prot.label || '') && r.protein.prot.header >= 1],
+  ['manual gel-type switch keeps names and arrows', r => r.protein.asDna.kind === 'dna' && r.protein.asDna.ladderKind === 'dna' && r.protein.asDna.unit !== 'kDa' && r.protein.asDna.name === 'Prot A' && r.protein.asDna.arrows === 1
+    && r.protein.back.kind === 'protein' && r.protein.back.unit === 'kDa' && r.protein.back.name === 'Prot A' && r.protein.back.arrows === 1 && r.protein.back.bands > 4],
+  ['DNA gel still detected after protein mode', r => r.dnaAfter.kind === 'dna' && r.dnaAfter.ladderKind === 'dna' && r.dnaAfter.unit !== 'kDa'],
   ['draft is saved and restored', r => r.draft && r.draft.restored && r.draftDropped]
 ];
 

@@ -53,6 +53,55 @@
     return { width: w, height: h, data: img.data, truth: { pitch, x0, lanes: opts.lanes, yOf, gel: [gx0, gy0, gx1, gy1] } };
   }
 
+  /* Synthetic protein gel: broad bands, a 10–180 kDa prestained marker, a few sample lanes.
+   * Used by the demo button and the self-tests to exercise protein mode and gel-type detection. */
+  function makeProteinGel(opts) {
+    opts = Object.assign({ w: 1300, h: 950, lanes: 10, tilt: 0.8, ladder: 'thermo_26616', seed: 11 }, opts || {});
+    const { w, h } = opts, rnd = rng(opts.seed);
+    const d = new Float32Array(w * h);
+    const gx0 = 110, gx1 = 1190, gy0 = 80, gy1 = 870;
+    const pitch = 88, laneW = 58, x0 = 300, wellY = 140;
+    // protein migration: y = A + B ln(kDa), slightly compressed at the bottom (large proteins)
+    const yTop = 200, yBot = 800;
+    const yOf = k => { const t = (Math.log(k) - Math.log(180)) / (Math.log(10) - Math.log(180)); return yTop + (yBot - yTop) * (t + 0.10 * t * (1 - t)); };
+    const lad = G.Ladders.get(opts.ladder);
+    const samples = [
+      null, // marker
+      [[55, 0.9], [25, 0.35]], [[55, 0.95]], [[70, 0.7], [55, 0.5], [25, 0.4]], [],
+      [[100, 0.6]], [[40, 0.55], [15, 0.3]], [[55, 0.8], [30, 0.25]], [[130, 0.5], [70, 0.75], [25, 0.3]], []
+    ];
+    const bands = [];
+    for (let L = 0; L < opts.lanes; L++) {
+      const cx = x0 + L * pitch;
+      if (L === 0) lad.sizes.forEach(k => bands.push({ cx, y: yOf(k), a: lad.ref.includes(k) ? 0.95 : 0.6, s: 9 }));
+      else (samples[L] || []).forEach(([k, a]) => bands.push({ cx, y: yOf(k), a, s: 10 }));
+      bands.push({ cx, y: wellY, a: 0.12, s: 6, well: true });
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = 0.06 + 0.01 * Math.sin(x / 210) + 0.008 * Math.cos(y / 150);
+        if (x > gx0 && x < gx1 && y > gy0 && y < gy1) v += 0.04;
+        d[y * w + x] = v;
+      }
+    }
+    for (const b of bands) {
+      const hw = laneW / 2, ry = Math.ceil(b.s * 4);
+      for (let y = Math.max(0, Math.floor(b.y - ry - 4)); y < Math.min(h, b.y + ry + 4); y++) {
+        for (let x = Math.max(0, Math.floor(b.cx - hw - 3)); x < Math.min(w, b.cx + hw + 3); x++) {
+          const dx = (x - b.cx) / hw;
+          const smile = 4 * dx * dx;   // protein gels smile more
+          const edge = 1 / (1 + Math.exp((Math.abs(x - b.cx) - hw) / 2.2));
+          const dy = y - (b.y - smile);
+          d[y * w + x] += b.a * edge * Math.exp(-dy * dy / (2 * b.s * b.s));
+        }
+      }
+    }
+    for (let i = 0; i < d.length; i++) d[i] = Math.min(1, Math.max(0, d[i] + (rnd() - 0.5) * 0.014));
+    let img = { w, h, data: d };
+    if (opts.tilt) img = G.Engine.rotate(img, opts.tilt);
+    return { width: w, height: h, data: img.data, truth: { pitch, x0, lanes: opts.lanes, yOf, gel: [gx0, gy0, gx1, gy1] } };
+  }
+
   // Uncompressed 16-bit grayscale TIFF encoder
   function encodeTiff16(img) {
     const { width: w, height: h, data } = img;
@@ -71,5 +120,5 @@
     return buf;
   }
 
-  G.Demo = { makeGel, encodeTiff16 };
+  G.Demo = { makeGel, makeProteinGel, encodeTiff16 };
 })(window);

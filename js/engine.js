@@ -503,9 +503,13 @@
       const absg = Array.from(g, Math.abs).sort((a, b) => a - b), med = absg[absg.length >> 1] || 1e-9;
       const cL = L.centers[0] + bx, cR = L.centers[L.centers.length - 1] + bx;
       let bL = -1, vL = 0, bR = -1, vR = 0;
+      // A loaded lane column is itself a strong step (its bands lift the column median). Skip the
+      // detected lane columns when looking for the slab edge, otherwise an outer marker lane would
+      // be mistaken for the edge and then trimmed away by the margin below.
+      const onLane = x => L.centers.some(c => Math.abs(c + bx - x) < P * 0.45);
       // left edge: rising step left of the lanes; right edge: falling step right of them
-      for (let x = 1; x < cL + P * 0.6 && x < img.w - 1; x++) if (g[x] > vL) { vL = g[x]; bL = x; }
-      for (let x = Math.max(1, Math.round(cR - P * 0.6)); x < img.w - 1; x++) if (-g[x] > vR) { vR = -g[x]; bR = x; }
+      for (let x = 1; x < cL + P * 0.6 && x < img.w - 1; x++) if (!onLane(x) && g[x] > vL) { vL = g[x]; bL = x; }
+      for (let x = Math.max(1, Math.round(cR - P * 0.6)); x < img.w - 1; x++) if (!onLane(x) && -g[x] > vR) { vR = -g[x]; bR = x; }
       if (bL >= 0 && vL > med * 6) slabL = bL;
       if (bR >= 0 && vR > med * 6) slabR = bR;
     }
@@ -597,14 +601,16 @@
     return p;
   }
 
-  function detectBands(profile) {
+  function detectBands(profile, mode) {
     const h = profile.length;
-    const sm = gaussSmooth(profile, Math.max(0.8, h / 400));
+    // protein bands are broad: merge ripples closer than a band width, and ignore very faint ones
+    const broad = mode === 'protein';
+    const sm = gaussSmooth(profile, Math.max(0.8, h / (broad ? 260 : 400)));
     const b = baseline(sm, Math.round(h / 12));
     const q = new Float32Array(h);
     let mx = 0;
     for (let i = 0; i < h; i++) { q[i] = Math.max(0, sm[i] - b[i]); mx = Math.max(mx, q[i]); }
-    return findPeaks(q, Math.max(2, h / 150), mx * 0.03).map(k => ({ y: k.i, v: k.prom }));
+    return findPeaks(q, Math.max(2, h / (broad ? 100 : 150)), mx * (broad ? 0.05 : 0.03)).map(k => ({ y: k.i, v: k.prom }));
   }
 
   // ---------- ladder matching ----------
@@ -614,14 +620,35 @@
     const vmax = Math.max(0, ...L.peaks.map(p => p.v));
     // weak peaks (well edges, dust, smear ripples) are not ladder bands
     const P = L.peaks.filter(p => p.v >= vmax * 0.12).sort((a, b) => b.v - a.v).slice(0, 32).sort((a, b) => a.y - b.y);
-    return { ys: P.map(p => p.y), vs: P.map(p => p.v), X: L.sizes.map(s => Math.log(s)), n: L.sizes.length, anchors: L.anchors || [] };
+    // band thickness: width at half height of each peak on the lane profile. Protein bands are broad
+    // (often most of the lane), DNA bands are thin lines — the main signal for telling the two apart.
+    const pr = L.profile;
+    const ws = P.map(p => {
+      if (!pr || pr.length < 8) return null;
+      const v = pr[Math.round(p.y)] || 0, half = v / 2;
+      let l = Math.round(p.y), r = Math.round(p.y), lim = Math.max(8, pr.length / 6);
+      while (l > 0 && pr[l - 1] > half && Math.round(p.y) - l < lim) l--;
+      while (r < pr.length - 1 && pr[r + 1] > half && r - Math.round(p.y) < lim) r++;
+      return r - l;
+    }).filter(w => w != null && w > 0);
+    ws.sort((a, b) => a - b);
+    return {
+      ys: P.map(p => p.y), vs: P.map(p => p.v), X: L.sizes.map(s => Math.log(s)), n: L.sizes.length,
+      anchors: L.anchors || [], bandW: ws.length ? ws[ws.length >> 1] : null, pitch: L.pitch || null
+    };
   }
   const predict = (m, x) => m.a + m.b * x + m.c * x * x + (m.d || 0) * x * x * x;
   const slopeAt = (m, x) => m.b + 2 * m.c * x + 3 * (m.d || 0) * x * x;
 
+  /* Protein gels: bands are broad, a quadratic in log(kDa) is a rougher fit over 10–250 kDa than it is
+   * for DNA, and prestained markers often have only 6–10 visible bands with uneven spacing. Everything
+   * below therefore widens the tolerances and allows more missing bands when mode === 'protein'. */
+  function modeTol(mode) { return mode === 'protein' ? { assTol: 0.6, window: 1.6, skipSize: 1.6, priorW: 0.35 } : { assTol: 0.45, window: 1, skipSize: 1, priorW: 1 }; }
+
   // Order-preserving alignment of ladder sizes to peaks (dynamic programming): sizes run top->bottom
   // like the peaks, so a size can never take a peak below a smaller size's peak.
-  function assign(m, D, h, tolFrac) {
+  function assign(m, D, h, tolFrac, mode) {
+    const MT = modeTol(mode);
     const { X, n, ys } = D, np = ys.length, tolBase = h * 0.04;
     const anch = new Map(D.anchors.map(a => [a.k, a.y]));
     const yp = X.map(x => predict(m, x)), tol = new Float32Array(n);
@@ -629,7 +656,7 @@
       const nb = [k - 1, k + 1].filter(j => j >= 0 && j < n).map(j => Math.abs(yp[j] - yp[k]));
       tol[k] = Math.max(1, Math.min(tolBase, Math.min(...nb) * tolFrac));
     }
-    const SKIP_SIZE = 1, SKIP_PEAK = 0.35, W = np + 1;
+    const SKIP_SIZE = MT.skipSize, SKIP_PEAK = 0.35, W = np + 1;
     const cost = new Float32Array((n + 1) * W), from = new Uint8Array((n + 1) * W);
     for (let i = 1; i <= np; i++) { cost[i] = i * SKIP_PEAK; from[i] = 2; }
     for (let k = 1; k <= n; k++) {
@@ -658,15 +685,16 @@
       const i = match[k];
       if (i >= 0) {
         const d = Math.abs(yp[k] - ys[i]) / tol[k];
-        res.push({ y: ys[i], matched: true }); pairs.push([X[k], ys[i], d <= 1 ? 1 : 0.3]);
+        res.push({ y: ys[i], matched: true, tin: d });
+        pairs.push([X[k], ys[i], d <= 1 ? 1 : 0.3]);
         inl += d <= 1 ? 1 : 0.6; err += Math.min(d, 2.5);
-      } else res.push({ y: yp[k], matched: false });
+      } else res.push({ y: yp[k], matched: false, tin: 9 });
     }
     return { res, pairs, inl, err };
   }
 
   // candidate linear models from one lane (RANSAC over peak/size pairs), best first
-  function ransacModels(D, h, keep) {
+  function ransacModels(D, h, keep, mode) {
     const { ys, X, n, anchors } = D;
     const cands = [];
     const tryModel = (y1, x1, y2, x2) => {
@@ -674,7 +702,7 @@
       const b = (y1 - y2) / (x1 - x2);
       if (b >= 0) return;
       const m = { a: y1 - b * x1, b, c: 0 };
-      const r = assign(m, D, h, 0.4);
+      const r = assign(m, D, h, 0.4, mode);
       cands.push({ m, s: r.inl - 0.3 * r.err });
     };
     if (anchors.length >= 2) tryModel(anchors[0].y, X[anchors[0].k], anchors[1].y, X[anchors[1].k]);
@@ -730,10 +758,10 @@
     return true;
   }
 
-  function refine(m, Ds, h) {
+  function refine(m, Ds, h, mode) {
     for (let it = 0; it < 4; it++) {
       const pts = [];
-      Ds.forEach(D => assign(m, D, h, 0.45).pairs.forEach(p => pts.push(p)));
+      Ds.forEach(D => assign(m, D, h, modeTol(mode).assTol, mode).pairs.forEach(p => pts.push(p)));
       if (pts.length < 2) break;
       const span = Math.max(...pts.map(p => p[0])) - Math.min(...pts.map(p => p[0]));
       // more flexible curves only when there are enough bands over a wide enough size range
@@ -750,7 +778,8 @@
    * migration slope (px per ln bp) changes gradually between neighbouring bands. The shared curve
    * m only restricts the search window and acts as a weak prior, so compressed regions (top of the
    * gel, small fragments) follow the data rather than the global fit. */
-  function chainAssign(m, D, h, ref) {
+  function chainAssign(m, D, h, ref, mode) {
+    const MT = modeTol(mode);
     const { X, n } = D;
     const anch = new Map(D.anchors.map(a => [a.k, a.y]));
     // peaks (+ anchors as forced pseudo-peaks)
@@ -759,7 +788,7 @@
     pk.sort((a, b) => a.y - b.y);
     const np = pk.length, vmax = Math.max(1e-9, ...pk.map(p => p.v));
     const yp = X.map(x => predict(m, x));
-    const win = Math.max(h * 0.12, 12);
+    const win = Math.max(h * 0.12, 12) * MT.window;
     const pairs = [];
     for (let k = 0; k < n; k++) for (let i = 0; i < np; i++) {
       if (anch.has(k) ? pk[i].anchorOf !== k : pk[i].anchorOf >= 0) continue;
@@ -769,7 +798,7 @@
     const NP = pairs.length;
     if (!NP) return null;
     const inGel = k => yp[k] >= 0 && yp[k] <= h;
-    const skipSize = k => (anch.has(k) ? 100 : 1.0);
+    const skipSize = k => (anch.has(k) ? 100 : MT.skipSize);
     const endSize = k => (anch.has(k) ? 100 : inGel(k) ? 0.8 : 0.15);
     const skipPeak = i => (pk[i].anchorOf >= 0 ? 100 : 0.25 + 0.75 * pk[i].v / vmax);
     const sumSize = (a, b, f) => { let s = 0; for (let k = a; k < b; k++) s += f(k); return s; };
@@ -777,7 +806,7 @@
     const slope = (p, q) => (pk[q.i].y - pk[p.i].y) / (X[p.k] - X[q.k]);
     const prior = (p, q) => {
       const sm = -slopeAt(m, (X[p.k] + X[q.k]) / 2), s = slope(p, q);
-      return sm > 0 && s > 0 ? 0.6 * Math.log(s / sm) ** 2 : 2;
+      return sm > 0 && s > 0 ? 0.6 * MT.priorW * Math.log(s / sm) ** 2 : 2;
     };
     const SMOOTH = 4;
     // optional reference from another lane of the same gel: the same size should run to the same height
@@ -854,8 +883,8 @@
     };
   }
 
-  function finalize(m, D, h, chain, ref) {
-    const res = (chain && chainAssign(m, D, h, ref)) || assign(m, D, h, 0.45).res;
+  function finalize(m, D, h, chain, ref, mode) {
+    const res = (chain && chainAssign(m, D, h, ref, mode)) || assign(m, D, h, modeTol(mode).assTol, mode).res;
     const inRange = res.filter(r => r.y >= -2 && r.y <= h + 2).length;
     const nm = res.filter(r => r.matched).length;
     let mono = true;
@@ -867,7 +896,7 @@
 
   /* Match several marker lanes against one shared curve. lanes: [{peaks, sizes, anchors?, models?}]
    * Returns per-lane arrays [{y, matched, anchored}] with .score / .matchedCount, plus .model. */
-  function matchMulti(lanes, h) {
+  function matchMulti(lanes, h, mode) {
     const Ds = lanes.map(prepLane);
     const fallback = () => lanes.map(L => {
       const n = L.sizes.length, r = L.sizes.map((s, i) => ({ y: h * (0.1 + 0.8 * i / Math.max(1, n - 1)), matched: false }));
@@ -876,25 +905,25 @@
     let cands = [];
     Ds.forEach((D, i) => {
       if (D.ys.length + D.anchors.length < 2 || D.n < 2) return;
-      cands = cands.concat(lanes[i].models || ransacModels(D, h));
+      cands = cands.concat(lanes[i].models || ransacModels(D, h, undefined, mode));
     });
     if (!cands.length) return fallback();
     let best = null, bestS = -Infinity;
     for (const c of cands) {
-      const m = refine(c, Ds, h);
-      const rs = Ds.map(D => finalize(m, D, h));
+      const m = refine(c, Ds, h, mode);
+      const rs = Ds.map(D => finalize(m, D, h, false, null, mode));
       const s = rs.reduce((a, r) => a + r.score, 0) / rs.length;
       if (s > bestS) { bestS = s; best = rs; best.model = m; best.score = s; }
     }
     // the shared curve fixes the window; the final per-lane assignment is the smooth chain
     if (!matchMulti.fast) {
       const model = best.model;
-      Ds.forEach((D, i) => { best[i] = finalize(model, D, h, true); });
+      Ds.forEach((D, i) => { best[i] = finalize(model, D, h, true, null, mode); });
       if (Ds.length > 1) {
         // the most confident lane becomes the reference for the others
         const r0 = best.reduce((bi, r, i) => (r.score > best[bi].score ? i : bi), 0);
         const ref = refCurve(best[r0], Ds[r0].X);
-        if (ref) Ds.forEach((D, i) => { if (i !== r0) best[i] = finalize(model, D, h, true, ref); });
+        if (ref) Ds.forEach((D, i) => { if (i !== r0) best[i] = finalize(model, D, h, true, ref, mode); });
       }
       best.model = model;
       best.score = best.reduce((a, r) => a + r.score, 0) / best.length;
@@ -902,8 +931,8 @@
     return best;
   }
 
-  function matchLadder(peaks, sizes, h, anchors) {
-    const r = matchMulti([{ peaks, sizes, anchors }], h);
+  function matchLadder(peaks, sizes, h, anchors, mode) {
+    const r = matchMulti([{ peaks, sizes, anchors }], h, mode);
     const out = r[0];
     out.model = r.model;
     return out;
@@ -919,19 +948,19 @@
    * Returns [{id, score}] per lane, with .score for the combination. */
   // favourite ladders get a bonus per lane: enough to win near-ties, not enough to override a clear misfit
   const FAV_BONUS = 0.05;
-  function jointLadders(peaksList, ladders, h, preferIds) {
+  function jointLadders(peaksList, ladders, h, preferIds, mode) {
     matchMulti.fast = true;
-    try { return jointLaddersFast(peaksList, ladders, h, preferIds); } finally { matchMulti.fast = false; }
+    try { return jointLaddersFast(peaksList, ladders, h, preferIds, mode); } finally { matchMulti.fast = false; }
   }
-  function jointLaddersFast(peaksList, ladders, h, preferIds) {
+  function jointLaddersFast(peaksList, ladders, h, preferIds, mode) {
     const fav = new Set(Array.isArray(preferIds) ? preferIds : preferIds ? [preferIds] : []);
     const bonus = id => (fav.has(id) ? FAV_BONUS : 0);
     const per = peaksList.map(pk => ladders.map(l => {
       const D = prepLane({ peaks: pk, sizes: l.sizes });
-      const models = D.ys.length >= 2 ? ransacModels(D, h, 12) : [];
-      const r = models.length ? matchMulti([{ peaks: pk, sizes: l.sizes, models }], h) : null;
+      const models = D.ys.length >= 2 ? ransacModels(D, h, 12, mode) : [];
+      const r = models.length ? matchMulti([{ peaks: pk, sizes: l.sizes, models }], h, mode) : null;
       return { id: l.id, sizes: l.sizes, models, score: r ? r.score : 0 };
-    }).filter(c => c.score >= 0.4).sort((a, b) => (b.score + bonus(b.id)) - (a.score + bonus(a.id))).slice(0, 7));
+    }).filter(c => c.score >= (mode === 'protein' ? 0.3 : 0.4)).sort((a, b) => (b.score + bonus(b.id)) - (a.score + bonus(a.id))).slice(0, 7));
     if (per.some(c => !c.length)) return null;
     const combos = per.reduce((acc, cands) => {
       const out = [];
@@ -940,7 +969,7 @@
     }, [[]]);
     let best = null, bestObj = -Infinity;
     for (const combo of combos) {
-      const r = combo.length === 1 ? null : matchMulti(combo.map((c, i) => ({ peaks: peaksList[i], sizes: c.sizes, models: c.models })), h);
+      const r = combo.length === 1 ? null : matchMulti(combo.map((c, i) => ({ peaks: peaksList[i], sizes: c.sizes, models: c.models })), h, mode);
       const s = r ? r.score : combo[0].score;
       const obj = s + combo.reduce((a, c) => a + bonus(c.id), 0) / combo.length;
       if (jointLadders.trace) jointLadders.trace.push([combo.map(c => c.id).join('+'), +s.toFixed(3)]);
@@ -950,9 +979,9 @@
   }
 
   // Rank ladder presets by fit to the detected peaks of one lane
-  function rankLadders(peaks, ladders, h) {
+  function rankLadders(peaks, ladders, h, mode) {
     return ladders.map(l => {
-      const m = matchLadder(peaks, l.sizes, h);
+      const m = matchLadder(peaks, l.sizes, h, null, mode);
       return { id: l.id, score: m.score, matched: m.matchedCount };
     }).sort((a, b) => (b.score - a.score) || (b.matched - a.matched));
   }
@@ -1030,8 +1059,63 @@
     return { score, clipFrac, rangeUse, snr, bright };
   }
 
+  /* Which kind of gel is this? Explainable votes, no model:
+   *   chroma    – Coomassie gels are colour images (blue bands on a pale background); EtBr on black is grey
+   *   bandWidth – protein bands span much of the lane; DNA bands are thin lines
+   *   ladder    – DNA ladders have 10–21 evenly spaced bands, protein markers 6–11 uneven ones
+   *   curve     – a straight line in log(size) fits a DNA ladder tightly; prestained markers spread
+   * Returns {kind, confidence 0..1, reasons[], score(-1..1)} where score > 0 favours protein. */
+  function detectGelType(input) {
+    const reasons = [];
+    let score = 0, voted = 0;
+    // codes, not sentences: the UI translates them; v is the measured value behind the vote
+    const add = (w, code, v) => { score += w; voted += Math.abs(w); reasons.push({ w: Math.round(w * 100) / 100, code, v }); };
+
+    // colour (only colour images can be Coomassie; a grey image says nothing)
+    if (input.colorStats) {
+      const { chroma, blueFrac } = input.colorStats;
+      if (chroma > 0.12 && blueFrac > 0.05) add(1.2, 'colour', { chroma: Math.round(chroma * 100), blue: Math.round(blueFrac * 100) });
+      else if (chroma < 0.06) add(-0.5, 'grey', { chroma: Math.round(chroma * 100) });
+    }
+
+    // band geometry of the lane that looks most like a ladder
+    let D = null;
+    if (input.peaks) {
+      D = prepLane({ peaks: input.peaks, sizes: [], profile: input.profile, pitch: input.pitch });
+      if (D.bandW != null && D.pitch) {
+        const r = D.bandW / D.pitch;   // band thickness as a fraction of the lane pitch
+        // measured on synthetic gels: DNA ladder bands ~0.10 of the pitch, protein marker bands ~0.26
+        if (r > 0.20) add(1.4, 'broad', { pct: Math.round(r * 100) });
+        else if (r < 0.16) add(-1.1, 'thin', { pct: Math.round(r * 100) });
+      }
+      const cnt = sharpBandCount(input.peaks);
+      if (cnt >= 12) add(-0.8, 'manyBands', { n: cnt });
+      else if (cnt > 0 && cnt <= 11) add(0.4, 'fewBands', { n: cnt });
+    }
+
+    // curvature: how far the best straight line in log(size) misses the matched bands
+    if (input.ladder && input.peaks && input.peaks.length >= 5) {
+      const md = input.ladder.kind === 'dna' ? 'dna' : 'protein';
+      const r = matchLadder(input.peaks, input.ladder.sizes, input.h || 1000, null, md);
+      const pts = r.map((b, k) => [Math.log(input.ladder.sizes[k]), b.y, b.matched]).filter(p => p[2]);
+      if (pts.length >= 5) {
+        const n = pts.length, sx = pts.reduce((a, p) => a + p[0], 0) / n, sy = pts.reduce((a, p) => a + p[1], 0) / n;
+        let sxy = 0, sxx = 0;
+        pts.forEach(p => { sxy += (p[0] - sx) * (p[1] - sy); sxx += (p[0] - sx) ** 2; });
+        const k = sxx ? sxy / sxx : 0;
+        const resid = pts.reduce((a, p) => a + Math.abs(p[1] - (sy + k * (p[0] - sx))), 0) / n;
+        const rel = resid / (input.h || 1000);
+        if (rel > 0.018) add(0.9, 'curve', { pct: Math.round(rel * 1000) / 10 });
+        else if (rel < 0.01) add(-0.7, 'linear', { pct: Math.round(rel * 1000) / 10 });
+      }
+    }
+
+    const conf = voted ? Math.min(1, Math.abs(score) / Math.max(1.2, voted * 0.8)) : 0;
+    return { kind: score > 0.35 ? 'protein' : 'dna', score, confidence: conf, reasons };
+  }
+
   G.Engine = {
     clamp, percentiles, gaussSmooth, downsample, rotate, cropImg, detectBright, autoLevels, saturation,
-    toImageData, deskew, autoCrop, detectLanes, evenLanes, laneProfile, detectBands, matchLadder, estimateSize, estimateSizeInfo, exposureScore,sharpBandCount, rankLadders, jointLadders, matchMulti, detectLaneLattice
+    toImageData, deskew, autoCrop, detectLanes, evenLanes, laneProfile, detectBands, matchLadder, estimateSize, estimateSizeInfo, exposureScore,sharpBandCount, rankLadders, jointLadders, matchMulti, detectLaneLattice, detectGelType
   };
 })(window);

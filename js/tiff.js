@@ -226,17 +226,29 @@
       return fmt === 3 ? tdv.getFloat32(byteIdx, le) : (fmt === 2 ? tdv.getInt32(byteIdx, le) : tdv.getUint32(byteIdx, le));
     };
     const color = spp >= 3 && photo === 2;
+    // Colour statistics, for telling a Coomassie gel from a DNA gel: mean saturation and the share of
+    // pixels whose blue channel dominates. Kept only for colour images; grey images report null.
+    let chromaSum = 0, blueDom = 0, colorSamples = 0;
+    const stepC = Math.max(1, Math.floor(n / 200000));
     for (let i = 0; i < n; i++) {
       let v;
       if (color) {
         const a = planar === 2 ? [i * bps, (n + i) * bps, (2 * n + i) * bps]
           : [(i * spp) * bps, (i * spp + 1) * bps, (i * spp + 2) * bps];
-        v = 0.299 * get(a[0]) + 0.587 * get(a[1]) + 0.114 * get(a[2]);
+        const r = get(a[0]), g = get(a[1]), b = get(a[2]);
+        v = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (i % stepC === 0) {
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          if (mx > 0) chromaSum += (mx - mn) / mx;
+          if (b > r * 1.15 && b > g * 1.08) blueDom++;
+          colorSamples++;
+        }
       } else {
         v = get((planar === 2 ? i : i * spp) * bps);
       }
       gray[i] = v;
     }
+    const colorStats = color && colorSamples ? { chroma: chromaSum / colorSamples, blueFrac: blueDom / colorSamples } : null;
     let maxVal;
     if (fmt === 3) {
       maxVal = 0; for (let i = 0; i < n; i++) if (gray[i] > maxVal) maxVal = gray[i];
@@ -255,7 +267,7 @@
     }
     const xres = t[282] ? t[282][0] : 0;
     const unit = (t[296] || [2])[0];
-    return { width: w, height: h, data: gray, bits, spp, compression: comp, actualMax,
+    return { width: w, height: h, data: gray, bits, spp, compression: comp, actualMax, colorStats,
       dpi: unit === 3 ? xres * 2.54 : xres };
   }
 
@@ -272,13 +284,22 @@
         const d = ctx.getImageData(0, 0, c.width, c.height).data;
         const n = c.width * c.height;
         const gray = new Float32Array(n);
-        let mx = 0;
+        let mx = 0, chromaSum = 0, blueDom = 0, colorSamples = 0;
+        const stepC = Math.max(1, Math.floor(n / 200000));
         for (let i = 0; i < n; i++) {
-          const v = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255;
+          const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+          const v = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
           gray[i] = v; if (v > mx) mx = v;
+          if (i % stepC === 0) {
+            const mxc = Math.max(r, g, b), mnc = Math.min(r, g, b);
+            if (mxc > 0) chromaSum += (mxc - mnc) / mxc;
+            if (b > r * 1.15 && b > g * 1.08) blueDom++;
+            colorSamples++;
+          }
         }
         URL.revokeObjectURL(url);
-        resolve({ width: c.width, height: c.height, data: gray, bits: 8, spp: 3, compression: 0, actualMax: mx, dpi: 0 });
+        resolve({ width: c.width, height: c.height, data: gray, bits: 8, spp: 3, compression: 0, actualMax: mx, dpi: 0,
+          colorStats: colorSamples ? { chroma: chromaSum / colorSamples, blueFrac: blueDom / colorSamples } : null });
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(G.L('无法读取该图片', 'Cannot read this image'))); };
       img.src = url;
