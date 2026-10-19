@@ -16,7 +16,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Two Yeasen (翌圣生物) ladders: GoldBand 1 kb (10510ES) and GoldBand 100 bp Plus (10516ES).
 - `docs/ladders.md`: every built-in ladder with its catalogue number, band count, range and reference bands, plus the groups of ladders whose band sizes are identical and therefore cannot be told apart automatically.
 
+### Changed
+- Marker lanes are no longer chosen by band count. A lane is a marker when a ladder explains *all* of it: on a protein gel a whole-cell lysate lane has more bands than any ladder and some ladder always fits a subset, which used to make sample lanes look like markers. Neighbouring hits are also collapsed, since nobody loads two ladders side by side.
+- Lane detection catches the case where neighbouring lanes merge in the band region and the measured spacing comes out a whole multiple of the real one; the top of the gel, where samples have not spread, is used to correct it, with a notice.
+- Gel-type detection also counts how many lanes are full of bands, which does not depend on the lane spacing being right.
+- The polarity control is one **Invert** checkbox instead of two buttons that assumed the image was always white-bands-on-black, and it states what the figure looks like now.
+- "Lanes in figure" is simpler: wells, then one row to correct the lane count, with per-lane editing in a single collapsible.
+- Favourite ladders are a tick list; the half-lit star gave no way to see which ones were actually chosen. The list only shows ladders of the current gel type.
+- Bio-Rad Precision Plus Dual Color is the default protein ladder.
+- Wording no longer names one vendor's imager: both DNA and protein gels are mentioned on the start screen, and any imager or scanner is fine.
+
 ### Fixed
+- Removing a wrongly detected marker and then re-spacing the lanes brought the marker back.
+- The `(kDa)` unit header was clipped in the figure: its width was still measured as `(bp)`.
+- Checkboxes in the side panel were not aligned with their labels — `.field > label` overrode the switch layout on specificity.
 - A loaded outer lane could be mistaken for the gel edge during lattice detection, which trimmed the marker lane from the lane list.
 - Colour statistics were discarded for PNG/JPG input, so colour-based classification only worked for TIFF.
 

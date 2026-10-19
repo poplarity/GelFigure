@@ -222,7 +222,7 @@
       ? L('已切换为蛋白胶模式：Marker 单位为 kDa，Ladder 库和匹配容差都换成了蛋白胶的', 'Switched to protein mode: kDa marker units, protein ladder library and tolerances')
       : L('已切换为 DNA 胶模式：Marker 单位为 bp', 'Switched to DNA mode: marker units in bp'));
   }));
-  document.querySelectorAll('#polSeg button').forEach(b => b.onclick = done(() => { S().levels.invert = b.dataset.inv === '1'; App.invertInherited = false; }));
+  $('invChk').addEventListener('change', done(e => { S().levels.invert = e.target.checked; App.invertInherited = false; }));
   $('lvBlack').addEventListener('input', live(e => { S().levels.black = Math.min(fromSlider(+e.target.value), S().levels.white - 0.0005); $('lvBlackV').textContent = pct(S().levels.black); drawHisto(); updateClipLine(); }));
   $('lvWhite').addEventListener('input', live(e => { S().levels.white = Math.max(fromSlider(+e.target.value), S().levels.black + 0.0005); $('lvWhiteV').textContent = pct(S().levels.white); drawHisto(); updateClipLine(); }));
   $('lvBlack').addEventListener('change', done()); $('lvWhite').addEventListener('change', done());
@@ -282,16 +282,14 @@
   // after lanes inside the crop are rebuilt, find the marker lanes again but keep the ladder the
   // user chose for a marker that is still at (about) the same position
   function relaneMarkers(fn) {
-    const st = S(), tol = (st.lanePitch || 40) * 0.5;
-    const prev = st.markers.map(m => ({ x: st.lanes[m.lane] ? st.lanes[m.lane].x : -1e9, ladderId: m.ladderId, unit: m.unit, side: m.side }));
+    const st = S();
+    const had = st.markers.length;
     const n = fn();
-    App.autoMarkers();
-    let changed = false;
-    st.markers.forEach(m => {
-      const p = prev.find(q => Math.abs(q.x - st.lanes[m.lane].x) < tol);
-      if (p) { if (m.ladderId !== p.ladderId) changed = true; Object.assign(m, { ladderId: p.ladderId, unit: p.unit, side: p.side }); }
-    });
-    if (changed) App.matchMarkers(true);
+    /* Lanes moved, so the markers were carried across by position. Only look for marker lanes again
+     * when none survived — re-detecting every time would bring back a marker the user has just
+     * removed because it was detected on the wrong lane. */
+    if (st.markers.length) App.matchMarkers(true);
+    else if (had) App.autoMarkers();
     return n;
   }
   $('btnRedetectCrop').onclick = done(() => {
@@ -387,10 +385,15 @@
       : L('自动识别在全部型号中挑选（常用型号略优先）', 'Detection picks from all ladders (favourites slightly preferred)'));
   });
   function renderFavs() {
-    const favs = G.Ladders.favorites(), kind = App.gelKind();
-    $('favNote').textContent = favs.length ? L(`${favs.length} 个`, `${favs.length}`) : L('未设置', 'none');
-    $('favList').innerHTML = G.Ladders.all(kind).map(l => `<div class="item"><button class="star${G.Ladders.isFavorite(l.id) ? '' : ' off'}" data-fav="${l.id}" title="${L('设为/取消常用', 'Add to / remove from favourites')}">★</button><span style="flex:1">${esc(l.name)}</span></div>`).join('');
-    $('favList').querySelectorAll('[data-fav]').forEach(b => b.onclick = () => { G.Ladders.toggleFavorite(b.dataset.fav); renderFavs(); if (S()) renderMarkers(); });
+    const kind = App.gelKind();
+    const mine = G.Ladders.favoritesOf(kind);
+    $('favNote').textContent = mine.length ? L(`已选 ${mine.length} 个`, `${mine.length} chosen`) : L('未设置', 'none');
+    // a plain tick list: a half-lit star gave no way to tell which ladders were actually chosen
+    $('favList').innerHTML = G.Ladders.ordered(kind).map(l => {
+      const on = G.Ladders.isFavorite(l.id);
+      return `<label class="item fav-row${on ? ' on' : ''}"><input type="checkbox" data-fav="${l.id}"${on ? ' checked' : ''}><span class="fav-name">${esc(l.name)}</span></label>`;
+    }).join('');
+    $('favList').querySelectorAll('[data-fav]').forEach(b => b.onchange = () => { G.Ladders.toggleFavorite(b.dataset.fav); renderFavs(); if (S()) renderMarkers(); });
     const custom = G.Ladders.all(kind).filter(l => l.custom);
     $('customList').innerHTML = custom.map(l => `<div class="item"><span style="flex:1">${esc(l.name)} <span class="h3-note">${L(`${l.sizes.length} 条`, `${l.sizes.length} bands`)}</span></span><button class="x" data-cdel="${l.id}" title="${L('删除', 'Delete')}">×</button></div>`).join('');
     $('customList').querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => {
@@ -537,7 +540,7 @@
     const lowMk = visMk.filter(m => m.score != null && m.score < 0.6);
     const set = (id, txt, cls) => { const el = $(id); el.textContent = txt; el.className = 'sec-status' + (cls ? ' ' + cls : ''); };
     set('stImage', (st.rotation ? L(`已转正 ${st.rotation}° · `, `rotated ${st.rotation}° · `) : '')
-      + (st.levels.invert ? L('白底黑带', 'inverted') : L('黑底白带', 'raw'))
+      + (!!App.S.bright !== !!st.levels.invert ? L('黑底白带', 'white on black') : L('白底黑带', 'dark on white'))
       + (st.saturatedInCrop ? L(' · 有过曝', ' · saturated') : ''), st.saturatedInCrop ? 'warn' : '');
     set('stRange', r ? L(`孔 ${r[0] + 1}–${r[1] + 1} · ${fl.length} 条`, `wells ${r[0] + 1}–${r[1] + 1} · ${fl.length} lanes`) : '');
     set('stNames', `${named}/${fl.length}`);
@@ -563,7 +566,7 @@
 
   function syncControls() {
     const st = S(), y = st.style;
-    document.querySelectorAll('#polSeg button').forEach(b => b.classList.toggle('on', (b.dataset.inv === '1') === !!st.levels.invert));
+    $('invChk').checked = !!st.levels.invert;
     $('lvBlack').value = toSlider(st.levels.black); $('lvWhite').value = toSlider(st.levels.white);
     $('lvBlackV').textContent = pct(st.levels.black); $('lvWhiteV').textContent = pct(st.levels.white);
     $('rot').value = st.rotation; $('rotNum').value = st.rotation; $('rotV').textContent = st.rotation + '°';
@@ -576,8 +579,10 @@
       ? (det.manual ? L('识别错了可以在这里切换；切换会保留泳道名、分组和箭头。', 'Detection can be wrong — switch here. Names, groups and arrows are kept.')
         : L('判断依据：', 'Detected from: ') + det.reasons.filter(r => (r.w > 0) === (kind === 'protein')).slice(0, 3).map(r => App.gelReasonText(r)).filter(Boolean).join(L('；', '; ')))
       : '';
-    $('invNote').textContent = App.invertInherited ? L(`黑白方向沿用了你上次的选择（${st.levels.invert ? '白底黑带' : '黑底白带'}），可在上方切换`,
-      `Polarity follows your last choice (${st.levels.invert ? 'inverted' : 'raw'}); switch it above`) : '';
+    // say what the figure actually looks like now: the source may already be dark-bands-on-white
+    const darkBg = !!App.S.bright !== !!st.levels.invert;
+    $('invNote').textContent = L(`当前成图：${darkBg ? '黑底白带' : '白底黑带'}`, `Figure now: ${darkBg ? 'white bands on black' : 'dark bands on white'}`)
+      + (App.invertInherited ? L('（沿用了上次的选择）', ' (kept from last time)') : '');
     $('spliceGap').value = y.spliceGapPt != null ? y.spliceGapPt : 1.5; $('spliceGapV').textContent = $('spliceGap').value + ' pt';
     $('laneNumberMode').value = y.laneNumberMode || 'well';
     updateClipLine(); updateDpiLine(); updateEmptyBar();
@@ -585,6 +590,7 @@
     $('autoWidth').checked = !!y.autoWidth; $('gelW').value = App.gelWidthMm(); $('gelW').disabled = !!y.autoWidth;
     $('fontPt').value = y.fontPt; $('lineW').value = y.lineWidthPt; $('labelAngle').value = String(y.labelAngle);
     ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => { $(id).checked = !!y[id]; });
+    $('unitHeaderLbl').textContent = L(`(${App.sizeUnit()}) 标题`, `(${App.sizeUnit()}) header`);
     $('spliceStyle').value = y.spliceStyle; $('panelLetter').value = y.panelLetter || '';
     $('dpiTop').value = String(y.dpi);
     $('stLayout').textContent = `${App.gelWidthMm()} mm · ${y.fontPt} pt`;
@@ -655,6 +661,8 @@
     if (what === 'loaded') {
       $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden');
       histCache = null; renderExposures();
+      // lanes that had to be re-spaced because neighbours ran together: worth a look before naming
+      if (App.laneNotice) toast(App.laneNotice, 6000);
       // say which kind of gel was recognised: the user must notice before typing anything
       const det = App.gelDetection;
       if (det && !det.manual) {

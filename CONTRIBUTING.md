@@ -7,24 +7,26 @@ Thank you for helping! Issues and pull requests in English or Chinese are both w
 Please use the [issue templates](https://github.com/poplarity/GelFigure/issues/new/choose). The most useful reports include:
 
 - browser and operating system, and whether you used the online version or a local `index.html`;
-- the imager and file type (e.g. "iBright, 16-bit TIFF");
+- the gel type (DNA or protein), the imager or scanner, and the file type (e.g. "gel imager, 16-bit TIFF");
 - what you expected and what happened; a screenshot helps a lot;
 - the **processing log** (*Export ▾ → Processing log (JSON)*). It contains settings and statistics but no pixel data. Remove lane names first if they are confidential.
 
 **Gel images.** An image on which detection fails is the best possible bug report, but only attach one if you are allowed to share it publicly. Unpublished data, patient-derived material or anything under a confidentiality agreement should not be posted. A cropped or downscaled copy is often enough.
 
-## Adding a DNA ladder
+## Adding a ladder
 
 Built-in ladders live in [`js/ladders.js`](js/ladders.js):
 
 ```js
+// DNA ladders go in the DNA array, protein ladders in the PROTEIN array below it
 { id: 'neb1kb', name: 'NEB 1 kb DNA Ladder (N3232)', sizes: [10000, 8000, /* … */ 500], ref: [3000] },
+{ id: 'biorad_dual', name: 'Bio-Rad Precision Plus Dual Color (161-0374)', sizes: [250, 150, /* … */ 10], ref: [75, 25] },
 ```
 
 - `id`: short, unique, lowercase.
 - `name`: `Vendor Product name (catalogue number)`.
-- `sizes`: every **visible** band in bp, largest to smallest.
-- `ref`: the brighter reference bands, if the datasheet marks any.
+- `sizes`: every **visible** band, largest to smallest — bp for DNA ladders, kDa for protein ladders (the apparent molecular weights the manufacturer prints for the prestained bands).
+- `ref`: the brighter or coloured reference bands, if the datasheet marks any.
 
 Also add a row to [`docs/ladders.md`](docs/ladders.md) with the catalogue number and a link to the manufacturer's datasheet the sizes come from. A wrong size produces a wrong figure, so ladders without a source cannot be merged.
 

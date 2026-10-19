@@ -59,6 +59,8 @@ const UI_CHECKS = [
   ['protein values are labelled in kDa', r => /kDa\)?/.test(r.protein.prot.label || '') && r.protein.prot.header >= 1],
   ['manual gel-type switch keeps names and arrows', r => r.protein.asDna.kind === 'dna' && r.protein.asDna.ladderKind === 'dna' && r.protein.asDna.unit !== 'kDa' && r.protein.asDna.name === 'Prot A' && r.protein.asDna.arrows === 1
     && r.protein.back.kind === 'protein' && r.protein.back.unit === 'kDa' && r.protein.back.name === 'Prot A' && r.protein.back.arrows === 1 && r.protein.back.bands > 4],
+  ['crowded gel: only the ladder lane is taken for the marker', r => r.crowded.kind === 'protein' && r.crowded.bandsInSampleLane >= 10 && r.crowded.markerIsFirst],
+  ['a removed marker stays removed when lanes are re-spaced', r => r.crowded.markersAfterEven === 0],
   ['DNA gel still detected after protein mode', r => r.dnaAfter.kind === 'dna' && r.dnaAfter.ladderKind === 'dna' && r.dnaAfter.unit !== 'kDa'],
   ['draft is saved and restored', r => r.draft && r.draft.restored && r.draftDropped]
 ];

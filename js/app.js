@@ -370,11 +370,28 @@
    * chooses which of them appear in the figure, so cropping never adds/removes lanes. */
   App.autoLanes = function () {
     const S = App.S, rot = App.ensureRot();
-    const L = E.detectLaneLattice(rot, S.bright, S.crop, App.cropMeta);
+    let lat = E.detectLaneLattice(rot, S.bright, S.crop, App.cropMeta);
+    /* On a crowded gel neighbouring lanes merge in the band region and the measured pitch comes out
+     * a whole multiple of the real one. The top of the gel still separates them, so it is used only
+     * to catch that one case — never to override an otherwise plausible pitch. */
+    App.laneNotice = null;
+    let topPitch = 0;
+    if (lat && lat.centers.length > 1) {
+      topPitch = E.measurePitch(rot, S.bright, S.crop);
+      const halved = E.dividedPitch(lat.pitch, topPitch);
+      if (halved) {
+        const lat2 = E.detectLaneLattice(rot, S.bright, S.crop, App.cropMeta, halved);
+        if (lat2 && lat2.centers.length > lat.centers.length) {
+          lat = lat2;
+          App.laneNotice = L('相邻泳道挨得很近，已按胶顶部的间距重新排泳道；请核对泳道线是否对齐',
+            'Neighbouring lanes run together; lanes were re-spaced using the top of the gel — please check that the lane lines line up');
+        }
+      }
+    }
     let xs, half, pitch;
-    if (L && L.centers.length) { xs = L.centers; half = L.halfW; pitch = L.pitch; }
+    if (lat && lat.centers.length) { xs = lat.centers; half = lat.halfW; pitch = lat.pitch; }
     else {
-      const c = App.cropImg(), r = E.detectLanes(c, S.bright);
+      const c = App.cropImg(), r = E.detectLanes(c, S.bright, topPitch);
       xs = (r.centers.length >= 2 ? r.centers : E.evenLanes(Math.max(S.lanes.length, 10), c.w)).map(x => x + S.crop.x);
       pitch = r.pitch || c.w / 10; half = pitch * 0.3;
     }
@@ -533,11 +550,14 @@
   };
 
   // ---------- markers (one or more ladder lanes, matched jointly: same gel = same migration curve) ----------
+  // fallback ladder when nothing is remembered or favourited: the most widely used of each kind
+  App.defaultLadder = kind => (kind === 'protein' ? 'biorad_dual' : 'gr1kbplus');
+
   App.newMarker = function (lane, ladderId) {
     const kind = App.gelKind();
     const fav = (G.Ladders.favoritesOf(kind)[0] || {}).id;
     const prefOk = G.Ladders.get(App.prefLadder) && G.Ladders.kindOf(G.Ladders.get(App.prefLadder)) === kind ? App.prefLadder : null;
-    const def = kind === 'protein' ? 'thermo_26616' : 'gr1kbplus';
+    const def = App.defaultLadder(kind);
     const id = ladderId && G.Ladders.get(ladderId) && G.Ladders.kindOf(G.Ladders.get(ladderId)) === kind ? ladderId : fav || prefOk || def;
     // the remembered unit belongs to whichever gel type was open last; never carry kDa into a DNA gel
     const prefUnit = App.prefUnit === 'kDa' || App.prefUnit === 'kb' || App.prefUnit === 'auto' ? App.prefUnit : 'bp';
@@ -559,12 +579,14 @@
     const S = App.S;
     if (!S || !S.lanes.length) return null;
     const c = App.bandStrip(), h = c.h, rg = App.laneRange() || [0, S.lanes.length - 1];
-    let best = null;
+    let best = null, richLanes = 0, laneCount = 0;
     for (let i = rg[0]; i <= rg[1]; i++) {
       const prof = E.laneProfile(c, S.bright, S.lanes[i].x, S.laneHalfW);
       const a = E.detectBands(prof, 'dna'), b = E.detectBands(prof, 'protein');
       const pk = E.sharpBandCount(a) >= E.sharpBandCount(b) ? a : b;
       const n = E.sharpBandCount(pk);
+      laneCount++;
+      if (n >= 8) richLanes++;
       if (!best || n > best.n) best = { i, prof, pk, n };
     }
     if (!best) return null;
@@ -575,7 +597,7 @@
     let ladder = null;
     if (rP && rP.matched >= 3 && rP.score >= 0.55 && (!rD || rP.score >= rD.score - 0.05)) ladder = G.Ladders.get(rP.id);
     else if (rD && rD.matched >= 3 && rD.score >= 0.6) ladder = G.Ladders.get(rD.id);
-    const det = E.detectGelType({ colorStats: App._colorStats, peaks: best.pk, profile: best.prof, pitch: S.lanePitch, h, ladder });
+    const det = E.detectGelType({ colorStats: App._colorStats, peaks: best.pk, profile: best.prof, pitch: S.lanePitch, h, ladder, richLanes, laneCount });
     // an ambiguous image with favourites of only one kind follows the favourites (they say what this lab runs)
     if (det.confidence < 0.35) {
       const kinds = new Set(G.Ladders.favorites().map(id => G.Ladders.kindOf(G.Ladders.get(id))));
@@ -598,6 +620,8 @@
       case 'thin': return L(`条带很细（占泳道间距 ${v.pct}%）`, `Bands are thin (${v.pct}% of the lane pitch)`);
       case 'manyBands': return L(`一条泳道里 ${v.n} 条清晰条带`, `${v.n} crisp bands in one lane`);
       case 'fewBands': return L(`一条泳道里 ${v.n} 条条带`, `${v.n} bands in one lane`);
+      case 'richLanes': return L(`${v.n} 条泳道都满是条带`, `${v.n} lanes are full of bands`);
+      case 'fewRichLanes': return L('只有少数泳道条带多', 'Only a few lanes have many bands');
       case 'curve': return L(`迁移曲线弯曲（偏离直线 ${v.pct}%）`, `Migration curve bends (${v.pct}% off a straight line)`);
       case 'linear': return L('迁移接近 log 线性', 'Migration is close to log-linear');
       default: return '';
@@ -613,7 +637,7 @@
     if (kind === App.gelKind()) return false;
     S.gelType = kind;
     App.gelDetection = { kind, confidence: 1, reasons: [], manual: true };
-    const def = kind === 'protein' ? 'thermo_26616' : 'gr1kbplus';
+    const def = App.defaultLadder(kind);
     const fav = (G.Ladders.favoritesOf(kind)[0] || {}).id;
     S.markers.forEach(m => {
       const l = G.Ladders.get(m.ladderId);
@@ -639,14 +663,30 @@
       const kind = App.gelKind(), mode = kind;
       // prestained protein markers have fewer bands than DNA ladders, so the ladder-lane bar is lower
       const minBands = kind === 'protein' ? 4 : 6;
-      let lanes = counts.map((c, i) => i).filter(i => i >= rg[0] && i <= rg[1] && counts[i] >= minBands);
-      // keep at most 3 (the lanes with the most bands), in lane order
-      lanes = lanes.sort((a, b) => counts[b] - counts[a]).slice(0, 3).sort((a, b) => a - b);
       const all = G.Ladders.all(kind), favs = G.Ladders.favoritesOf(kind).map(l => l.id);
+      const h = App._peakCrop.h;
+      /* Which lanes are marker lanes? Not simply "the ones with the most bands": on a protein gel a
+       * whole-cell lysate lane has more bands than any ladder and some ladder fits a subset of them.
+       * Rank by how completely a ladder explains the lane, and keep only lanes close to the best. */
+      const cand = [];
+      for (let i = rg[0]; i <= rg[1]; i++) {
+        if (counts[i] < minBands) continue;
+        const q = E.markerQuality(peaks[i], all, h, mode);
+        if (q) cand.push({ i, quality: q.quality, fit: q.score, explained: q.explained });
+      }
+      cand.sort((a, b) => b.quality - a.quality);
+      const top = cand.length ? cand[0].quality : 0;
+      const picked = [];
+      cand.filter(c => c.quality >= Math.max(0.42, top - 0.15)).forEach(c => {
+        // nobody loads two ladders side by side: neighbouring hits are one lane found twice
+        if (picked.length < 3 && !picked.some(p => Math.abs(p.i - c.i) <= 1)) picked.push(c);
+      });
+      let lanes = picked.map(c => c.i).sort((a, b) => a - b);
+      App.markerCandidates = cand;
       // "my ladders" get a bonus; without favourites the last used ladder plays that role
       const prefOk = App.prefLadder && G.Ladders.get(App.prefLadder) && G.Ladders.kindOf(G.Ladders.get(App.prefLadder)) === kind;
-      const prefer = favs.length ? favs : [prefOk ? App.prefLadder : (kind === 'protein' ? 'thermo_26616' : 'gr1kbplus')];
-      const h = App._peakCrop.h, pk = lanes.map(i => peaks[i]);
+      const prefer = favs.length ? favs : [prefOk ? App.prefLadder : App.defaultLadder(kind)];
+      const pk = lanes.map(i => peaks[i]);
       let picks = null;
       App.ladderNotice = null;
       if (lanes.length) {

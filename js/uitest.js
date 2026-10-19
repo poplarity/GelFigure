@@ -271,6 +271,23 @@
       const back = { kind: App.gelKind(), unit: App.S.markers[0].unit, name: App.S.lanes[fl2[1]].name, arrows: App.S.arrows.length, bands: App.S.markers[0].bands.filter(b => b.show).length };
       R.protein = { prot, asDna, back };
 
+      // a crowded gel: sample lanes carry more bands than the ladder, so only the lane a ladder
+      // explains completely may be taken for the marker
+      await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeProteinGel({ crowded: true, tilt: 0 }))], 'demo_lysate.tif', { type: 'image/tiff' }));
+      const fl3 = G.UI.figLanes();
+      R.crowded = {
+        kind: App.gelKind(), markers: App.S.markers.map(m => m.lane),
+        markerIsFirst: App.S.markers.length === 1 && App.S.markers[0].lane === fl3[0],
+        bandsInSampleLane: App.lanePeaks(fl3[2] != null ? fl3[2] : fl3[0]).length
+      };
+      // removing a wrongly detected marker must survive re-spacing the lanes
+      if (!App.S.markers.length) App.S.markers.push(App.newMarker(fl3[0], null));
+      App.S.markers = [];
+      App.commit();
+      document.getElementById('cropLaneN').value = G.UI.figLanes().length;
+      document.getElementById('btnEvenCrop').click();
+      R.crowded.markersAfterEven = App.S.markers.length;
+
       // DNA regression: the standard demo is still detected as DNA with bp labels
       await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeGel())], 'demo_gel.tif', { type: 'image/tiff' }));
       R.dnaAfter = { kind: App.gelKind(), unit: (App.S.markers[0] || {}).unit, ladderKind: (G.Ladders.get((App.S.markers[0] || {}).ladderId) || {}).kind };

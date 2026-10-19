@@ -73,7 +73,7 @@ The page carries a [Content Security Policy](index.html) that **forbids it from 
 
 | Format | Notes |
 |---|---|
-| TIFF (8 / 16 / 32-bit grayscale) | Recommended. Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Tested with Thermo Fisher iBright exports. |
+| TIFF (8 / 16 / 32-bit grayscale) | Recommended. Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Works with the TIFFs gel imagers and flatbed scanners export. |
 | PNG / JPG / BMP | Read as 8-bit by the browser; a warning suggests using the raw 16-bit TIFF instead. |
 | `.gelfig` | GelFigure project file. |
 
@@ -132,7 +132,7 @@ When `index.html` is opened directly from disk, some browsers disable IndexedDB 
 
 ## Known limitations
 
-- Automatic detection has so far been validated mainly on DNA agarose gels from Thermo Fisher iBright imagers and on synthetic gels. Other imagers should work, but if detection fails on your images, please [open an issue](https://github.com/poplarity/GelFigure/issues/new/choose).
+- Automatic detection has been validated on DNA agarose gels, Coomassie-stained SDS-PAGE gels and synthetic gels. On a crowded protein gel whose lanes touch, lane detection can merge neighbours — set the lane count under **Lanes in figure** and the rest follows. If detection fails on your images, please [open an issue](https://github.com/poplarity/GelFigure/issues/new/choose).
 - Western blots, protein ladders and densitometry are not supported yet.
 - Bio-Rad `.scn` / `.1sc` and other proprietary formats must be exported to TIFF first. BigTIFF and palette TIFFs are not supported.
 - 16-bit PNGs are read as 8-bit by browsers.

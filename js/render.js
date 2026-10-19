@@ -257,14 +257,16 @@
       for (let k = 1; k < shown.length; k++) if ((shown[k].y - shown[k - 1].y) * sc < pt * 0.95) {
         overlap(G.L('部分 Marker 标签间距过小会重叠，可点"精简标签"或手动取消勾选', 'Some marker labels are too close and overlap; click "Thin labels" or untick some')); break;
       }
-      if (st.unitHeader && shown.length && mk.unit !== 'auto') {
-        const u = mk.unit === 'kb' ? 'kb' : mk.unit === 'kDa' ? 'kDa' : 'bp';
+      // the unit header is as wide as the unit actually in use: "(kDa)" is wider than "(bp)"
+      const unitText = st.unitHeader && mk.unit !== 'auto' ? `(${mk.unit === 'kb' ? 'kb' : mk.unit === 'kDa' ? 'kDa' : 'bp'})` : '';
+      const unitW = unitText ? measure(unitText, pt) : 0;
+      if (unitText && shown.length) {
         const ux = side === 'left' ? -tick - 2.5 - off : W + tick + 2.5 + off;
         const uy = unitRowY;
-        els.push(textEl(`(${u})`, ux, uy, pt, side === 'left' ? 'end' : 'start'));
-        grow(side === 'left' ? ux - measure('(bp)', pt) : ux, uy - pt * 1.2, side === 'left' ? 0 : ux + measure('(bp)', pt), uy + pt * 0.3);
+        els.push(textEl(unitText, ux, uy, pt, side === 'left' ? 'end' : 'start'));
+        grow(side === 'left' ? ux - unitW : ux, uy - pt * 1.2, side === 'left' ? 0 : ux + unitW, uy + pt * 0.3);
       }
-      extent[side] = tick + 2.5 + off + Math.max(maxTw, measure('(bp)', pt));
+      extent[side] = tick + 2.5 + off + Math.max(maxTw, unitW);
     });
 
     // ---- arrows (expected product): free side preferred, otherwise outside the marker labels ----

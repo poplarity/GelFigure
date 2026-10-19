@@ -388,8 +388,13 @@
     return p;
   }
 
-  // returns lane centres (crop coordinates)
-  function detectLanes(cropped, bright) {
+  /* Returns lane centres (crop coordinates).
+   * pitchHint overrides the pitch vote. The vote reads the spacing of peaks in the column profile,
+   * which is reliable when lanes are separated but not on a crowded gel — whole-cell lysate lanes on
+   * an SDS-PAGE gel touch, so the profile is one plateau with a few accidental peaks and the vote can
+   * land on a multiple of the real pitch. A caller that has a trustworthy pitch (measured inside the
+   * crop the user framed) passes it here so only the positions are taken from this profile. */
+  function detectLanes(cropped, bright, pitchHint) {
     const sig = signal(cropped, bright);
     const w = sig.w;
     const raw = presenceProfile(sig);
@@ -419,7 +424,9 @@
       }
       if (s > bestS + 1e-9 || (Math.abs(s - bestS) < 1e-9 && p > pitch)) { bestS = s; pitch = p; }
     }
-    detectLanes.debug = { peaks: peaks.map(k => [k.i, +(k.prom / mx).toFixed(2)]), pitch };
+    const voted = pitch;
+    if (pitchHint > 0 && pitchHint >= w / 60 && pitchHint <= w / 1.5) pitch = pitchHint;
+    detectLanes.debug = { peaks: peaks.map(k => [k.i, +(k.prom / mx).toFixed(2)]), pitch, voted };
     // drop peaks that are spurious (too close to a stronger neighbour on the lattice)
     const strength = new Map(peaks.map(k => [k.i, k.prom]));
     const kept = [];
@@ -435,7 +442,9 @@
     xs.forEach((x, i) => { sk += idx[i]; sx += x; skk += idx[i] * idx[i]; skx += idx[i] * x; });
     const den = n * skk - sk * sk;
     let P = pitch, O = xs[0];
-    if (den > 0) { P = (n * skx - sk * sx) / den; O = (sx - P * sk) / n; }
+    // with a trusted pitch only the offset is fitted; otherwise pitch and offset together
+    if (pitch === pitchHint) O = (sx - P * sk) / n;
+    else if (den > 0) { P = (n * skx - sk * sx) / den; O = (sx - P * sk) / n; }
     const K = idx[idx.length - 1];
     // centroid refinement for lanes with signal, lattice position for empty ones
     const centers = [];
@@ -453,17 +462,79 @@
     // lanes cut by the crop edge (only a sliver of a neighbouring empty well) are not real lanes
     while (centers.length > 1 && centers[0] < P * 0.3) centers.shift();
     while (centers.length > 1 && centers[centers.length - 1] > w - P * 0.3) centers.pop();
-    return { centers, pitch: P, profile: q, profileMax: mx };
+    // votedPitch is the robust estimate from peak spacing; pitch also went through a least-squares
+    // fit over the peaks, which is sharper when they are regular and can drift when they are not
+    return { centers, pitch: P, votedPitch: pitch, profile: q, profileMax: mx };
+  }
+
+  /* Score a candidate pitch by how much brighter the lane windows are than the gaps between them,
+   * integrated over every column of the span so that long and short pitches are compared on equal
+   * footing. Only used to refine an estimate that is already close: over a wide range this prefers a
+   * multiple of the true pitch on a gel where neighbouring lanes merge into one plateau. */
+  function refinePitch(q, mx, pitch, x0, x1) {
+    if (!(pitch > 0) || x1 - x0 < pitch * 2) return 0;
+    const score = (p, o) => {
+      let st = 0, nt = 0, sg = 0, ng = 0;
+      for (let x = x0; x <= x1; x++) {
+        let ph = ((x - x0 - o) % p) / p;
+        if (ph < 0) ph += 1;
+        const d = Math.min(ph, 1 - ph);
+        if (d <= 0.22) { st += q[x]; nt++; } else if (d >= 0.34) { sg += q[x]; ng++; }
+      }
+      return nt && ng ? st / nt - sg / ng : -Infinity;
+    };
+    let best = { p: 0, s: -Infinity };
+    for (let p = Math.max(6, Math.round(pitch * 0.8)); p <= Math.round(pitch * 1.25); p++) {
+      let s = -Infinity;
+      const step = Math.max(1, Math.round(p / 24));
+      for (let o = 0; o < p; o += step) s = Math.max(s, score(p, o));
+      if (s > best.s) best = { p, s };
+    }
+    return best.s > mx * 0.02 ? best.p : 0;
+  }
+
+  /* The lane pitch is most reliable near the top of the gel: the samples have not spread yet, so
+   * lanes are still separated there even on a crowded gel (whole-cell lysates on SDS-PAGE) whose
+   * band region reads as one continuous plateau, and the row of wells often falls inside this slab.
+   * Returns a pitch in image pixels, or 0 when there is no usable lane structure. */
+  function measurePitch(img, bright, crop) {
+    const bx = Math.round(img.w * 0.01);
+    const h = Math.max(24, Math.round(crop.h * 0.28));
+    const y = clamp(Math.round(crop.y), 0, Math.max(0, img.h - h));
+    if (h < 24 || img.w - 2 * bx < 32) return 0;
+    const top = cropImg(img, { x: bx, y, w: img.w - 2 * bx, h });
+    const r = detectLanes(top, bright);
+    if (r.centers.length < 2 || !(r.votedPitch > 0)) return 0;
+    const q = r.profile, mx = r.profileMax;
+    let x0 = 0, x1 = q.length - 1;
+    while (x0 < q.length - 1 && q[x0] < mx * 0.15) x0++;
+    while (x1 > x0 && q[x1] < mx * 0.15) x1--;
+    return refinePitch(q, mx, r.votedPitch, x0, x1) || r.votedPitch;
+  }
+
+  /* Was the lane pitch read off the band region a whole multiple of the real one? That happens when
+   * neighbouring lanes merge, and it is the one lane-detection failure that can be recognised from
+   * the image alone: the top of the gel, where samples have not spread, still resolves single lanes.
+   * Returns the corrected pitch, or 0 to keep the one already measured. */
+  function dividedPitch(pitch, topPitch) {
+    if (!(pitch > 0) || !(topPitch > 0)) return 0;
+    for (const k of [2, 3]) {
+      const part = pitch / k;
+      if (Math.abs(topPitch - part) <= part * 0.15) return part;
+    }
+    return 0;
   }
 
   /* Lane lattice over the WHOLE gel: every well gets a lane, numbered left to right like the
    * lab notebook. The crop then only chooses which lanes appear in the figure.
    * Evidence per lattice position = well signal (row of wells) or band signal; positions without
    * either (gel edges, glare) are trimmed, real wells beyond the detected range are added. */
-  function detectLaneLattice(img, bright, crop, meta) {
+  function detectLaneLattice(img, bright, crop, meta, pitchHint) {
     const bx = Math.round(img.w * 0.01);
     const strip = cropImg(img, { x: bx, y: crop.y, w: img.w - 2 * bx, h: crop.h });
-    const L = detectLanes(strip, bright);
+    // the pitch is measured inside the crop (where the user framed the gel); across the whole width
+    // the profile also carries background and stray marks, which can skew a pitch vote
+    const L = detectLanes(strip, bright, pitchHint);
     if (L.centers.length < 2) return null;
     const P = L.pitch, q = L.profile, W = strip.w;
     // width (at half prominence) of the feature nearest c in a profile; lanes and wells are wide,
@@ -978,6 +1049,26 @@
     return best;
   }
 
+  /* How much of a lane does its best-fitting ladder explain?
+   * Band count alone cannot tell a marker lane from a sample lane on a crowded gel: a whole-cell
+   * lysate lane has more bands than any ladder, and some ladder always fits a subset of them. What
+   * separates them is coverage — a real marker lane is almost nothing but ladder bands, while a
+   * lysate lane leaves most of its peaks unexplained. Returns null when nothing fits. */
+  function markerQuality(peaks, ladders, h, mode) {
+    if (!peaks.length || !ladders.length) return null;
+    matchMulti.fast = true;
+    try {
+      let best = null;
+      for (const l of ladders) {
+        const m = matchLadder(peaks, l.sizes, h, null, mode);
+        if (!best || m.score > best.score) best = { id: l.id, score: m.score, matched: m.matchedCount };
+      }
+      if (!best) return null;
+      const explained = best.matched / Math.max(1, peaks.length);
+      return Object.assign(best, { explained, quality: best.score * explained });
+    } finally { matchMulti.fast = false; }
+  }
+
   // Rank ladder presets by fit to the detected peaks of one lane
   function rankLadders(peaks, ladders, h, mode) {
     return ladders.map(l => {
@@ -1093,6 +1184,14 @@
       else if (cnt > 0 && cnt <= 11) add(0.4, 'fewBands', { n: cnt });
     }
 
+    /* How many lanes are full of bands. A DNA gel has one or two ladder lanes and samples with a
+     * handful of products; a protein gel of lysates has band-rich lanes all the way across. This
+     * does not depend on the lane pitch being right, so it still holds on a crowded gel. */
+    if (input.richLanes != null && input.laneCount >= 3) {
+      if (input.richLanes >= 3) add(1.1, 'richLanes', { n: input.richLanes });
+      else if (input.richLanes <= 1) add(-0.3, 'fewRichLanes', { n: input.richLanes });
+    }
+
     // curvature: how far the best straight line in log(size) misses the matched bands
     if (input.ladder && input.peaks && input.peaks.length >= 5) {
       const md = input.ladder.kind === 'dna' ? 'dna' : 'protein';
@@ -1116,6 +1215,6 @@
 
   G.Engine = {
     clamp, percentiles, gaussSmooth, downsample, rotate, cropImg, detectBright, autoLevels, saturation,
-    toImageData, deskew, autoCrop, detectLanes, evenLanes, laneProfile, detectBands, matchLadder, estimateSize, estimateSizeInfo, exposureScore,sharpBandCount, rankLadders, jointLadders, matchMulti, detectLaneLattice, detectGelType
+    toImageData, deskew, autoCrop, detectLanes, measurePitch, dividedPitch, evenLanes, laneProfile, detectBands, matchLadder, estimateSize, estimateSizeInfo, exposureScore,sharpBandCount, rankLadders, markerQuality, jointLadders, matchMulti, detectLaneLattice, detectGelType
   };
 })(window);

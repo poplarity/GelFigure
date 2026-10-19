@@ -74,7 +74,13 @@
     for (let L = 0; L < opts.lanes; L++) {
       const cx = x0 + L * pitch;
       if (L === 0) lad.sizes.forEach(k => bands.push({ cx, y: yOf(k), a: lad.ref.includes(k) ? 0.95 : 0.6, s: 9 }));
-      else (samples[L] || []).forEach(([k, a]) => bands.push({ cx, y: yOf(k), a, s: 10 }));
+      else if (opts.crowded) {
+        // whole-cell lysate: a couple of dozen bands across the lane, as on a real Coomassie gel.
+        // Such a lane has far more bands than any ladder, which is why band count alone cannot
+        // decide which lane is the marker.
+        const n = 18 + Math.floor(rnd() * 8);
+        for (let b = 0; b < n; b++) bands.push({ cx, y: yTop + (yBot - yTop) * (b + 0.4 + rnd() * 0.3) / n, a: 0.3 + rnd() * 0.6, s: 7 + rnd() * 4 });
+      } else (samples[L] || []).forEach(([k, a]) => bands.push({ cx, y: yOf(k), a, s: 10 }));
       bands.push({ cx, y: wellY, a: 0.12, s: 6, well: true });
     }
     for (let y = 0; y < h; y++) {

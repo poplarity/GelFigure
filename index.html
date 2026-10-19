@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Everything runs locally. This policy forbids the page from contacting any server, so images can never leave the computer. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
-<meta name="description" content="GelFigure: turn a raw agarose gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
+<meta name="description" content="GelFigure: turn a raw DNA or protein gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
 <title>GelFigure</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Cg fill='%23fff'%3E%3Crect x='6' y='8' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='13' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='18' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='23' width='6' height='2.2' rx='1'/%3E%3Crect x='19' y='15' width='7' height='3' rx='1.2'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
@@ -14,7 +14,7 @@
 <header class="topbar">
   <div class="brand">GelFigure</div>
   <button class="chip" id="imgChip" title="打开 / 更换图片" data-en-title="Open / replace image"><span class="chip-dot"></span><span id="imgChipName" data-en="Open image">打开图片</span></button>
-  <div class="coach" id="coach"><span class="coach-dot"></span><span id="coachText" data-en="Drop a gel image into the window to start">把凝胶图拖进窗口即可开始</span></div>
+  <div class="coach" id="coach"><span class="coach-dot"></span><span id="coachText" data-en="Drop a gel image into the window to start">把胶图拖进窗口即可开始</span></div>
   <div class="topbar-right">
     <button class="icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)" data-en-title="Undo (Ctrl+Z)">↺</button>
     <button class="icon-btn" id="btnRedo" title="重做 (Ctrl+Shift+Z)" data-en-title="Redo (Ctrl+Shift+Z)">↻</button>
@@ -58,8 +58,8 @@
   <aside id="panel">
     <div class="empty" id="emptyState">
       <div class="empty-icon">▣</div>
-      <h2 data-en="Drop a gel image here">把凝胶图拖进来</h2>
-      <p data-en-html="TIFF from iBright and other imagers (16 / 8-bit), PNG or JPG.<br>Straightening, cropping, lanes and marker sizes are automatic —<br>you only type the lane names and export.">iBright 等成像仪导出的 TIFF（16 / 8 位）、PNG、JPG 都可以。<br>转正、裁切、泳道、Marker 全部自动完成，<br>你只需要填泳道名然后导出。</p>
+      <h2 data-en="Drop a gel image here">把胶图拖进来</h2>
+      <p data-en-html="<b>DNA / agarose gels and protein gels (SDS-PAGE, Coomassie or ECL)</b> — the type is recognised on import.<br>TIFF (16 / 8-bit), PNG or JPG from any imager or scanner.<br>Straightening, cropping, lanes and marker sizes are automatic — you only type the lane names and export."><b>DNA / 琼脂糖胶和蛋白胶（SDS-PAGE，考马斯亮蓝或 ECL）</b>都可以，导入时自动判断是哪种。<br>任意成像仪或扫描仪导出的 TIFF（16 / 8 位）、PNG、JPG 都能读。<br>转正、裁切、泳道、Marker 全部自动完成，你只需要填泳道名然后导出。</p>
       <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig" multiple hidden></label>
       <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
       <div id="draftBox" class="draft hidden">
@@ -74,17 +74,17 @@
       <!-- image -->
       <section class="sec">
         <div class="sec-head"><span class="sec-n">1</span><span data-en="Image">图像</span><span class="sec-status" id="stImage"></span></div>
-        <div class="field gel-type">
+        <div class="field">
           <label><span data-en="Gel type">胶的类型</span> <span class="h3-note" id="gelTypeNote"></span></label>
           <div class="seg full" id="gelSeg">
-            <button data-gel="dna" data-en="DNA / agarose (bp)">DNA / 琼脂糖胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button>
+            <button data-gel="dna" data-en="DNA (bp)">DNA 胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button>
           </div>
           <p class="hint" id="gelTypeWhy"></p>
         </div>
-        <div class="seg full" id="polSeg">
-          <button data-inv="0" data-en="White bands on black (raw)">黑底白带（原样）</button><button data-inv="1" data-en="Black bands on white (inverted)">白底黑带（反色）</button>
+        <div class="field">
+          <label class="switch"><input type="checkbox" id="invChk"><span data-en="Invert (swap black and white)">反色（黑白对调）</span></label>
+          <p class="hint" id="invNote"></p>
         </div>
-        <p class="hint" id="invNote"></p>
         <div class="field">
           <label><span data-en="Rotation">旋转</span> <b id="rotV"></b> <span class="h3-note" id="rotAuto"></span></label>
           <div class="inline nowrap">
@@ -124,32 +124,34 @@
           <span data-en="Wells">孔</span> <select id="rangeA"></select> – <select id="rangeB"></select>
           <button class="btn sm ghost" id="btnRangeAuto" title="只保留有条带的泳道" data-en-title="Keep only lanes with bands" data-en="Auto">自动</button>
         </div>
-        <p class="hint" data-en="Changing the range never loses names. You can also drag the red box on the image (its sides snap to the gaps between lanes; hold Alt to move freely).">换范围不会丢名称。也可在原图上拖红框（左右边轻吸附到泳道间隙，按住 Alt 完全自由）。</p>
-        <div class="crop-lanes">
-          <div class="cl-head"><span data-en="Lanes detected wrongly?">泳道识别不对？</span><span class="h3-note" data-en="Uses only the image inside the red box; lanes outside are untouched">只看红框内的图像，框外泳道不受影响</span></div>
-          <div class="field inline">
-            <button class="btn sm" id="btnRedetectCrop" data-en="Re-detect in box">框内重新识别</button>
-            <span class="inline-label"><span data-en="or">或 框内</span> <input type="number" id="cropLaneN" min="1" max="60" class="num" style="width:52px"> <span data-en="lanes">条</span></span>
-            <button class="btn sm" id="btnEvenCrop" title="按这个条数在红框内等间距排布" data-en-title="Space this many lanes evenly inside the red box" data-en="Space evenly">等间距排布</button>
+        <p class="hint" data-en="Or drag the red box on the image. Changing the range never loses lane names.">也可以直接在原图上拖红框。换范围不会丢泳道名。</p>
+
+        <div class="lane-fix">
+          <div class="lane-fix-row">
+            <span class="inline-label" data-en="Lanes in the box">框内泳道</span>
+            <input type="number" id="cropLaneN" min="1" max="60" class="num" style="width:54px">
+            <button class="btn sm" id="btnEvenCrop" data-en="Apply">应用</button>
+            <button class="btn sm ghost" id="btnRedetectCrop" data-en="Re-detect">重新识别</button>
           </div>
-          <p class="hint" data-en="Tip: put the sides of the red box on the outer edges of the two outermost lanes, then click “Space evenly” — this is almost always right. Names are kept left to right.">建议先把红框左右边贴着最外侧两条泳道的外沿，再点"等间距排布"——几乎总是对的。名称按从左到右顺序保留。</p>
+          <p class="hint" id="laneFixHint" data-en="Lane lines wrong? Put the red box on the outermost lanes, type how many lanes are inside it and click Apply.">泳道线不对？把红框贴着最外侧两条泳道，填上框内泳道条数，点"应用"。</p>
         </div>
+
         <div class="suggest hidden" id="emptyBar">
           <div id="emptyText"></div>
           <div class="inline"><button class="btn sm primary" id="btnCutEmpty" data-en="Remove">剪除</button><button class="btn sm ghost" id="btnIgnoreEmpty" data-en="Keep (don’t ask again)">保留（不再提示）</button></div>
         </div>
+
         <details class="adv" id="laneAdv">
-          <summary><span data-en="Individual lanes: remove / adjust">逐条泳道：剪除 / 微调</span><span class="h3-note" id="laneCountNote"></span></summary>
+          <summary><span data-en="Each lane: remove / rename / adjust">逐条泳道：剪除 / 改名 / 微调</span><span class="h3-note" id="laneCountNote"></span></summary>
           <div id="laneList" class="list"></div>
+          <p class="hint" data-en-html="Unticking <b>Show</b> cuts the lane from the figure and adds a splice gap. On the image: drag a lane line sideways, double-click to add one, <code>Delete</code> to remove, <code>H</code> to cut / restore.">取消 <b>显示</b> = 从成图剪除该泳道并自动加拼接间隙。原图上：左右拖泳道线、双击空白加泳道、<code>Delete</code> 删除、<code>H</code> 剪除/恢复。</p>
           <div class="field inline">
-            <label class="inline-label"><span data-en="Splice gap">拼接间隙</span> <input type="range" id="spliceGap" min="0" max="5" step="0.25" style="width:110px"> <b id="spliceGapV"></b></label>
+            <label class="inline-label"><span data-en="Splice gap">拼接间隙</span> <input type="range" id="spliceGap" min="0" max="5" step="0.25" style="width:96px"> <b id="spliceGapV"></b></label>
             <select id="spliceStyle" style="width:auto"><option value="gap" data-en="White gap">白色间隙</option><option value="line" data-en="Divider line">分隔线</option></select>
           </div>
-          <p class="hint" data-en-html="Select a lane on the image and press <code>H</code> to remove / restore it.">在原图上选中一条泳道后按 <code>H</code> 剪除 / 恢复。</p>
           <div class="field inline">
-            <button class="btn sm ghost" id="btnAutoLanes" title="按整块胶重新识别所有泳道（会覆盖框内的调整）" data-en-title="Re-detect all lanes on the whole gel (overwrites adjustments)" data-en="Re-detect whole gel">整块胶重新识别</button>
+            <button class="btn sm ghost" id="btnAutoLanes" title="按整块胶重新识别所有泳道（会覆盖手动调整）" data-en-title="Re-detect every lane on the whole gel (overwrites manual adjustments)" data-en="Re-detect whole gel">整块胶重新识别</button>
           </div>
-          <p class="hint" data-en="Unticking “Show” removes the lane from the figure (a splice gap is added). Drag lane lines left/right on the image; double-click empty space to add a lane; select one and press Delete to remove it.">取消"显示"= 从成图剪除该泳道（自动加拼接间隙）。原图上可左右拖泳道线；双击空白处加泳道；选中后按 Delete 删除。</p>
         </details>
       </section>
 
@@ -170,10 +172,10 @@
           <button class="btn sm ghost" id="btnAutoMarkers" data-en="Re-detect">重新识别</button>
         </div>
         <details class="adv" id="favAdv">
-          <summary><span data-en="Favourite ladders ★">常用型号 ★</span><span class="h3-note" id="favNote"></span></summary>
-          <p class="hint" style="margin-top:2px" data-en="Click ★ on a marker card to make it a favourite. Detection prefers favourites but still switches (with a notice) when none fits.">点 Marker 卡片里的 ★ 收藏。自动识别优先选常用型号；明显不吻合时仍会换型号并提示。</p>
+          <summary><span data-en="Ladders we use">我们实验室常用的型号</span><span class="h3-note" id="favNote"></span></summary>
+          <p class="hint" style="margin-top:2px" data-en="Tick the ladders your lab actually buys. Detection prefers them, and still says so when it has to pick another one that fits better.">勾选你们实验室实际在用的型号。自动识别会优先选它们；确实不吻合时会换成更吻合的型号并提示你。</p>
           <div id="favList" class="list"></div>
-          <label class="switch"><input type="checkbox" id="onlyFav"><span data-en="Detect among favourites only (falls back to all if none fits)">只在常用型号中识别（不吻合时自动回退全库）</span></label>
+          <label class="switch"><input type="checkbox" id="onlyFav"><span data-en="Use only these (falls back to all if none fits)">只用勾选的型号（都不吻合时自动回退全库）</span></label>
         </details>
         <details class="adv">
           <summary data-en="Custom ladder">自定义 Ladder</summary>
@@ -217,7 +219,7 @@
             <span class="h3-note" id="angleInfo"></span>
           </div>
           <div class="field inline wrap">
-            <label class="switch"><input type="checkbox" id="unitHeader" checked><span data-en="(bp) header">(bp) 标题</span></label>
+            <label class="switch"><input type="checkbox" id="unitHeader" checked><span id="unitHeaderLbl" data-en="(bp) header">(bp) 标题</span></label>
             <label class="switch"><input type="checkbox" id="laneNumbers"><span data-en="Lane numbers">泳道编号</span></label>
             <label class="switch"><input type="checkbox" id="frame"><span data-en="Frame">边框</span></label>
             <label class="switch"><input type="checkbox" id="groupTicks"><span data-en="Group line ends">分组线端点</span></label>
@@ -249,7 +251,7 @@
         <canvas id="editor"></canvas>
         <div id="dropHint">
           <div class="dh-icon">▣</div>
-          <div class="dh-text" data-en="Drop the gel image here">把凝胶图拖到这里</div>
+          <div class="dh-text" data-en="Drop the gel image here">把胶图拖到这里</div>
           <div class="dh-sub" data-en="A .tif straight from the imager works">成像仪导出的 .tif 直接拖进来</div>
         </div>
       </div>

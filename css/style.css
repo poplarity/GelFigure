@@ -120,6 +120,9 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .lead b { color: var(--text); }
 .field { margin: 9px 0; }
 .field > label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 3px; }
+/* a switch inside a field is still a switch: without this the block rule above wins on specificity
+   and the checkbox loses its gap and vertical centring */
+.field > label.switch { display: inline-flex; font-size: 12.3px; margin-bottom: 0; }
 .field b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inline-label { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -180,6 +183,11 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .suggest .inline { margin-top: 6px; }
 .draft { margin: 12px 0; padding: 10px 12px; border-radius: var(--r); background: var(--accent-bg); text-align: left; font-size: 12.5px; display: flex; flex-direction: column; gap: 8px; }
 .item .star { border: none; background: none; cursor: pointer; font-size: 15px; color: #c9a227; padding: 0 3px; }
+.item .star.off { color: #c3cad4; }
+.fav-row { cursor: pointer; }
+.fav-row input { accent-color: var(--accent); width: 14px; height: 14px; margin: 0; flex: none; cursor: pointer; }
+.fav-row .fav-name { flex: 1; min-width: 0; font-size: 12.3px; color: var(--muted); }
+.fav-row.on .fav-name { color: var(--text); font-weight: 600; }
 .mk-card .star { border: none; background: none; cursor: pointer; font-size: 16px; color: #c9a227; padding: 0 2px; line-height: 1; }
 .mk-card .star.off { color: #c3cad4; }
 .mk-notice { font-size: 11.5px; color: var(--warn); background: #fff8e8; border-radius: 6px; padding: 5px 8px; margin-bottom: 8px; }
@@ -199,9 +207,9 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .pf-item .tx { flex: 1; }
 .pf-ok { color: var(--ok); padding: 10px 0; }
 .pf-actions { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
-.crop-lanes { margin-top: 10px; padding: 9px 11px; border-radius: var(--r); background: #f6f8fb; }
-.cl-head { font-size: 12.3px; font-weight: 600; }
-.crop-lanes .field { margin: 7px 0 0; }
+.lane-fix { margin-top: 10px; padding: 9px 11px; border-radius: var(--r); background: #f6f8fb; }
+.lane-fix-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lane-fix .hint { margin-top: 6px; }
 .tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .tool { border: 1px solid var(--line); background: #fff; border-radius: var(--r); padding: 8px 6px; cursor: pointer; text-align: center; font-size: 12.3px; transition: .12s; }
 .tool:hover { border-color: var(--accent); background: var(--accent-bg); }

@@ -25,7 +25,7 @@ body:
     id: imager
     attributes:
       label: Imager and file type / 成像仪与文件类型
-      placeholder: e.g. iBright FL1500, 16-bit TIFF
+      placeholder: e.g. gel imager, 16-bit TIFF; or flatbed scanner, 8-bit PNG
   - type: input
     id: browser
     attributes:

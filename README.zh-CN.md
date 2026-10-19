@@ -73,7 +73,7 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 
 | 格式 | 说明 |
 |---|---|
-| TIFF（8 / 16 / 32 位灰度） | 推荐。支持未压缩、LZW、Deflate、PackBits，大小端均可。已用 Thermo Fisher iBright 导出的文件测试。 |
+| TIFF（8 / 16 / 32 位灰度） | 推荐。支持未压缩、LZW、Deflate、PackBits，大小端均可。凝胶成像仪和平板扫描仪导出的 TIFF 都能读。 |
 | PNG / JPG / BMP | 浏览器按 8 位读取，会提示改用 16 位原始 TIFF。 |
 | `.gelfig` | GelFigure 项目文件。 |
 
@@ -132,7 +132,7 @@ Windows、macOS、Linux 上较新的 Chrome、Edge、Firefox，以及 Safari 16.
 
 ## 已知局限
 
-- 自动识别目前主要在 Thermo Fisher iBright 拍摄的 DNA 琼脂糖凝胶和合成胶图上验证过。蛋白胶模式基于合成胶和厂家 Ladder 规格开发，欢迎用真实胶图测试并反馈。其他成像仪应该也能用；如果在你的图上识别失败，欢迎[提交 issue](https://github.com/poplarity/GelFigure/issues/new/choose)。
+- 自动识别已在 DNA 琼脂糖胶、考马斯亮蓝染色的 SDS-PAGE 胶和合成胶图上验证。泳道挨得很近的蛋白胶（例如全细胞裂解液）可能把相邻泳道并成一条，在"出图范围"里填上泳道条数即可纠正。如果在你的图上识别失败，欢迎[提交 issue](https://github.com/poplarity/GelFigure/issues/new/choose)。
 - 暂不支持 Western blot 条带灰度定量（蛋白胶模式处理的是泳道、Ladder 和条带位置）。
 - Bio-Rad `.scn` / `.1sc` 等专有格式需先导出为 TIFF。不支持 BigTIFF 和调色板 TIFF。
 - 16 位 PNG 会被浏览器按 8 位读取。
