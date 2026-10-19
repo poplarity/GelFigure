@@ -1,5 +1,6 @@
 /* DNA ladder presets. Sizes in bp, largest -> smallest, as visible bands.
  * ref = reference (brighter) bands. Verified against manufacturer datasheets (2026-10).
+ * Sources are listed in docs/ladders.md; never add a ladder without one.
  */
 (function (G) {
   'use strict';
@@ -24,7 +25,9 @@
     { id: 'trans2kplus2', name: 'TransGen Trans2K Plus II (BM121)', sizes: [8000, 5000, 3000, 2000, 1000, 750, 500, 250, 100], ref: [750] },
     { id: 'trans5k', name: 'TransGen Trans5K', sizes: [5000, 3000, 2000, 1500, 1000, 800, 500, 300], ref: [1500] },
     { id: 'trans15k', name: 'TransGen Trans15K (BM161)', sizes: [15000, 10000, 7500, 5000, 3000, 1500, 1000, 500], ref: [5000] },
-    { id: 'tiangen2000', name: 'Tiangen Marker D2000 (MD114)', sizes: [2000, 1000, 750, 500, 250, 100], ref: [750] }
+    { id: 'tiangen2000', name: 'Tiangen Marker D2000 (MD114)', sizes: [2000, 1000, 750, 500, 250, 100], ref: [750] },
+    { id: 'yeasen1kb', name: 'Yeasen GoldBand 1 kb (10510ES)', sizes: [12000, 8000, 6000, 5000, 4000, 3000, 2500, 2000, 1500, 1000, 750, 500, 250], ref: [4000, 1500] },
+    { id: 'yeasen100plus', name: 'Yeasen GoldBand 100 bp Plus (10516ES)', sizes: [3000, 2000, 1500, 1200, 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100], ref: [1200, 500] }
   ];
 
   const CUSTOM_KEY = 'gelfig.customLadders', FAV_KEY = 'gelfig.favLadders';

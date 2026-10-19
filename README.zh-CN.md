@@ -114,7 +114,9 @@ GelFigure 帮你合规，但**是否符合期刊要求仍由作者负责**。
 
 ## 内置 Ladder
 
-Thermo Scientific GeneRuler：1 kb、1 kb Plus、100 bp、100 bp Plus、50 bp、DNA Ladder Mix、Low Range、Ultra Low Range、Express · NEB：1 kb、100 bp、1 kb Plus · Takara：DL2000、DL5000、DL15000 · 全式金 TransGen：Trans2K、Trans2K Plus、Trans2K Plus II、Trans5K、Trans15K · 天根 Tiangen：Marker D2000。
+Thermo Scientific GeneRuler：1 kb、1 kb Plus、100 bp、100 bp Plus、50 bp、DNA Ladder Mix、Low Range、Ultra Low Range、Express · NEB：1 kb、100 bp、1 kb Plus · Takara：DL2000、DL5000、DL15000 · 全式金 TransGen：Trans2K、Trans2K Plus、Trans2K Plus II、Trans5K、Trans15K · 天根 Tiangen：Marker D2000 · 翌圣 Yeasen：GoldBand 1 kb、GoldBand 100 bp Plus。
+
+[`docs/ladders.md`](docs/ladders.md) 里列出了每个型号的货号、条带数和参考带，也写明了哪几个型号条带完全相同、无法自动区分（把你常用的那个设为常用型号即可）。
 
 其他型号可在 **Marker → 自定义 Ladder** 中添加，自定义 Ladder 会随样式和项目文件一起保存。想把型号加进内置库供所有人使用，请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

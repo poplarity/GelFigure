@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- Two Yeasen (翌圣生物) ladders: GoldBand 1 kb (10510ES) and GoldBand 100 bp Plus (10516ES).
+- `docs/ladders.md`: every built-in ladder with its catalogue number, band count, range and reference bands, plus the groups of ladders whose band sizes are identical and therefore cannot be told apart automatically.
+
 ## [0.5.0] - 2026-10-19
 
 First public release.

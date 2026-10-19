@@ -26,7 +26,9 @@ Built-in ladders live in [`js/ladders.js`](js/ladders.js):
 - `sizes`: every **visible** band in bp, largest to smallest.
 - `ref`: the brighter reference bands, if the datasheet marks any.
 
-In the pull request, please link the manufacturer's datasheet that the sizes come from. A wrong size produces a wrong figure, so ladders without a source cannot be merged.
+Also add a row to [`docs/ladders.md`](docs/ladders.md) with the catalogue number and a link to the manufacturer's datasheet the sizes come from. A wrong size produces a wrong figure, so ladders without a source cannot be merged.
+
+If the band sizes turn out to be identical to a ladder that is already there, say so in the pull request: both can still be listed (the reference bands and the name in the legend differ), but detection will not be able to tell them apart, so they belong in the "cannot be told apart" section of `docs/ladders.md`.
 
 ## Development
 
