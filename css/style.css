@@ -272,3 +272,80 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); } .small { font-size: 11.5px; }
 @media (max-width: 1250px) { #panel { width: 280px; } .coach { display: none; } .col-sub { display: none; } }
+
+/* ---------- phone (≤ 900 px): single column, tabbed views, settings drawer ---------- */
+
+/* dynamic viewport height guards (safe on desktop: 100% is valid for both) */
+html, body { height: 100dvh; }
+body { overflow: hidden; touch-action: manipulation; }
+
+/* bigger, finger-friendly targets appear as soon as touch is used */
+@media (hover: none) and (pointer: coarse) {
+  #editorBox { touch-action: none; }           /* pan/zoom are drawn by hand; no scroll fighting */
+  #previewBox { touch-action: pan-x pan-y; }   /* scrollable figure area; lane drags handled as pointers */
+  #preview svg { touch-action: none; }         /* figure edits don't scroll while dragging */
+  #preview svg .ed, #preview svg g[data-edit="cond"], #preview svg g[data-edit="arrow"] { cursor: pointer; }
+  .btn, .seg button { min-height: 36px; }
+  input[type=number], input[type=text], select, textarea { font-size: 16px; }  /* iOS: no zoom on focus */
+  input[type=range]::-webkit-slider-thumb { width: 24px; height: 24px; }
+  .item { padding: 6px 6px; }
+  .dialog-full .dlg-body { margin: 12px; max-width: none; width: calc(100vw - 24px); }
+}
+
+#panelClose, #btnPanel { display: none; }
+
+@media (max-width: 900px) {
+  .topbar { height: 46px; gap: 8px; padding: 0 10px; }
+  .brand { font-size: 15px; }
+  .coach, .divider, #dpiTop { display: none; }  /* no room for the hint bar / export menu on the bar */
+  #btnPanel { display: inline-block; }
+  #imgChipName { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .split .caret { padding: 6px 6px; }
+
+  #app { position: relative; overflow: hidden; }
+  /* settings panel becomes an overlay drawer over the work area */
+  #panel {
+    position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 40;
+    width: 100% !important; border-right: none; overflow-y: auto;
+    box-shadow: none; transition: transform .22s ease;
+  }
+  body.pnl-closed #panel { transform: translateX(-100%); pointer-events: none; }
+
+  /* the two work columns share the whole work area under the tab row; the body class picks one */
+  #stage { flex-direction: column; background: transparent; position: relative; }
+  .pane-col { position: absolute; top: 0; left: 0; right: 0; bottom: 0; flex-direction: column; }
+  #rawCol .col-head, #figCol .col-head { flex: none; }
+  /* tab bar sits inside the work area, above the panes, not over the topbar */
+  #viewTabs { position: absolute; top: 0; left: 0; right: 0; z-index: 30; padding: 6px 10px; background: #fff; border-bottom: 1px solid var(--line); display: none; }
+  body.has-image:not(.tabs-hidden) .pane-col { top: 48px; }   /* leaves room for the tab row */
+  body.view-raw #figCol, body.view-fig #rawCol { display: none; }
+  body.view-raw #rawCol, body.view-fig #figCol { display: flex; }
+
+  body.pnl-closed.has-image:not(.tabs-hidden) #viewTabs { display: block !important; }
+  #viewTabs .seg button { padding: 8px 10px; font-size: 14px; }
+
+  .col-head { height: 36px; padding: 0 8px; }
+  #preview { padding: 10px; }
+  #preview svg { max-width: calc(100vw - 20px); height: auto; }
+  .mode-banner { top: 8px; font-size: 12px; max-width: calc(100vw - 16px); white-space: normal; text-align: center; }
+
+  /* floating editor / popover usable on a small screen */
+  #popover { position: fixed !important; left: 8px !important; right: 8px !important; width: auto !important; max-width: none; bottom: 8px !important; top: auto !important; }
+  #floatEd { font-size: 16px; }
+
+  /* toasts and warnings must not fight the bottom bar */
+  #toasts { bottom: 64px; }
+  #warnings { right: 10px; bottom: 60px; max-width: calc(100vw - 20px); }
+  .dlg-body { margin: 10px; max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px); padding: 18px 18px; }
+
+  /* panel content: a bit roomier list rows */
+  .sec { padding: 10px 10px 12px; }
+  .list { max-height: none; }
+}
+
+@media (min-width: 901px) {
+  body.pnl-closed #panel { transform: none; }
+  #viewTabs { display: none !important; }
+  #secMobile { display: none !important; }
+}
+

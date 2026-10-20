@@ -233,18 +233,19 @@
       g.classList.toggle('active', a != null && s >= Math.min(a, b) && s <= Math.max(a, b));
     });
   }
-  prev.addEventListener('mousedown', e => {
+  prev.addEventListener('pointerdown', e => {
     if (!S()) return;
     const g = e.target.closest('[data-edit]');
     if (!g) return;
     if (g.dataset.edit === 'lane') { press = { src: +g.dataset.src, x: e.clientX, y: e.clientY, moved: false, end: +g.dataset.src }; e.preventDefault(); }
   });
-  window.addEventListener('mousemove', e => {
+  window.addEventListener('pointermove', e => {
     if (!press) return;
+    if (e.cancelable) e.preventDefault();
     if (Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 6) press.moved = true;
     if (press.moved) { const l = laneAt(e.clientX, e.clientY); if (l != null) press.end = l; highlight(press.src, press.end); }
   });
-  window.addEventListener('mouseup', e => {
+  window.addEventListener('pointerup', e => {
     if (!press) return;
     const p = press; press = null;
     highlight(null);

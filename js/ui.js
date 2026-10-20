@@ -724,10 +724,40 @@
     if (favKind !== App.gelKind()) { favKind = App.gelKind(); renderFavs(); }
   }
 
+  // ---------- phone layout only (≤ 900 px; see style.css) ----------
+  const mqMobile = matchMedia('(max-width: 900px)');
+  const isMobile = () => mqMobile.matches;
+  function setView(v) {
+    document.body.classList.remove('view-raw', 'view-fig', 'view-panel');
+    document.body.classList.add('view-' + v);
+    document.body.classList.toggle('pnl-closed', v !== 'panel');
+    document.body.classList.toggle('tabs-hidden', v === 'panel');
+    $('viewTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+    if (S() && (v === 'fig' || v === 'raw')) requestAnimationFrame(() => { updatePreview(); drawHisto(); if (v === 'raw') G.Editor.resize(); });
+  }
+  function mobileSync() {
+    const has = !!S();
+    document.body.classList.toggle('has-image', has);
+    $('btnPanel').style.display = isMobile() && has ? 'inline-block' : 'none';
+    if (!isMobile()) { document.body.classList.remove('view-raw', 'view-fig', 'view-panel', 'pnl-closed', 'tabs-hidden'); return; }
+    if (!has) { document.body.classList.remove('view-raw', 'view-fig'); document.body.classList.add('view-panel'); document.body.classList.add('tabs-hidden'); }
+    else if (!document.body.className.match(/view-(raw|fig|panel)/)) setView('fig');
+    $('panelClose').style.display = isMobile() && has ? 'inline-block' : 'none';
+    $('btnMobileFull').onclick = () => { setView('raw'); G.Editor.fitFull(); };
+    $('btnMobileCrop').onclick = () => { setView('raw'); G.Editor.fitCrop(); };
+    $('btnResetAllMobile').onclick = () => { App.resetAll(); setView('raw'); };
+  }
+  $('viewTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
+  $('panelClose').onclick = () => setView('fig');
+  $('btnPanel').onclick = () => setView(document.body.classList.contains('view-panel') ? 'fig' : 'panel');
+  mqMobile.addEventListener('change', mobileSync);
+
   App.on(what => {
     if (!S()) return;
     if (what === 'loaded') {
       $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden');
+      if (isMobile()) setView('fig');   // land on the figure so you see what was detected
+      mobileSync();
       histCache = null; renderExposures();
       // lanes that had to be re-spaced because neighbours ran together: worth a look before naming
       if (App.laneNotice) toast(App.laneNotice, 6000);
@@ -741,14 +771,16 @@
       }
     }
     if (what === 'refresh') { livePreview(); return; }
+    if (what === 'change' || what === 'select') mobileSync();
     clearTimeout(liveTimer);
-    if (what === 'select') { renderLanes(); renderAnno(); return; }
+ if (what === 'select') { renderLanes(); renderAnno(); return; }
     syncControls(); renderPanel(); updateStatus(); updatePreview();
   });
   window.addEventListener('resize', () => { if (S()) { updatePreview(); drawHisto(); } });
 
   G.UI = { toast, updatePreview, figLanes, range, esc, lastFig: () => lastFig, preflight, renderExposures };
   $('btnUndo').disabled = $('btnRedo').disabled = true;
+  mobileSync();
   offerDraft();
 
   /* ---------- development / self-test URL parameters ----------

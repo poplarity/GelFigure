@@ -245,12 +245,13 @@
     return 'grab';
   }
 
-  cv.addEventListener('mousedown', (e) => {
+cv.addEventListener('pointerdown', (e) => {
     if (!App.S) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     box.focus({ preventScroll: true });
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
     const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top;
     const p = toImg(sx, sy);
-    // placing a target-band arrow: one click, snapped to the band under the cursor
     if (App.mode === 'arrow') {
       const c = App.S.crop;
       if (p.y >= c.y && p.y <= c.y + c.h && App.placeArrow) App.placeArrow(p.x, p.y);
@@ -284,11 +285,13 @@
     e.preventDefault();
   });
 
-  window.addEventListener('mousemove', (e) => {
+  window.addEventListener('pointermove', (e) => {
     if (!App.S) return;
+    if (drag) {
+      if (e.cancelable) e.preventDefault();   /* take the finger from the browser's scroll/zoom */
+    } else if (e.pointerType !== 'mouse' || e.target !== cv) return;
     const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top;
     if (!drag) {
-      if (e.target !== cv) return;
       if (App.mode === 'arrow') {
         const p = toImg(sx, sy), c = App.S.crop;
         const inC = p.y >= c.y && p.y <= c.y + c.h && p.x >= c.x && p.x <= c.x + c.w;
@@ -339,7 +342,7 @@
   });
   function E_clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
 
-  window.addEventListener('mouseup', () => {
+  window.addEventListener('pointerup', () => {
     if (!drag) return;
     const d = drag; drag = null;
     const S = App.S;
@@ -436,5 +439,6 @@
   });
 
   function setGrid(on) { if (gridOn !== !!on) { gridOn = !!on; draw(); } }
-  G.Editor = { draw, resize, fitFull, fitCrop, zoom: () => view.s, refreshZoom, setGrid };
+  // x/y are canvas-image pixels; screen/browser coords are toScr / toImg
+  G.Editor = { draw, resize, fitFull, fitCrop, zoom: () => view.s, refreshZoom, setGrid, toScr, toImg };
 })(window);

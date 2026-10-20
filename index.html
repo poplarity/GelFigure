@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- Everything runs locally. This policy forbids the page from contacting any server other than its own origin (its own files), so images can never leave the computer. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="description" content="GelFigure: turn a raw DNA or protein gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
@@ -18,6 +18,7 @@
   <div class="topbar-right">
     <button class="icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)" data-en-title="Undo (Ctrl+Z)">↺</button>
     <button class="icon-btn" id="btnRedo" title="重做 (Ctrl+Shift+Z)" data-en-title="Redo (Ctrl+Shift+Z)">↻</button>
+    <button class="icon-btn" id="btnPanel" title="设置" data-en-title="Settings">☰</button>
     <div class="menu-wrap">
       <button class="btn ghost" id="btnTplMenu" data-en="File ▾">文件 ▾</button>
       <div class="menu hidden" id="tplMenu">
@@ -56,6 +57,7 @@
 
 <div id="app">
   <aside id="panel">
+    <button class="btn sm ghost" id="panelClose" title="返回" data-en-title="Back">✕</button>
     <div class="empty" id="emptyState">
       <div class="empty-icon">▣</div>
       <h2 data-en="Drop a gel image here">把胶图拖进来</h2>
@@ -256,10 +258,25 @@
       </section>
 
       <div id="legendHints" class="legend"></div>
+
+      <section class="sec" id="secMobile">
+        <div class="field inline">
+          <button class="btn sm ghost" id="btnMobileFull" data-en="Show whole image">原图：全图</button>
+          <button class="btn sm ghost" id="btnMobileCrop" data-en="Zoom to figure area">原图：出图范围</button>
+          <button class="btn sm ghost" id="btnResetAllMobile" data-en="Start over">重新开始</button>
+        </div>
+      </section>
     </div>
   </aside>
 
   <main id="stage">
+    <div id="viewTabs" class="hidden">
+      <div class="seg full">
+        <button data-view="raw">📷 原图</button>
+        <button data-view="fig">🖼 成图</button>
+        <button data-view="panel">⚙ 设置</button>
+      </div>
+    </div>
     <section class="pane-col" id="rawCol">
       <div class="col-head">
         <span class="col-title" data-en="Raw image">原图</span>
