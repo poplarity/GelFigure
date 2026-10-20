@@ -4,7 +4,22 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-## [0.6.2] - 2026-10-21
+## [0.6.3] - 2026-10-21
+
+Mobile polish and a one-file offline build.
+
+**中文摘要**
+- **手机顶栏显示完整**：撤销 / 重做、导出 PNG 等按钮收进设置抽屉；顶部只留品牌、打开图片、设置和语言。
+- **新增单文件离线版**：`GelFigure-v0.6.3.html` 可直接下载并双击打开，约 380 KB，不用解压。
+
+### Added
+- **Single-file offline version.** scripts/bundle-onefile.mjs inlines css/ and js/ in load order into `dist/GelFigure.html` (~380 KB). Release now attaches `GelFigure-<tag>.html` next to the zip, so users can download one file that runs by double-click.
+- **Release zip and notes** mention the offline build; the workflow is compatible with future tags.
+
+### Fixed
+- **Top bar on phones** no longer overflows: undo / redo, the file menu, export resolution and the split export button are hidden on narrow screens and their functions live in the settings drawer.
+- **Single-file bundle** loads cleanly from file:// after inlining tiff.js and relaxing the script-src restriction only for that bundle.
+ - 2026-10-21
 
 Mobile layout and touch support; same features as 0.6.1.
 
@@ -121,7 +136,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/poplarity/GelFigure/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/poplarity/GelFigure/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/poplarity/GelFigure/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/poplarity/GelFigure/compare/v0.5.0...v0.6.0

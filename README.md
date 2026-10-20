@@ -68,7 +68,7 @@ The hint bar at the top always shows the most useful next step. Press `?` in the
 
 ## Versions
 
-The current version is **0.6.2**. The 0.6 series adds protein gels, annotations, and mobile support. 0.6.2 brings a responsive phone layout and touch support. Earlier versions are kept as tags and branches if you need to go back: `v0.6.1` ([`release/0.6.1`](https://github.com/poplarity/GelFigure/tree/release/0.6.1)), `v0.6.0` ([`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)) and `v0.5.0` ([`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)).
+The current version is **0.6.3**. The 0.6 series adds protein gels, annotations, and mobile support. 0.6.2 added a responsive phone layout; 0.6.3 fixes the top bar on phones and ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use. Earlier versions are kept as tags and branches if you need to go back: `v0.6.2` ([`release/0.6.2`](https://github.com/poplarity/GelFigure/tree/release/0.6.2)), `v0.6.1`, `v0.6.0` and `v0.5.0`.
 
 ## Privacy
 

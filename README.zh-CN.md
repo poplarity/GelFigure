@@ -68,7 +68,7 @@
 
 ## 版本
 
-当前版本 **0.6.2**。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.2 补上响应式布局和触屏操作，在手机上也能正常排版和使用。需要回到旧版本时：`v0.6.1`（分支 [`release/0.6.1`](https://github.com/poplarity/GelFigure/tree/release/0.6.1)）、`v0.6.0`（分支 [`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)）、`v0.5.0`（分支 [`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)）。
+当前版本 **0.6.3**。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.2 补上响应式布局，0.6.3 完善手机顶栏排版，并在每个 Release 附上单文件离线版（`GelFigure-<version>.html`，双击即用）。需要回到旧版本时：`v0.6.2`（分支 [`release/0.6.2`](https://github.com/poplarity/GelFigure/tree/release/0.6.2)）、`v0.6.1`、`v0.6.0` 和 `v0.5.0`。
 
 ## 隐私
 
