@@ -5,7 +5,14 @@ test-results/
 *.log
 .DS_Store
 Thumbs.db
-# never commit gel images or projects by accident (docs/ screenshots are synthetic)
-*.tif
-*.tiff
+# never commit gel images, projects or exports by accident (docs/ screenshots are synthetic)
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
 *.gelfig
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[bB][mM][pP]
+*_processing_log.json
+*_style.json
+!docs/*.png

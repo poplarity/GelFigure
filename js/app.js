@@ -40,7 +40,7 @@
   App.defaultStyle = defaultStyle;
   App.onDropFile = null;   // set by the UI layer
 
-  App.VERSION = '0.6.0';
+  App.VERSION = '0.6.1';
   App.prefs = prefs;
   App.setPref = function (k, v) { const p = prefs(); p[k] = v; localStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 
@@ -631,7 +631,12 @@
     const pts = m.bands.filter(b => b.matched).map(b => [Math.log(b.bp), b.y - S.crop.y]);
     if (pts.length < 5) return false;
     const before = App.gelKind();
-    const det = applyGelVote(E.detectGelType(Object.assign({}, inp, { curvePts: pts })), App.gelDetection && App.gelDetection.lane);
+    /* The first guess took band count and width from the lane with the most bands; on a protein
+     * gel that is a lysate, not the marker. Now that the marker is known, measure them on it. */
+    const c = App.bandStrip(), prof = E.laneProfile(c, S.bright, S.lanes[m.lane].x, S.laneHalfW);
+    const a = E.detectBands(prof, 'dna'), b = E.detectBands(prof, 'protein');
+    const peaks = E.sharpBandCount(a) >= E.sharpBandCount(b) ? a : b;
+    const det = applyGelVote(E.detectGelType(Object.assign({}, inp, { peaks, profile: prof, curvePts: pts })), m.lane);
     det.ladderId = m.ladderId;
     if (det.kind === before) return false;
     App.autoMarkers();
@@ -663,6 +668,13 @@
     if (!S) return false;
     kind = kind === 'protein' ? 'protein' : 'dna';
     if (kind === App.gelKind()) return false;
+    switchKind(kind);
+    App.commit();
+    return true;
+  };
+  // the gel type and everything that follows from it: library, unit and fit of the markers
+  function switchKind(kind) {
+    const S = App.S;
     S.gelType = kind;
     App.gelDetection = { kind, confidence: 1, reasons: [], manual: true };
     const def = App.defaultLadder(kind);
@@ -675,9 +687,7 @@
     });
     App.matchMarkers(true);
     S.markers.forEach(m => { if (m.bands.length) App.thinMarkerLabels(m, true); });
-    App.commit();
-    return true;
-  };
+  }
 
   // find ladder lanes (many sharp bands) and pick ladders for them
   App.autoMarkers = function () {
@@ -699,13 +709,14 @@
       const cand = [];
       // most promising lanes first, so lanes that can no longer come close are skipped unscored
       const order = [];
-      for (let i = rg[0]; i <= rg[1]; i++) if (counts[i] >= minBands) order.push({ i, ub: E.markerQuality.bound(peaks[i], all) });
+      // lanes cut out of the figure are never markers
+      for (let i = rg[0]; i <= rg[1]; i++) if (counts[i] >= minBands && !S.lanes[i].hidden) order.push({ i, ub: E.markerQuality.bound(peaks[i], all) });
       order.sort((a, b) => b.ub - a.ub);
       let topQ = 0;
       for (const { i, ub } of order) {
         if (ub < Math.max(0.42, topQ - 0.15)) continue;
         const q = E.markerQuality(peaks[i], all, h, mode, Math.max(0.42, topQ - 0.15));
-        if (q) { cand.push({ i, quality: q.quality, fit: q.score, explained: q.explained }); topQ = Math.max(topQ, q.quality); }
+        if (q) { cand.push({ i, id: q.id, quality: q.quality, fit: q.score, explained: q.explained }); topQ = Math.max(topQ, q.quality); }
       }
       // on a tie the outermost lanes win: a marker is almost always loaded first or last
       const fig = App.figureLanes(), edge = i => (i === fig[0] || i === fig[fig.length - 1] ? 0.03 : 0);
@@ -720,7 +731,15 @@
       // "my ladders" get a bonus; without favourites the last used ladder plays that role
       const prefOk = App.prefLadder && G.Ladders.get(App.prefLadder) && G.Ladders.kindOf(G.Ladders.get(App.prefLadder)) === kind;
       const prefer = favs.length ? favs : [prefOk ? App.prefLadder : App.defaultLadder(kind)];
+      // the same lane set always gets the same joint match: remember it instead of matching again
+      const memo = new Map();
       const assign = lanes => {
+        const key = lanes.join(','), hit = memo.get(key);
+        if (hit) { S.markers = JSON.parse(hit.markers); App.ladderNotice = hit.notice; return; }
+        match(lanes);
+        memo.set(key, { markers: JSON.stringify(S.markers), notice: App.ladderNotice });
+      };
+      const match = lanes => {
         const pk = lanes.map(i => peaks[i]);
         let picks = null;
         App.ladderNotice = null;
@@ -749,17 +768,39 @@
       // the "M" a previous detection wrote on its marker lanes goes with them (lanes outside the
       // figure are not looked at again, so they keep their names)
       S.markers.forEach(m => { if (m.lane >= rg[0] && m.lane <= rg[1] && S.lanes[m.lane] && S.lanes[m.lane].name === 'M') S.lanes[m.lane].name = ''; });
-      let lanes = picked.map(c => c.i).sort((a, b) => a - b);
-      assign(lanes);
-      /* A sample lane can pass on its own — some ladder fits a subset of its bands — and still fail
-       * the migration curve all markers of a gel share. Matched jointly, it keeps only a few bands
-       * (a real second marker keeps most of them): drop such lanes and match the rest again. The
-       * lane the curve explains best always stays. */
-      if (S.markers.length > 1) {
-        const nMatched = m => m.bands.filter(b => b.matched).length;
-        const best = Math.max(...S.markers.map(nMatched));
-        const keep = S.markers.filter(m => nMatched(m) === best || (nMatched(m) >= minBands && nMatched(m) >= 0.6 * counts[m.lane] && nMatched(m) >= 0.6 * best));
-        if (keep.length < lanes.length) { lanes = keep.map(m => m.lane); assign(lanes); }
+      /* Grow the set from the best lane. A sample lane can pass on its own — some ladder fits a
+       * subset of its bands — yet it does not follow the migration curve the real marker defines.
+       * Each further lane is matched jointly with the lanes kept so far, their ladders held fixed so
+       * the shared curve stays theirs. It stays only if most of its own bands are explained and most
+       * of its ladder's bands on the gel are found on that curve: a real second ladder passes, a
+       * lysate lane fits only a few bands of whatever ladder it gets. (Real lanes do not share the
+       * curve exactly, so the kept lanes may lose a band or two; that is not held against it.) The
+       * final ladders are then chosen jointly for the lanes kept. */
+      const markerAt = i => S.markers.find(x => x.lane === i);
+      const nMatched = i => { const m = markerAt(i); return m ? m.bands.filter(b => b.matched).length : 0; };
+      const onGel = i => { const m = markerAt(i); return m ? m.bands.filter(b => b.y >= S.crop.y && b.y <= S.crop.y + S.crop.h).length : 0; };
+      const sorted = a => a.slice().sort((x, y) => x - y);
+      const fits = i => { const n = nMatched(i); return n >= 4 && n >= 0.6 * counts[i] && n >= 0.75 * onGel(i); };
+      let keep = picked.slice(0, 1).map(c => c.i);
+      assign(keep);
+      const lads = new Map(S.markers.map(m => [m.lane, m.ladderId]));
+      for (const { i, id } of picked.slice(1)) {
+        assign(sorted(keep.concat([i])));
+        S.markers.forEach(m => { if (lads.has(m.lane)) m.ladderId = lads.get(m.lane); });
+        App.matchMarkers(true);
+        // the joint choice may give a short ladder lane a long ladder; try the one that explained it alone
+        if (!fits(i) && id && markerAt(i).ladderId !== id) { markerAt(i).ladderId = id; App.matchMarkers(true); }
+        if (fits(i)) { keep = keep.concat([i]); lads.set(i, markerAt(i).ladderId); }
+      }
+      // the joint ladder choice can still leave an added lane with few bands: drop it and choose again
+      if (picked.length > 1) {
+        assign(sorted(keep));
+        for (let t = 0; t < 2 && keep.length > 1; t++) {
+          const bad = keep.slice(1).filter(i => !fits(i));
+          if (!bad.length) break;
+          keep = keep.filter(i => !bad.includes(i));
+          assign(sorted(keep));
+        }
       }
       S.markers.forEach(m => { if (!S.lanes[m.lane].name) S.lanes[m.lane].name = 'M'; });
     } finally { App._peakCrop = null; }
@@ -767,7 +808,7 @@
 
   // match all markers jointly; manually placed bands are kept as anchors
   App.matchMarkers = function (fresh) {
-    const S = App.S, c = App._peakCrop || App.bandStrip();
+    const S = App.S, outer = App._peakCrop, c = outer || App.bandStrip();
     const ms = S.markers.filter(m => G.Ladders.get(m.ladderId) && S.lanes[m.lane]);
     S.markers.forEach(m => { if (!ms.includes(m)) m.bands = []; });
     if (!ms.length) return;
@@ -794,7 +835,7 @@
         m.bands.forEach(b => { if (b.y < S.crop.y - 2 || b.y > S.crop.y + S.crop.h + 2) b.show = false; });
         if (fresh || !prev.size) App.thinMarkerLabels(m, true);
       });
-    } finally { App._peakCrop = null; }
+    } finally { App._peakCrop = outer || null; }   // a caller's cached strip stays for its next steps
   };
 
   // hide labels that would collide in the final figure; keep reference bands first
@@ -1063,8 +1104,14 @@
     App.saveDraftSoon();
     App.emit('change');
   };
+  // after undo / redo the state is a new object: selections and open editors would point at the old one
+  function dropSelection() {
+    App.selLane = -1; App.selArrow = -1; App.selAnno = null;
+    if (G.FigEdit) G.FigEdit.reset();
+  }
   App.undo = function () {
     if (App.hist.length < 2) return;
+    dropSelection();
     App.future.push(App.hist.pop());
     App.S = JSON.parse(App.hist[App.hist.length - 1]);
     App.saveDraftSoon();
@@ -1072,6 +1119,7 @@
   };
   App.redo = function () {
     if (!App.future.length) return;
+    dropSelection();
     const s = App.future.pop();
     App.hist.push(s);
     App.S = JSON.parse(s);
@@ -1121,10 +1169,8 @@
     // a style saved on a protein gel carries kDa markers: switch the gel type before the markers are built
     if (t.gelType === 'protein' || t.gelType === 'dna') {
       const want = t.gelType;
-      if (want !== App.gelKind()) {
-        App.S.gelType = want;
-        App.gelDetection = { kind: want, confidence: 1, reasons: [], manual: true };
-      }
+      // markers already on the gel switch library and unit too (a style without markers keeps them)
+      if (want !== App.gelKind()) switchKind(want);
     }
     let r = App.laneRange() || [0, S.lanes.length - 1];
     if (tl.length && r[0] + tl.length - 1 !== r[1]) { App.setLaneRange(r[0], Math.min(S.lanes.length - 1, r[0] + tl.length - 1)); r = App.laneRange(); }
@@ -1195,6 +1241,8 @@
     App.srcBuffer = input.buffer;
     App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null; App._emptyKey = null;
     App.exposures = null;
+    // notices and detection inputs of the previous image do not belong to this project
+    App.laneNotice = null; App.ladderNotice = null; App._gelVoteInput = null; App.cropMeta = null;
     App.S = state;
     App.S.style = Object.assign(defaultStyle(), App.S.style || {});
     ['boxes', 'brackets', 'labels'].forEach(k => { if (!Array.isArray(App.S[k])) App.S[k] = []; });   // older projects

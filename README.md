@@ -41,7 +41,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **DNA and protein gels**: the gel type is recognised on import (colour, band width, band count, migration curve) and the matching mode opens — ladder library, tolerances and units (bp / kDa). A switch at the top of the Image panel overrides the guess without losing names, groups or arrows.
 - **Edit on the figure itself**: click a lane name and type, Enter jumps to the next lane; drag across lane names to draw a group line; click cells to cycle `+` / `−`. IME-safe for Chinese, Japanese and Korean input.
 - **Lanes numbered by well**: cropping only selects which wells are shown, so names, markers and groups are never lost when you change the crop.
-- **Annotations papers use**: group lines, `+`/`−` rows, region boxes (optionally enlarged beside the figure), side brackets for smears or (Ub)n, side text for the stain or antibody, and `*` / `#` marks for non-specific bands.
+- **Annotations papers use**: group lines, `+`/`−` rows, region boxes (optionally enlarged beside the figure), side brackets for smears or (Ub)n, side text for the stain or antibody, and `*` / `#` / `†` marks for non-specific bands or other products.
 - **Target-band arrows with sizes**: click a band; the arrow snaps to it and its size is estimated from the marker(s). Sizes outside the ladder, or where two markers disagree by more than 10 %, are marked `≈`.
 - **Several exposures at once**: drop all exposures of one gel; the best one (least saturation, best signal-to-noise) is chosen, and you can switch with all annotations kept.
 - **Rotation keeps annotations in place**: lanes, bands, arrows and the crop box rotate with the image.
@@ -68,13 +68,13 @@ The hint bar at the top always shows the most useful next step. Press `?` in the
 
 ## Versions
 
-The current version is **0.6.0**, which adds protein gels (41 verified protein ladders), the new annotations and much more robust marker and lane detection; see the [changelog](CHANGELOG.md). Every version stays downloadable from [Releases](https://github.com/poplarity/GelFigure/releases). The previous version is kept as tag `v0.5.0` and as branch [`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5) if you need to go back.
+The current version is **0.6.1**. The 0.6 series adds protein gels (41 verified protein ladders), the new annotations and much more robust marker and lane detection; 0.6.1 fixes marker detection on purification gels and a number of interface details. See the [changelog](CHANGELOG.md). Every version stays downloadable from [Releases](https://github.com/poplarity/GelFigure/releases). Earlier versions are kept as tags and branches if you need to go back: `v0.6.0` ([`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)) and `v0.5.0` ([`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)).
 
 ## Privacy
 
 GelFigure is a static web page with no backend. Images are decoded and processed by JavaScript in your browser, and results are saved by your browser's own download mechanism.
 
-The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any server**, so this is enforced by the browser, not just promised. The only data kept on your computer are preferences, custom ladders and the autosaved draft in the browser's local storage.
+The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any other server** (it may only load its own files), so this is enforced by the browser, not just promised. The only data kept on your computer are preferences, custom ladders and the autosaved draft in the browser's local storage.
 
 ## Supported input
 

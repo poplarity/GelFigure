@@ -106,7 +106,11 @@
       if (next >= 4094) { emit(256); dict = new Map(); next = 258; width = 9; }
       w = c;
     }
-    emit(w); emit(257);
+    // the reader adds a table entry for this last code before it reads the end code, so the end code
+    // must already use the wider code if that entry crosses a width boundary (as libtiff does)
+    emit(w);
+    if (bytes.length > 1 && ++next > (1 << width) - 1 && width < 12) width++;
+    emit(257);
     if (nacc) out.push((acc << (8 - nacc)) & 255);
     return Uint8Array.from(out);
   }
@@ -115,7 +119,10 @@
     const rps = Math.max(1, Math.floor(65536 / w)), nStrips = Math.ceil(h / rps);
     const strips = [];
     for (let s = 0; s < nStrips; s++) strips.push(lzwEncode(gray.subarray(s * rps * w, Math.min(h, (s + 1) * rps) * w)));
-    const d = latin1(desc || ''), sw = latin1('GelFigure ' + G.App.VERSION);
+    // TIFF ASCII fields are 7-bit: the summary is JSON, so other characters (γ, ≈, Chinese file
+    // names) are written as \u escapes and nothing is lost
+    const ascii = s => String(s).replace(/[^\x00-\x7f]/g, ch => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'));
+    const d = latin1(ascii(desc || '')), sw = latin1('GelFigure ' + G.App.VERSION);
     const tags = 14;
     let off = 8 + 2 + tags * 12 + 4;
     const resOff = off; off += 16;
@@ -217,34 +224,52 @@
       markers: S.markers.map(m => ({ well: m.lane + 1, ladder: (G.Ladders.get(m.ladderId) || {}).name, unit: m.unit, fitScore: m.score, bands: m.bands.map(b => ({ bp: b.bp, y: Math.round(b.y * 10) / 10, autoMatched: b.matched, manual: b.manual, labelled: b.show })) })),
       arrows: S.arrows.map(a => {
         const e = A.estimateInfo(a.y);
-        return { text: a.text, y: Math.round(a.y * 10) / 10, label: A.arrowLabel(a), userSize: a.sizeText || null,
-          estimatedSize: e ? Math.round(e.bp * 10) / 10 : null, sizeUnit: A.sizeUnit(), estimatedBp: e ? Math.round(e.bp) : null, extrapolated: e ? e.extrap : null, markersUsed: e ? e.used.map(i => i + 1) : [],
+        const isBp = A.sizeUnit() === 'bp';
+        return { text: a.text, y: Math.round(a.y * 10) / 10, label: A.arrowLabel(a), symbol: a.sym || 'arrow', side: a.side || 'auto', userSize: a.sizeText || null,
+          estimatedSize: e ? Math.round(e.bp * 10) / 10 : null, sizeUnit: A.sizeUnit(), estimatedBp: e && isBp ? Math.round(e.bp) : undefined,
+          extrapolated: e ? e.extrap : null, markersDisagree: e ? e.disagree : null, markersUsed: e ? e.used.map(i => i + 1) : [],
           perMarker: e ? e.perMarker.map(p => ({ well: p.lane + 1, size: Math.round(p.bp * 10) / 10, bp: Math.round(p.bp), extrapolated: p.extrap })) : [] };
       }),
       groups: S.groups.map(g => ({ fromWell: Math.min(g.from, g.to) + 1, toWell: Math.max(g.from, g.to) + 1, text: g.text })),
-      regionBoxes: (S.boxes || []).map(b => ({ text: b.text, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), enlarged: b.zoom >= 2 ? b.zoom : null })),
-      brackets: (S.brackets || []).map(b => ({ text: b.text, y1: Math.round(b.y1), y2: Math.round(b.y2) })),
+      regionBoxes: (S.boxes || []).map(b => ({ text: b.text, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), dashed: b.dash !== false, enlarged: b.zoom >= 2 ? b.zoom : null })),
+      brackets: (S.brackets || []).map(b => {
+        const s1 = A.estimateBp(Math.min(b.y1, b.y2)), s2 = A.estimateBp(Math.max(b.y1, b.y2));
+        return { text: b.text, y1: Math.round(b.y1), y2: Math.round(b.y2), side: b.side || 'auto',
+          sizeRange: s1 && s2 ? { from: Math.round(s2 * 10) / 10, to: Math.round(s1 * 10) / 10, unit: A.sizeUnit() } : null };
+      }),
       sideText: (S.labels || []).map(t => ({ text: t.text, position: t.pos })),
       conditions: S.conditions, style: S.style,
       legendHints: legendHints(S)
     };
   }
 
+  // hints describe what the exported figure shows: annotations outside the crop and markers on cut
+  // lanes are left out
   function legendHints(S) {
     const h = [];
+    const A = G.App, R = A.renderState(false);
     const cut = S.lanes.map((l, i) => (l.hidden ? i + 1 : null)).filter(v => v != null);
     if (cut.length) h.push(`Lane${cut.length > 1 ? 's' : ''} ${cut.join(', ')} ${cut.length > 1 ? 'were' : 'was'} removed from the same gel; splice sites are indicated by ` + (S.style.spliceStyle === 'line' ? 'lines.' : 'white gaps.'));
     if (S.levels.invert) h.push('Image colours were inverted for display.');
-    const syms = new Set((S.arrows || []).map(a => a.sym));
+    const syms = new Set(R.arrows.map(a => a.sym));
     if (syms.has('star')) h.push('Asterisks (*) indicate non-specific bands.');
     if (syms.has('hash')) h.push('# indicates [describe, e.g. degradation products].');
     if (syms.has('dagger')) h.push('† indicates [describe].');
-    (S.boxes || []).filter(b => b.zoom >= 2).forEach(b => h.push(`The boxed region${b.text ? ` (${b.text})` : ''} is shown enlarged ${b.zoom}× on the right.`));
+    // the inset is shrunk to the gel height when the enlarged box would be taller than the gel
+    R.boxes.filter(b => b.zoom >= 2).forEach(b => {
+      const z = Math.round(Math.min(b.zoom, S.crop.h / b.h) * 10) / 10;
+      h.push(`The boxed region${b.text ? ` (${b.text})` : ''} is shown enlarged ${z}× on the right.`);
+    });
     if (S.levels.gamma !== 1) h.push(`A non-linear gamma adjustment (γ = ${S.levels.gamma}) was applied to the whole image.`);
-    const names = [...new Set(S.markers.map(m => G.Ladders.get(m.ladderId)).filter(Boolean).map(l => l.name.replace(/\s*\(.*\)/, '')))];
+    const shown = S.markers.filter(m => !S.lanes[m.lane].hidden && G.Ladders.get(m.ladderId));
+    const ladName = m => G.Ladders.get(m.ladderId).name.replace(/\s*\(.*\)/, '');
+    const names = [...new Set(shown.map(ladName))];
+    const kind = A.gelKind() === 'protein' ? 'molecular-weight markers' : 'DNA ladders';
     if (names.length === 1) h.push(`M, ${names[0]}.`);
-    else if (names.length > 1) h.push(`M, DNA ladders (${S.markers.map(m => `lane ${m.lane + 1}: ${G.Ladders.get(m.ladderId).name.replace(/\s*\(.*\)/, '')}`).join('; ')}).`);
-    if (S.arrows.some(a => a.size && !a.sizeText && (G.App.estimateInfo(a.y) || {}).extrap)) h.push('Sizes marked ≈ were extrapolated beyond the ladder range.');
+    else if (names.length > 1) h.push(`M, ${kind} (${shown.map(m => `lane ${m.lane + 1}: ${ladName(m)}`).join('; ')}).`);
+    const infos = R.arrows.filter(a => a.size && !a.sizeText).map(a => A.estimateInfo(a.y + S.crop.y)).filter(Boolean);
+    if (infos.some(e => e.extrap)) h.push('Sizes marked ≈ were extrapolated beyond the ladder range.');
+    if (infos.some(e => e.disagree && !e.extrap)) h.push('Sizes marked ≈ differ by more than 10% between the marker lanes; the geometric mean is shown.');
     return h;
   }
 

@@ -261,7 +261,7 @@
     if (App.mode === 'box' || App.mode === 'bracket') {
       const c = App.S.crop;
       if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) {
-        drag = { h: { type: 'draw' }, sx, sy, p0: p, cur: p, moved: false, view0: Object.assign({}, view) };
+        drag = { h: { type: 'draw' }, kind: App.mode, sx, sy, p0: p, cur: p, moved: false, view0: Object.assign({}, view) };
         cv.style.cursor = 'crosshair';
       }
       e.preventDefault();
@@ -345,8 +345,9 @@
     const S = App.S;
     if (d.h.type === 'draw') {
       const q = d.cur || d.p0, x0 = Math.min(d.p0.x, q.x), x1 = Math.max(d.p0.x, q.x), y0 = Math.min(d.p0.y, q.y), y1 = Math.max(d.p0.y, q.y);
-      const kind = App.mode;
-      if (App.createAnno) App.createAnno(kind, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      // Esc during the drag cancelled the tool: draw nothing
+      if (App.mode === d.kind && App.createAnno) App.createAnno(d.kind, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      else draw();
       return;
     }
     if (!d.moved) {
@@ -384,9 +385,9 @@
     draw(); refreshZoom();
   }, { passive: false });
 
-  // space = temporary pan mode
+  // space = temporary pan mode (not on form fields and buttons, where Space types or presses)
   window.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !spaceDown && !/input|textarea|select/i.test((e.target.tagName || ''))) {
+    if (e.code === 'Space' && !spaceDown && !/^(input|textarea|select|button|summary|a)$/i.test((e.target.tagName || ''))) {
       spaceDown = true; cv.style.cursor = 'grab'; e.preventDefault();
     }
   });
@@ -398,7 +399,12 @@
   // Backspace counts too: it is the key labelled "delete" on a Mac keyboard.
   box.addEventListener('keydown', (e) => {
     if (!App.S || e.target !== box) return;
+    // a selection can point past the end after undo or a reload
+    if (!App.S.lanes[App.selLane]) App.selLane = -1;
+    if (!App.S.arrows[App.selArrow]) App.selArrow = -1;
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      // an open popover may belong to what is deleted: finish it first
+      if (G.FigEdit) G.FigEdit.closePop();
       if (App.selLane >= 0) {
         App.removeLane(App.selLane); App.selLane = -1; App.commit(); e.preventDefault();
         if (G.UI) G.UI.toast(G.L('已删除泳道（Ctrl/⌘+Z 可撤销）', 'Lane deleted (Ctrl/⌘+Z to undo)'));

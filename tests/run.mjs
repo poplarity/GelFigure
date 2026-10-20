@@ -72,6 +72,9 @@ const UI_CHECKS = [
   ['boxes and brackets rotate with the gel', r => r.anno.rotBack < 0.5],
   ['splice settings only once a lane is cut', r => r.anno.spliceBox.before === true && r.anno.spliceBox.after === false],
   ['band list stays open while ticking', r => r.bandsOpen.open && r.bandsOpen.rebuilt],
+  ['undo drops a selection that no longer exists', r => r.undoSel.selLane === -1 && r.undoSel.lanesBack],
+  ['popover Delete removes its own arrow', r => JSON.stringify(r.popDel) === '["C"]'],
+  ['a box starting in a cut lane keeps its width', r => r.cutBox.width != null && r.cutBox.width > 5],
   ['DNA gel still detected after protein mode', r => r.dnaAfter.kind === 'dna' && r.dnaAfter.ladderKind === 'dna' && r.dnaAfter.unit !== 'kDa'],
   ['draft is saved and restored', r => r.draft && r.draft.restored && r.draftDropped]
 ];

@@ -98,7 +98,8 @@
   }
   function saveCustom(name, sizes, kind) {
     const list = loadCustom().filter(l => l.name !== name);
-    const lad = { id: 'custom_' + Date.now(), name, sizes: sizes.slice().sort((a, b) => b - a), ref: [], custom: true, kind: kind === 'protein' ? 'protein' : 'dna' };
+    // a size entered twice would leave one band that can never be matched
+    const lad = { id: 'custom_' + Date.now(), name, sizes: [...new Set(sizes)].sort((a, b) => b - a), ref: [], custom: true, kind: kind === 'protein' ? 'protein' : 'dna' };
     list.push(lad);
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
     return lad;
@@ -107,7 +108,7 @@
   function importDef(def) {
     if (!def || !def.id || !Array.isArray(def.sizes) || get(def.id)) return false;
     const list = loadCustom();
-    list.push({ id: def.id, name: def.name || def.id, sizes: def.sizes.slice().sort((a, b) => b - a), ref: def.ref || [], custom: true, kind: def.kind === 'protein' ? 'protein' : 'dna' });
+    list.push({ id: def.id, name: def.name || def.id, sizes: [...new Set(def.sizes)].sort((a, b) => b - a), ref: def.ref || [], custom: true, kind: def.kind === 'protein' ? 'protein' : 'dna' });
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
     return true;
   }

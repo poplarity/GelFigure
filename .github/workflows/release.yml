@@ -16,7 +16,7 @@ jobs:
       - name: Build zip
         run: |
           mkdir -p dist/GelFigure
-          cp -r index.html css js test LICENSE README.md README.zh-CN.md dist/GelFigure/
+          cp -r index.html css js test docs LICENSE README.md README.zh-CN.md CHANGELOG.md CONTRIBUTING.md CITATION.cff dist/GelFigure/
           cd dist && zip -r "GelFigure-${GITHUB_REF_NAME}.zip" GelFigure
       - name: Create release
         env:

@@ -126,7 +126,8 @@
   $('btnRedo').onclick = () => App.redo();
   $('btnHelp').onclick = () => $('helpDlg').classList.remove('hidden');
   $('btnHelpClose').onclick = () => $('helpDlg').classList.add('hidden');
-  $('btnLang').onclick = () => G.I18N.set(G.I18N.lang === 'en' ? 'zh' : 'en');
+  // an open popover is built in the old language: finish it first
+  $('btnLang').onclick = () => { if (G.FigEdit) G.FigEdit.closePop(); G.I18N.set(G.I18N.lang === 'en' ? 'zh' : 'en'); };
   G.I18N.onChange(() => {
     renderFavs(); renderExposures();
     if (S()) App.emit('change');
@@ -532,7 +533,7 @@
       <span class="idx" style="width:auto">${Math.min(g.from, g.to) + 1}–${Math.max(g.from, g.to) + 1}</span>
       <input type="text" data-g="${k}" value="${esc(g.text)}" placeholder="${L('分组文字', 'Group label')}"><button class="x" data-gdel="${k}">×</button></div>`));
     st.arrows.forEach((a, k) => rows.push(`<div class="item${k === App.selArrow ? ' sel' : ''}"><span class="kind">${L('箭头', 'Arrow')}</span>
-      <button class="btn sm ghost" data-aed="${k}" style="flex:1;justify-content:flex-start">${{ star: '* ', hash: '# ', dagger: '† ' }[a.sym] || ''}${esc(App.arrowLabel(a) || L('（未命名）', '(unnamed)'))}</button><button class="x" data-adel="${k}">×</button></div>`));
+      <button class="btn sm ghost" data-aed="${k}" style="flex:1;justify-content:flex-start">${{ star: '* ', hash: '# ', dagger: '† ' }[a.sym] || ''}${esc(App.arrowLabel(a) || L('（未命名）', '(unnamed)'))}</button><button class="x" data-adel="${k}" title="${L('删除', 'Delete')}" aria-label="${L('删除', 'Delete')}">×</button></div>`));
     st.conditions.forEach((c, r) => rows.push(`<div class="item"><span class="kind">${L('条件', 'Condition')}</span>
       <input type="text" data-c="${r}" value="${esc(c.name)}" placeholder="${L('条件名，如 EcoRI', 'Condition, e.g. EcoRI')}"><button class="x" data-cdel="${r}">×</button></div>`));
     const KIND = { box: L('区域框', 'Box'), bracket: L('括号', 'Bracket'), label: L('文字', 'Text') };
@@ -540,7 +541,7 @@
     const qrow = (kind, k, text, note) => {
       const sel = App.selAnno && App.selAnno.kind === kind && App.selAnno.k === k;
       return `<div class="item${sel ? ' sel' : ''}"><span class="kind">${KIND[kind]}</span>
-        <button class="btn sm ghost" data-qed="${kind}:${k}" style="flex:1;justify-content:flex-start">${esc(text || L('（未命名）', '(unnamed)'))}${note ? ` <span class="h3-note">${note}</span>` : ''}</button><button class="x" data-qdel="${kind}:${k}">×</button></div>`;
+        <button class="btn sm ghost" data-qed="${kind}:${k}" style="flex:1;justify-content:flex-start">${esc(text || L('（未命名）', '(unnamed)'))}${note ? ` <span class="h3-note">${note}</span>` : ''}</button><button class="x" data-qdel="${kind}:${k}" title="${L('删除', 'Delete')}" aria-label="${L('删除', 'Delete')}">×</button></div>`;
     };
     (st.boxes || []).forEach((b, k) => rows.push(qrow('box', k, b.text, b.zoom >= 2 ? L(`放大 ×${b.zoom}`, `×${b.zoom} inset`) : '')));
     (st.brackets || []).forEach((b, k) => rows.push(qrow('bracket', k, b.text, '')));
@@ -551,10 +552,12 @@
     box.querySelectorAll('[data-c]').forEach(inp => { const c = st.conditions[+inp.dataset.c]; inp.addEventListener('input', live(e => { c.name = e.target.value; })); inp.addEventListener('change', done()); });
     box.querySelectorAll('[data-gdel]').forEach(b => b.onclick = done(() => st.groups.splice(+b.dataset.gdel, 1)));
     box.querySelectorAll('[data-cdel]').forEach(b => b.onclick = done(() => st.conditions.splice(+b.dataset.cdel, 1)));
-    box.querySelectorAll('[data-adel]').forEach(b => b.onclick = done(() => { st.arrows.splice(+b.dataset.adel, 1); App.selArrow = -1; }));
+    // an open popover may belong to the item being deleted: finish it first
+    const closePop = () => { if (G.FigEdit) G.FigEdit.closePop(); };
+    box.querySelectorAll('[data-adel]').forEach(b => b.onclick = done(() => { closePop(); st.arrows.splice(+b.dataset.adel, 1); App.selArrow = -1; }));
     box.querySelectorAll('[data-aed]').forEach(b => b.onclick = () => G.FigEdit.arrowPopover(+b.dataset.aed, b));
     box.querySelectorAll('[data-qed]').forEach(b => b.onclick = () => { const [kind, k] = b.dataset.qed.split(':'); App.selAnno = { kind, k: +k }; G.FigEdit.annoPopover(kind, +k, b); G.Editor.draw(); });
-    box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = done(() => { const [kind, k] = b.dataset.qdel.split(':'); App.removeAnno({ kind, k: +k }); App.selAnno = null; }));
+    box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = done(() => { closePop(); const [kind, k] = b.dataset.qdel.split(':'); App.removeAnno({ kind, k: +k }); App.selAnno = null; }));
   }
 
   /* ---------- 6 layout ---------- */

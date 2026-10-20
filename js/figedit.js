@@ -169,7 +169,8 @@
     if (q('qSide')) q('qSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
     if (q('qPos')) q('qPos').addEventListener('change', e => { a.pos = e.target.value; upd(); });
     q('qOk').onclick = closePop;
-    q('qDel').onclick = () => { list.splice(k, 1); App.selAnno = null; popAnno = null; pop.classList.add('hidden'); App.commit(); };
+    // by identity: other items may have been deleted while the popover was open
+    q('qDel').onclick = () => { const i = list.indexOf(a); if (i >= 0) list.splice(i, 1); App.selAnno = null; popAnno = null; pop.classList.add('hidden'); App.commit(); };
     setTimeout(() => q('qText').focus(), 0);
   }
   function arrowPopover(k, anchor) {
@@ -214,7 +215,7 @@
     pop.querySelector('#pSizeText').addEventListener('input', e => { a.sizeText = e.target.value.trim(); if (a.sizeText) { a.size = true; pop.querySelector('#pSize').checked = true; } upd(); });
     pop.querySelector('#pSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
     pop.querySelector('#pOk').onclick = closePop;
-    pop.querySelector('#pDel').onclick = () => { S().arrows.splice(k, 1); App.selArrow = -1; popK = -1; pop.classList.add('hidden'); App.commit(); };
+    pop.querySelector('#pDel').onclick = () => { const i = S().arrows.indexOf(a); if (i >= 0) S().arrows.splice(i, 1); App.selArrow = -1; popK = -1; pop.classList.add('hidden'); App.commit(); };
     setTimeout(() => pop.querySelector('#pName').focus(), 0);
   }
   document.addEventListener('mousedown', e => {
@@ -285,8 +286,15 @@
     else if (App.mode) setMode(null);
   });
 
+  // drop open editors without writing them back (undo, redo, a new image): they belong to the old state
+  function reset() {
+    if (edit) { edit = null; fed.classList.add('hidden'); }
+    if (popK >= 0 || popAnno) { popK = -1; popAnno = null; pop.classList.add('hidden'); }
+  }
+  App.on(w => { if (w === 'loaded') reset(); });
+
   G.FigEdit = {
-    setMode, arrowPopover, annoPopover, openEd,
+    setMode, arrowPopover, annoPopover, openEd, closePop, reset,
     afterRender() {
       if (edit && edit.kind === 'lane') {
         const el = prev.querySelector(`g[data-edit="lane"][data-src="${edit.id}"]`);

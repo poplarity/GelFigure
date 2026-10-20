@@ -4,12 +4,36 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-### Added
-- A synthetic purification gel (`Demo.makeProteinGel({ purification: true })`) and an interface check that only its marker lane is taken for a marker (48 checks).
+## [0.6.1] - 2026-10-20
+
+Marker detection on purification gels, and a review of the whole interface.
+
+**中文摘要**
+- **纯化胶上不再把裂解液认成 Marker**：多道图案相同的裂解液，以前会被额外当成 Marker；同一块胶上跑两个 Marker（如 1 kb + DL2000）仍然都能认出。
+- **撤销 / 重做更可靠**：撤销后再按 H 或方向键不会报错；弹窗里的"删除"只删它自己那一项。
+- **导出更准确**：图注提示只写成图上真的有的内容，放大倍数按实际渲染计算，蛋白胶写 molecular-weight markers；处理日志补全标记符号、括号范围等；TIFF 兼容更严格的读取器。
+- 其他界面细节：按 Esc 取消画框不会误生成括号；空格不再拦截按钮；跨过剪除泳道的区域框不再变窄。
 
 ### Fixed
-- On a protein purification gel (several lysate lanes with the same pattern, then the elutions), lysate lanes could be taken for extra markers: a ladder fits about a dozen merged lysate peaks as well as it fits the real marker lane on its own. Markers of one gel must share a migration curve, so a lane that the shared curve explains poorly is now dropped, and on a tie the outermost lane wins.
+- **Marker lanes on purification gels.** Several lysate lanes with the same pattern merge into about a dozen peaks, and some protein ladder fits that subset about as well as it fits the real marker lane on its own, so lysate lanes could be taken for extra markers. Marker lanes are now grown from the best lane: each further lane is matched together with the lanes already kept, their ladders held fixed, and stays only if most of its own bands and most of its ladder's bands on the gel are explained on that shared curve. A real second ladder (e.g. 1 kb + DL2000 on one gel) passes; a lysate lane does not. On a tie the outermost lane wins.
+- The gel-type check after the markers are matched measured band count and width on the lane with the most bands, which on a protein gel is a lysate; it now uses the marker lane.
+- Lanes cut out of the figure are never taken for markers.
 - A lane named "M" by a first, discarded marker guess (before the gel type was settled) kept the name.
+- After undo or redo, the selected lane or arrow could point past the end, so `H` or the arrow keys threw an error; open popovers kept editing the pre-undo state. Undo and redo now drop the selection and close open editors; so does loading an image.
+- Deleting from an arrow or annotation popover removed the item at its old position, i.e. the wrong one if another had been deleted meanwhile.
+- Pressing Esc while dragging a region box created a side bracket.
+- Space no longer swallows key presses on buttons and other controls (it pans the image elsewhere).
+- A region box starting inside a cut-out lane collapsed to a sliver; a box label at the top edge of the gel overlapped the lane names or the +/− rows.
+- A style template from a protein gel left existing DNA markers labelled in kDa.
+- Custom ladders accepted the same size twice.
+- Opening a project or draft could show the previous image's notices.
+- Legend hints described annotations outside the crop and markers on cut lanes, gave the requested rather than the rendered zoom of an enlarged box, called protein markers "DNA ladders" when there were two, could stop the export with an error when a marker's ladder no longer existed, and did not explain `≈` when two markers disagree.
+- The processing log now records the arrow symbol and side, the bracket side and its size range, and whether a box is dashed; `estimatedBp` is left out on protein gels (`estimatedSize` and `sizeUnit` carry the value).
+- TIFF export: the LZW end code takes the width the reader expects at a code-width boundary (as libtiff writes it), and the description field is 7-bit ASCII with `\u` escapes instead of `?` for γ, ≈ or Chinese file names.
+- Unlabelled buttons (export menu, help close, delete in the annotation list) have accessible names; the popover is announced as a dialog.
+
+### Added
+- A synthetic purification gel (`Demo.makeProteinGel({ purification: true })`) and interface checks for it, for undo with a selection, popover delete, and boxes over cut lanes (49 checks in total).
 
 ## [0.6.0] - 2026-10-20
 
@@ -38,7 +62,7 @@ Protein gels, annotations from real figures, and much sturdier lane and marker d
 - **Equal spacing between the end lanes**: drag the leftmost and rightmost lane lines onto their lanes, enter the lane count and click "Align"; the lanes in between are spaced evenly (lanes from one comb have constant spacing).
 - Pre-flight note on protein gels that prestained sizes are apparent molecular weights.
 - Gel type and detection confidence in the processing log and in style templates.
-- A synthetic protein gel, including a crowded lysate gel (`?demo=protein`), and 17 new interface checks (47 in total, run in Chromium, Firefox and WebKit).
+- A synthetic protein gel, including a crowded lysate gel (`?demo=protein`), and 16 new interface checks (45 in total, run in Chromium, Firefox and WebKit).
 
 ### Changed
 - **Marker lanes** are the lanes a ladder explains completely, not the lanes with the most bands: a whole-cell lysate lane has more bands than any ladder, and some ladder always fits a subset of them. Neighbouring hits collapse into one.
@@ -83,6 +107,7 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/poplarity/GelFigure/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/poplarity/GelFigure/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/poplarity/GelFigure/releases/tag/v0.5.0

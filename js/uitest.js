@@ -307,7 +307,7 @@
 
       // a purification gel: lysate lanes that some ladder fits on its own must still fail the
       // migration curve of the real marker, so only the marker lane is kept
-      await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeProteinGel({ purification: true, tilt: 0 }))], 'demo_purification.tif', { type: 'image/tiff' }));
+      await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeProteinGel({ purification: true, tilt: 0.8 }))], 'demo_purification.tif', { type: 'image/tiff' }));
       const fl5 = G.UI.figLanes();
       R.purification = { markers: App.S.markers.map(m => fl5.indexOf(m.lane)), candidates: (App.markerCandidates || []).length };
 
@@ -378,6 +378,35 @@
       cb.click && d2.querySelector('[data-band]').click();
     }
     document.title = 'UITEST-AT 23 ' + JSON.stringify(R);
+    // 24. undo drops selections that would point past the end; popover Delete removes its own item;
+    // a region box that starts inside a cut-out lane keeps its width
+    {
+      const boxEl = document.getElementById('editorBox'), c = App.S.crop, nBefore = App.S.lanes.length;
+      App.selLane = App.addLane(c.x + c.w - 3); App.commit();
+      App.undo();
+      boxEl.focus(); key(boxEl, 'h'); key(boxEl, 'ArrowLeft');   // used to throw on the stale index
+      R.undoSel = { selLane: App.selLane, lanesBack: App.S.lanes.length === nBefore };
+
+      const band = App.S.markers[0].bands.find(b => b.matched);
+      App.S.arrows = ['A', 'B', 'C'].map((text, i) => ({ y: band.y + i * 3, text, size: false, side: '' }));
+      App.commit(); await wait(60);
+      G.FigEdit.arrowPopover(1, document.querySelector('#preview g[data-edit="arrow"][data-k="1"]'));
+      for (let t = 0; t < 100 && !document.getElementById('pDel'); t++) await wait(50);
+      App.S.arrows.splice(0, 1);                                  // A deleted elsewhere while B's popover is open
+      document.getElementById('pDel').click();
+      R.popDel = App.S.arrows.map(a => a.text);
+      App.S.arrows = []; App.commit();
+
+      const fl6 = G.UI.figLanes();
+      App.setLaneHidden(fl6[3], true, 'test');
+      const xa = App.S.lanes[fl6[3]].x, xb = App.S.lanes[fl6[4]].x + 8;
+      App.S.boxes = [{ x: xa, y: c.y + c.h * 0.4, w: xb - xa, h: c.h * 0.1, text: '', dash: true, zoom: 0 }];
+      App.commit();
+      const m = App.buildFigure(false).svg.match(/<rect x="[^"]+" y="[^"]+" width="([\d.]+)"[^>]*stroke-dasharray/);
+      R.cutBox = { width: m ? +m[1] : null };
+      App.setLaneHidden(fl6[3], false, 'test'); App.S.boxes = []; App.commit();
+    }
+    document.title = 'UITEST-AT 24 ' + JSON.stringify(R);
     // 19. autosaved draft survives a reload (needs a browser with working IndexedDB: ?uitest=1&draft=1;
     // headless Edge never answers indexedDB.open and holds its virtual clock)
     if (/[?&]draft=1/.test(location.search)) {

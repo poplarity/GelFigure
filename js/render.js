@@ -71,9 +71,14 @@
     const ctx = c.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, H);
     segs.forEach(s => ctx.drawImage(cropCanvas, s.px0, 0, s.px1 - s.px0, H, s.off, 0, s.px1 - s.px0, H));
-    const map = (x) => {
+    // a position inside a cut-out stretch moves to the next kept segment's start, or with
+    // prefer = 'end' to the previous one's end (the right edge of a box that ends in a cut lane)
+    const map = (x, prefer) => {
       for (const s of segs) if (x >= s.px0 - 0.5 && x <= s.px1 + 0.5) return s.off + (x - s.px0);
-      return x;
+      const next = segs.find(s => s.px0 > x), last = segs.filter(s => s.px1 < x).pop();
+      const endOf = s => s.off + s.px1 - s.px0;
+      if (prefer === 'end') return last ? endOf(last) : next ? next.off : x;
+      return next ? next.off : last ? endOf(last) : x;
     };
     return { canvas: c, map, segs, gapPx };
   }
@@ -337,19 +342,20 @@
     const boxes = (S.boxes || []);
     let insetY = 0;
     boxes.forEach((b, k) => {
-      const x0 = gel.map(b.x) * sc, x1 = gel.map(b.x + b.w) * sc, y0 = b.y * sc, y1 = (b.y + b.h) * sc;
+      const x0 = gel.map(b.x) * sc, x1 = gel.map(b.x + b.w, 'end') * sc, y0 = b.y * sc, y1 = (b.y + b.h) * sc;
       const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
       const dash = b.dash !== false ? ` stroke-dasharray="${f(pt * 0.45)} ${f(pt * 0.3)}"` : '';
       const sw = f(Math.max(lw, 0.5));
       const attrs = `data-edit="box" data-k="${b.k != null ? b.k : k}"`;
       const label = b.text || '';
-      // the label sits just above the box: inside the gel it takes the box colour, outside it is black
-      const ly = y0 - pt * 0.3, lcol = ly - pt > 0 ? boxCol : '#000';
+      // the label sits just above the box in the box colour; a box at the top edge of the gel takes
+      // it inside, so it never runs into the lane names or the +/− rows above the gel
+      const inside = y0 - pt * 1.3 < 0, ly = inside ? y0 + pt * 1.05 : y0 - pt * 0.3, lcol = boxCol;
+      const lx = inside ? x0 + pt * 0.3 : x0;
       // in the preview only the frame is clickable, so clicks inside still reach the gel (arrow tool)
       const hitB = P ? `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="transparent" stroke-width="${f(pt * 0.9)}" pointer-events="stroke"/>` : '';
       els.push(ed(attrs, hitB + `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="${boxCol}" stroke-width="${sw}"${dash}/>` +
-        (label ? textEl(label, x0, ly, pt, 'start', ` fill="${lcol}"`) : '')));
-      if (label && ly - pt < 0) grow(x0, ly - pt, x0 + measure(label, pt), ly);
+        (label ? textEl(label, lx, ly, pt, 'start', ` fill="${lcol}"`) : '')));
       const z = +b.zoom || 0;
       if (z >= 2) {
         // enlarged copy of the boxed region, right of everything, from the same raster (no resampling

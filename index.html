@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Everything runs locally. This policy forbids the page from contacting any server, so images can never leave the computer. -->
+<!-- Everything runs locally. This policy forbids the page from contacting any server other than its own origin (its own files), so images can never leave the computer. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="description" content="GelFigure: turn a raw DNA or protein gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
 <title>GelFigure</title>
@@ -37,7 +37,7 @@
     <select id="dpiTop" title="导出分辨率" data-en-title="Export resolution"><option value="300">300 dpi</option><option value="600" selected>600 dpi</option><option value="1200">1200 dpi</option></select>
     <div class="menu-wrap">
       <div class="split">
-        <button class="btn primary" id="btnPNG" data-en="Export PNG">导出 PNG</button><button class="btn primary caret" id="btnExportMenu">▾</button>
+        <button class="btn primary" id="btnPNG" data-en="Export PNG">导出 PNG</button><button class="btn primary caret" id="btnExportMenu" title="更多导出格式" data-en-title="More export formats">▾</button>
       </div>
       <div class="menu hidden right" id="exportMenu">
         <button id="btnTIFF"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></button>
@@ -294,13 +294,13 @@
   </main>
 </div>
 
-<div id="popover" class="popover hidden"></div>
-<input id="floatEd" class="float-ed hidden" type="text" autocomplete="off" spellcheck="false">
+<div id="popover" class="popover hidden" role="dialog"></div>
+<input id="floatEd" class="float-ed hidden" type="text" autocomplete="off" spellcheck="false" title="编辑文字" data-en-title="Edit text">
 <div id="warnings"></div>
 <div id="toasts"></div>
 
 <div id="helpDlg" class="dlg hidden"><div class="dlg-body">
-  <button class="dlg-x" id="btnHelpClose">×</button>
+  <button class="dlg-x" id="btnHelpClose" title="关闭" data-en-title="Close">×</button>
   <div data-en-html="
   <h3>Fastest way to a figure</h3>
   <ol>
@@ -317,7 +317,7 @@
     <li><b>Target band arrow</b>: click “Target band”, then the band. The size is estimated from the marker; values outside the ladder are marked ≈.</li>
     <li><b>+ / − rows</b>: add a row, then click cells on the figure to cycle + / − / empty.</li>
     <li><b>Lane lines off</b>: drag the leftmost and rightmost lane lines onto their lanes, enter the lane count and click “Align” — the lanes between are spaced evenly. Select a lane and press <code>Delete</code> or <code>⌫</code> to delete it.</li>
-    <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific) or <code>#</code>.</li>
+    <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
     <li><b>A marker band is wrong</b>: drag its yellow line on the image; the others re-fit around it.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
   </ul>
@@ -345,7 +345,7 @@
     <li><b>目标条带箭头</b>：点"目标条带"，再点那条带；大小按 Marker 估算，超出 Marker 范围会标 ≈。</li>
     <li><b>+ / − 条件行</b>：加一行后，在成图上点格子即可在 + / − / 空 之间切换。</li>
     <li><b>泳道线没对齐</b>：把最左、最右两条泳道线拖到对应泳道中心，填泳道数点"对齐"，中间泳道自动等间距。选中泳道按 <code>Delete</code> 或 <code>⌫</code> 删除。</li>
-    <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）或 <code>#</code>。</li>
+    <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
     <li><b>Marker 条带不对</b>：在原图上上下拖那条黄线，其余条带会围绕它重新匹配。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
   </ul>
