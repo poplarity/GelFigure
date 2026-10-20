@@ -112,11 +112,13 @@
     const grow = (x0, y0, x1, y1) => { box.x0 = Math.min(box.x0, x0); box.y0 = Math.min(box.y0, y0); box.x1 = Math.max(box.x1, x1); box.y1 = Math.max(box.y1, y1); };
 
     els.push(`<image ${S.preview ? 'data-edit="gel" ' : ''}x="0" y="0" width="${f(W)}" height="${f(H)}" preserveAspectRatio="none" href="${imgHref}" xlink:href="${imgHref}"/>`);
-    // splice marker lines
+    // splice marker lines: they must contrast with the gel background, which is dark when the source
+    // is bright-bands-on-dark and not inverted (or the other way round) — not simply when inverted
     if (gel.segs.length > 1 && st.spliceStyle === 'line') {
+      const darkBg = !!S.bright !== !!S.levels.invert;
       gel.segs.slice(1).forEach(s => {
         const x = s.off * sc;
-        els.push(`<line x1="${f(x)}" y1="0" x2="${f(x)}" y2="${f(H)}" stroke="${S.levels.invert ? '#000' : '#fff'}" stroke-width="${f(lw)}"/>`);
+        els.push(`<line x1="${f(x)}" y1="0" x2="${f(x)}" y2="${f(H)}" stroke="${darkBg ? '#fff' : '#000'}" stroke-width="${f(Math.max(lw, 0.5))}"/>`);
       });
     }
     if (st.frame) els.push(`<rect x="0" y="0" width="${f(W)}" height="${f(H)}" fill="none" stroke="#000" stroke-width="${f(lw)}"/>`);
@@ -272,23 +274,122 @@
     // ---- arrows (expected product): free side preferred, otherwise outside the marker labels ----
     const arrows = (S.arrows || []).filter(a => a.y != null);
     const defSide = !extent.right ? 'right' : !extent.left ? 'left' : 'right';
+    const reach = { left: extent.left, right: extent.right };   // outermost edge reached so far, per side
+    // what occupies each side at which heights, so a bracket only steps past things it would hit
+    const occ = { left: [], right: [] };
+    ['left', 'right'].forEach(sd => { if (extent[sd]) occ[sd].push({ y0: -Infinity, y1: Infinity, ext: extent[sd] }); });
+    // band marks: an arrowhead, or a text symbol (* for a non-specific band, # for a degradation product)
+    const SYM = { star: '*', hash: '#', dagger: '†' };
     arrows.forEach((a, k) => {
       const y = a.y * sc, side = a.side || defSide;
       const s = pt * 0.75, label = a.label != null ? a.label : (a.text || '');
       const off = extent[side] ? extent[side] + 2 : 0;
       const attrs = `data-edit="arrow" data-k="${a.k != null ? a.k : k}"`;
+      const glyph = SYM[a.sym];
+      const gw = glyph ? measure(glyph, pt * 1.15) : s * 1.3;   // width of the mark itself
+      const tw = measure(label, pt);
+      // written out directly: textEl would read "*" as the start of italic markup and drop it
+      const mark = (x, dir) => glyph
+        ? `<text x="${f(x + dir * gw / 2)}" y="${f(y + pt * (a.sym === 'star' ? 0.62 : 0.4))}" font-size="${f(pt * 1.15)}" text-anchor="middle">${esc(glyph)}</text>`
+        : `<path d="M${f(x)},${f(y)} L${f(x + dir * s * 1.3)},${f(y - s * 0.6)} L${f(x + dir * s * 1.3)},${f(y + s * 0.6)} Z" fill="#000"/>`;
       if (side === 'right') {
-        const x = W + 1.5 + off, tw = measure(label, pt);
-        const hit = P ? `<rect x="${f(x - 1)}" y="${f(y - pt * 0.8)}" width="${f(s * 1.3 + 4 + tw)}" height="${f(pt * 1.6)}" fill="transparent"/>` : '';
-        els.push(ed(attrs, hit + `<path d="M${f(x)},${f(y)} L${f(x + s * 1.3)},${f(y - s * 0.6)} L${f(x + s * 1.3)},${f(y + s * 0.6)} Z" fill="#000"/>` +
-          (label ? textEl(label, x + s * 1.3 + 2, y + pt * 0.35, pt, 'start') : '')));
-        grow(W, y - pt, x + s * 1.3 + 2 + tw, y + pt);
+        const x = W + 1.5 + off;
+        const hit = P ? `<rect x="${f(x - 1)}" y="${f(y - pt * 0.8)}" width="${f(gw + 4 + tw)}" height="${f(pt * 1.6)}" fill="transparent"/>` : '';
+        els.push(ed(attrs, hit + mark(x, 1) + (label ? textEl(label, x + gw + 2, y + pt * 0.35, pt, 'start') : '')));
+        grow(W, y - pt, x + gw + 2 + tw, y + pt);
+        reach.right = Math.max(reach.right, 1.5 + off + gw + 2 + tw);
+        occ.right.push({ y0: y - pt * 0.7, y1: y + pt * 0.7, ext: 1.5 + off + gw + 2 + tw });
       } else {
-        const x = -1.5 - off, tw = measure(label, pt);
-        const hit = P ? `<rect x="${f(x - s * 1.3 - 3 - tw)}" y="${f(y - pt * 0.8)}" width="${f(s * 1.3 + 4 + tw)}" height="${f(pt * 1.6)}" fill="transparent"/>` : '';
-        els.push(ed(attrs, hit + `<path d="M${f(x)},${f(y)} L${f(x - s * 1.3)},${f(y - s * 0.6)} L${f(x - s * 1.3)},${f(y + s * 0.6)} Z" fill="#000"/>` +
-          (label ? textEl(label, x - s * 1.3 - 2, y + pt * 0.35, pt, 'end') : '')));
-        grow(x - s * 1.3 - 2 - tw, y - pt, 0, y + pt);
+        const x = -1.5 - off;
+        const hit = P ? `<rect x="${f(x - gw - 3 - tw)}" y="${f(y - pt * 0.8)}" width="${f(gw + 4 + tw)}" height="${f(pt * 1.6)}" fill="transparent"/>` : '';
+        els.push(ed(attrs, hit + mark(x, -1) + (label ? textEl(label, x - gw - 2, y + pt * 0.35, pt, 'end') : '')));
+        grow(x - gw - 2 - tw, y - pt, 0, y + pt);
+        reach.left = Math.max(reach.left, 1.5 + off + gw + 2 + tw);
+        occ.left.push({ y0: y - pt * 0.7, y1: y + pt * 0.7, ext: 1.5 + off + gw + 2 + tw });
+      }
+    });
+
+    // ---- side brackets: a vertical bar spanning a size range (smear, (Ub)n, dimer …) ----
+    const brackets = (S.brackets || []).filter(b => b.y2 > b.y1);
+    brackets.forEach((b, k) => {
+      const side = b.side || defSide, y1 = b.y1 * sc, y2 = b.y2 * sc;
+      const label = b.text || (P ? G.L('点击输入', 'Click to type') : '');
+      const tw = label ? measure(label, pt) : 0, tk = pt * 0.45;
+      // clear of whatever already sits on that side at these heights (marker labels, arrows, brackets)
+      let off = 2.5;
+      occ[side].filter(o => !(y2 < o.y0 - pt * 0.3 || y1 > o.y1 + pt * 0.3)).forEach(o => { off = Math.max(off, o.ext + 2.5); });
+      const dir = side === 'right' ? 1 : -1, xb = (side === 'right' ? W : 0) + dir * (off + tk);
+      const attrs = `data-edit="bracket" data-k="${b.k != null ? b.k : k}"`;
+      const path = `M${f(xb - dir * tk)},${f(y1)} L${f(xb)},${f(y1)} L${f(xb)},${f(y2)} L${f(xb - dir * tk)},${f(y2)}`;
+      const ty = (y1 + y2) / 2 + pt * 0.35, tx = xb + dir * 2;
+      const hit = P ? `<rect x="${f(Math.min(xb - dir * tk, tx + dir * tw) - 1)}" y="${f(y1 - 1)}" width="${f(tk + 2 + tw + 2)}" height="${f(y2 - y1 + 2)}" fill="transparent"/>` : '';
+      els.push(ed(attrs, hit + `<path d="${path}" fill="none" stroke="#000" stroke-width="${f(lw)}"/>` +
+        (label ? textEl(label, tx, ty, pt, side === 'right' ? 'start' : 'end', b.text ? '' : phStyle) : '')));
+      const end = off + tk + 2 + tw;
+      occ[side].push({ y0: y1, y1: y2, ext: end });
+      if (side === 'right') { grow(W, y1, W + end, y2); reach.right = Math.max(reach.right, end); }
+      else { grow(-end, y1, 0, y2); reach.left = Math.max(reach.left, end); }
+    });
+
+    // ---- region boxes on the gel, optionally enlarged beside the figure ----
+    const darkBg = !!S.bright !== !!S.levels.invert;
+    const boxCol = darkBg ? '#fff' : '#000';
+    const boxes = (S.boxes || []);
+    let insetY = 0;
+    boxes.forEach((b, k) => {
+      const x0 = gel.map(b.x) * sc, x1 = gel.map(b.x + b.w) * sc, y0 = b.y * sc, y1 = (b.y + b.h) * sc;
+      const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+      const dash = b.dash !== false ? ` stroke-dasharray="${f(pt * 0.45)} ${f(pt * 0.3)}"` : '';
+      const sw = f(Math.max(lw, 0.5));
+      const attrs = `data-edit="box" data-k="${b.k != null ? b.k : k}"`;
+      const label = b.text || '';
+      // the label sits just above the box: inside the gel it takes the box colour, outside it is black
+      const ly = y0 - pt * 0.3, lcol = ly - pt > 0 ? boxCol : '#000';
+      // in the preview only the frame is clickable, so clicks inside still reach the gel (arrow tool)
+      const hitB = P ? `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="transparent" stroke-width="${f(pt * 0.9)}" pointer-events="stroke"/>` : '';
+      els.push(ed(attrs, hitB + `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="${boxCol}" stroke-width="${sw}"${dash}/>` +
+        (label ? textEl(label, x0, ly, pt, 'start', ` fill="${lcol}"`) : '')));
+      if (label && ly - pt < 0) grow(x0, ly - pt, x0 + measure(label, pt), ly);
+      const z = +b.zoom || 0;
+      if (z >= 2) {
+        // enlarged copy of the boxed region, right of everything, from the same raster (no resampling
+        // in the file: the viewer scales it), framed the same way and carrying the same label
+        let iw = bw * z, ih = bh * z;
+        const maxH = Math.max(H, pt * 6);
+        if (ih > maxH) { iw *= maxH / ih; ih = maxH; }
+        const iy = Math.max(insetY, Math.min(y0, Math.max(0, H - ih)));
+        // beside the gel, past only what occupies the right side at the inset's own heights
+        let clear = 0;
+        occ.right.filter(o => !(iy + ih < o.y0 - pt || iy - pt * 1.4 > o.y1 + pt)).forEach(o => { clear = Math.max(clear, o.ext); });
+        const ix = W + clear + pt * 1.2;
+        els.push(ed(attrs, `<svg x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" viewBox="${f(x0)} ${f(y0)} ${f(bw)} ${f(bh)}" preserveAspectRatio="none" overflow="hidden">` +
+          `<image x="0" y="0" width="${f(W)}" height="${f(H)}" preserveAspectRatio="none" href="${imgHref}" xlink:href="${imgHref}"/></svg>` +
+          `<rect x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" fill="none" stroke="#000" stroke-width="${sw}"${dash}/>` +
+          (label ? textEl(label, ix, iy - pt * 0.3, pt, 'start') : '')));
+        grow(ix, iy - (label ? pt * 1.3 : 0), ix + iw, iy + ih);
+        insetY = iy + ih + pt * 1.6;
+      }
+    });
+
+    // ---- side text: stain / antibody / exposure, vertical beside the gel or a line below it ----
+    let belowY = Math.max(H, box.y1) + pt * 1.3;
+    (S.labels || []).forEach((t, k) => {
+      const text = t.text || (P ? G.L('点击输入文字', 'Click to type') : '');
+      if (!text) return;
+      const attrs = `data-edit="label" data-k="${t.k != null ? t.k : k}"`, extra = t.text ? '' : phStyle;
+      const tw = measure(text, pt);
+      if (t.pos === 'below') {
+        els.push(ed(attrs, textEl(text, W / 2, belowY, pt, 'middle', extra)));
+        grow(W / 2 - tw / 2, belowY - pt, W / 2 + tw / 2, belowY + pt * 0.3);
+        belowY += pt * 1.3;
+      } else if (t.pos === 'right') {
+        const x = box.x1 + pt * 0.45;
+        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(H / 2)}) rotate(90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
+        grow(x, H / 2 - tw / 2, x + pt * 1.05, H / 2 + tw / 2);
+      } else {
+        const x = box.x0 - pt * 0.45;
+        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(H / 2)}) rotate(-90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
+        grow(x - pt * 1.05, H / 2 - tw / 2, x, H / 2 + tw / 2);
       }
     });
 

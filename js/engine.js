@@ -1054,27 +1054,44 @@
    * lysate lane has more bands than any ladder, and some ladder always fits a subset of them. What
    * separates them is coverage — a real marker lane is almost nothing but ladder bands, while a
    * lysate lane leaves most of its peaks unexplained. Returns null when nothing fits. */
-  function markerQuality(peaks, ladders, h, mode) {
+  // products with the same size list (Bio-Rad's four 10–250 standards, for example) fit identically:
+  // match one representative per list, in library order
+  function distinctSizes(ladders) {
+    const seen = new Set();
+    return ladders.filter(l => { const k = l.sizes.join(','); if (seen.has(k)) return false; seen.add(k); return true; });
+  }
+
+  /* quality = fit × explained, with explained = matched bands / peaks in the lane ≤ bands in the
+   * ladder / peaks. That bound lets ladders (largest first) be skipped once they can no longer beat
+   * the best fit found, and the caller skip lanes that cannot reach its threshold at all. */
+  function markerQuality(peaks, ladders, h, mode, minQuality) {
     if (!peaks.length || !ladders.length) return null;
+    const np = Math.max(1, peaks.length);
+    const cand = distinctSizes(ladders).map(l => ({ l, ub: Math.min(1, l.sizes.length / np) })).sort((a, b) => b.ub - a.ub);
+    if (!cand.length || cand[0].ub < (minQuality || 0)) return null;
     matchMulti.fast = true;
     try {
       let best = null;
-      for (const l of ladders) {
+      for (const { l, ub } of cand) {
+        if (best && ub <= best.quality) break;
         const m = matchLadder(peaks, l.sizes, h, null, mode);
-        if (!best || m.score > best.score) best = { id: l.id, score: m.score, matched: m.matchedCount };
+        const explained = m.matchedCount / np, quality = m.score * explained;
+        if (!best || quality > best.quality) best = { id: l.id, score: m.score, matched: m.matchedCount, explained, quality };
       }
-      if (!best) return null;
-      const explained = best.matched / Math.max(1, peaks.length);
-      return Object.assign(best, { explained, quality: best.score * explained });
+      return best;
     } finally { matchMulti.fast = false; }
   }
+  markerQuality.bound = (peaks, ladders) => Math.min(1, Math.max(0, ...ladders.map(l => l.sizes.length)) / Math.max(1, peaks.length));
 
   // Rank ladder presets by fit to the detected peaks of one lane
   function rankLadders(peaks, ladders, h, mode) {
-    return ladders.map(l => {
-      const m = matchLadder(peaks, l.sizes, h, null, mode);
-      return { id: l.id, score: m.score, matched: m.matchedCount };
-    }).sort((a, b) => (b.score - a.score) || (b.matched - a.matched));
+    matchMulti.fast = true;
+    try {
+      return distinctSizes(ladders).map(l => {
+        const m = matchLadder(peaks, l.sizes, h, null, mode);
+        return { id: l.id, score: m.score, matched: m.matchedCount };
+      }).sort((a, b) => (b.score - a.score) || (b.matched - a.matched));
+    } finally { matchMulti.fast = false; }
   }
 
   function fitQuad(pairs) {
@@ -1175,8 +1192,11 @@
       D = prepLane({ peaks: input.peaks, sizes: [], profile: input.profile, pitch: input.pitch });
       if (D.bandW != null && D.pitch) {
         const r = D.bandW / D.pitch;   // band thickness as a fraction of the lane pitch
-        // measured on synthetic gels: DNA ladder bands ~0.10 of the pitch, protein marker bands ~0.26
-        if (r > 0.20) add(1.4, 'broad', { pct: Math.round(r * 100) });
+        // measured on synthetic gels: DNA ladder bands ~0.10 of the pitch, protein marker bands ~0.26.
+        // No band is taller than the lane spacing: above that, neighbouring bands merged in the
+        // measurement and it says nothing
+        if (r > 0.9) { /* unreliable */ }
+        else if (r > 0.20) add(1.4, 'broad', { pct: Math.round(r * 100) });
         else if (r < 0.16) add(-1.1, 'thin', { pct: Math.round(r * 100) });
       }
       const cnt = sharpBandCount(input.peaks);
@@ -1192,11 +1212,15 @@
       else if (input.richLanes <= 1) add(-0.3, 'fewRichLanes', { n: input.richLanes });
     }
 
-    // curvature: how far the best straight line in log(size) misses the matched bands
-    if (input.ladder && input.peaks && input.peaks.length >= 5) {
-      const md = input.ladder.kind === 'dna' ? 'dna' : 'protein';
-      const r = matchLadder(input.peaks, input.ladder.sizes, input.h || 1000, null, md);
-      const pts = r.map((b, k) => [Math.log(input.ladder.sizes[k]), b.y, b.matched]).filter(p => p[2]);
+    // curvature: how far the best straight line in log(size) misses the matched bands. The caller
+    // passes bands already matched to a ladder (curvePts: [ln size, y]); matching here is the fallback
+    if ((input.curvePts && input.curvePts.length >= 5) || (input.ladder && input.peaks && input.peaks.length >= 5)) {
+      let pts = input.curvePts ? input.curvePts.map(p => [p[0], p[1], true]) : null;
+      if (!pts) {
+        const md = input.ladder.kind === 'dna' ? 'dna' : 'protein';
+        const r = matchLadder(input.peaks, input.ladder.sizes, input.h || 1000, null, md);
+        pts = r.map((b, k) => [Math.log(input.ladder.sizes[k]), b.y, b.matched]).filter(p => p[2]);
+      }
       if (pts.length >= 5) {
         const n = pts.length, sx = pts.reduce((a, p) => a + p[0], 0) / n, sy = pts.reduce((a, p) => a + p[1], 0) / n;
         let sxy = 0, sxx = 0;

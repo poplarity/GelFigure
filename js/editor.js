@@ -144,6 +144,35 @@
       });
     });
 
+    // region boxes and side brackets (teal)
+    const TEAL = '#0d9488';
+    ctx.font = '600 11px -apple-system, Segoe UI, Arial, sans-serif'; ctx.textAlign = 'left';
+    (S.boxes || []).forEach((bx, k) => {
+      const p0 = toScr(bx.x, bx.y), p1 = toScr(bx.x + bx.w, bx.y + bx.h);
+      const sel = App.selAnno && App.selAnno.kind === 'box' && App.selAnno.k === k;
+      ctx.strokeStyle = TEAL; ctx.lineWidth = sel ? 2.4 : 1.5; ctx.setLineDash(bx.dash !== false ? [6, 4] : []);
+      ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y); ctx.setLineDash([]);
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5;
+      roundRect(ctx, p1.x - 4, p1.y - 4, 8, 8, 2); ctx.fill(); ctx.stroke();   // resize handle
+      const t = (bx.text || G.L('区域框', 'Box')) + (bx.zoom >= 2 ? `  ×${bx.zoom}` : '');
+      ctx.fillStyle = TEAL; ctx.fillText(t, p0.x + 2, p0.y - 5);
+    });
+    (S.brackets || []).forEach((br, k) => {
+      const ya = toScr(0, br.y1).y, yb = toScr(0, br.y2).y, sel = App.selAnno && App.selAnno.kind === 'bracket' && App.selAnno.k === k;
+      ctx.strokeStyle = TEAL; ctx.lineWidth = sel ? 2.4 : 1.4; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(a.x, ya); ctx.lineTo(b.x, ya); ctx.moveTo(a.x, yb); ctx.lineTo(b.x, yb); ctx.stroke(); ctx.setLineDash([]);
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x + 6, ya); ctx.lineTo(b.x + 12, ya); ctx.lineTo(b.x + 12, yb); ctx.lineTo(b.x + 6, yb); ctx.stroke();
+      ctx.fillStyle = TEAL; ctx.fillText(br.text || G.L('括号', 'Bracket'), b.x + 16, (ya + yb) / 2 + 4);
+    });
+    // rubber band while drawing a new box / bracket
+    if (drag && drag.h.type === 'draw' && drag.cur) {
+      const r0 = toScr(Math.min(drag.p0.x, drag.cur.x), Math.min(drag.p0.y, drag.cur.y)), r1 = toScr(Math.max(drag.p0.x, drag.cur.x), Math.max(drag.p0.y, drag.cur.y));
+      ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+      if (App.mode === 'box') ctx.strokeRect(r0.x, r0.y, r1.x - r0.x, r1.y - r0.y);
+      else { ctx.beginPath(); ctx.moveTo(a.x, r0.y); ctx.lineTo(b.x, r0.y); ctx.moveTo(a.x, r1.y); ctx.lineTo(b.x, r1.y); ctx.stroke(); }
+      ctx.setLineDash([]);
+    }
+
     // arrows
     ctx.textAlign = 'left'; ctx.font = '600 11px -apple-system, Segoe UI, Arial, sans-serif';
     S.arrows.forEach((ar, k) => {
@@ -175,6 +204,19 @@
     for (const [hx, hy, k] of handles()) if (Math.abs(p.x - hx) <= tol * 1.3 && Math.abs(p.y - hy) <= tol * 1.3) return { type: 'crop', k };
     const inX = p.x >= c.x - tol && p.x <= c.x + c.w + tol, inY = p.y >= c.y - tol && p.y <= c.y + c.h + tol;
     for (let k = 0; k < S.arrows.length; k++) if (Math.abs(p.y - S.arrows[k].y) <= tol && inX) return { type: 'arrow', i: k };
+    const bxs = S.boxes || [];
+    for (let k = bxs.length - 1; k >= 0; k--) {
+      const q = bxs[k], x1 = q.x + q.w, y1 = q.y + q.h;
+      if (Math.abs(p.x - x1) <= tol * 1.3 && Math.abs(p.y - y1) <= tol * 1.3) return { type: 'boxsize', i: k };
+      const nearX = p.x >= q.x - tol && p.x <= x1 + tol, nearY = p.y >= q.y - tol && p.y <= y1 + tol;
+      if ((nearY && (Math.abs(p.x - q.x) <= tol || Math.abs(p.x - x1) <= tol)) || (nearX && (Math.abs(p.y - q.y) <= tol || Math.abs(p.y - y1) <= tol))) return { type: 'boxmove', i: k };
+    }
+    const brs = S.brackets || [];
+    for (let k = 0; k < brs.length; k++) {
+      for (const end of ['y1', 'y2']) if (Math.abs(p.y - brs[k][end]) <= tol && inX) return { type: 'brend', i: k, end };
+      const lo = Math.min(brs[k].y1, brs[k].y2), hi = Math.max(brs[k].y1, brs[k].y2);
+      if (p.y >= lo && p.y <= hi && p.x > c.x + c.w && p.x < c.x + c.w + 18 / view.s) return { type: 'brmove', i: k };
+    }
     for (let mi = 0; mi < S.markers.length; mi++) {
       const mk = S.markers[mi];
       if (!S.lanes[mk.lane] || Math.abs(p.x - S.lanes[mk.lane].x) > S.laneHalfW * 1.5) continue;
@@ -197,8 +239,9 @@
     if (!h) return 'default';
     if (h.type === 'crop') return CURSORS[h.k];
     if (h.type === 'lane') return 'ew-resize';
-    if (h.type === 'band' || h.type === 'arrow') return 'ns-resize';
-    if (h.type === 'cropmove') return 'move';
+    if (h.type === 'band' || h.type === 'arrow' || h.type === 'brend') return 'ns-resize';
+    if (h.type === 'boxsize') return 'nwse-resize';
+    if (h.type === 'cropmove' || h.type === 'boxmove' || h.type === 'brmove') return 'move';
     return 'grab';
   }
 
@@ -214,10 +257,23 @@
       e.preventDefault();
       return;
     }
+    // drawing a region box / bracket: rubber band from here to the mouse-up point
+    if (App.mode === 'box' || App.mode === 'bracket') {
+      const c = App.S.crop;
+      if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) {
+        drag = { h: { type: 'draw' }, sx, sy, p0: p, cur: p, moved: false, view0: Object.assign({}, view) };
+        cv.style.cursor = 'crosshair';
+      }
+      e.preventDefault();
+      return;
+    }
     const h = hitTest(sx, sy, e.shiftKey);
     drag = { h, sx, sy, p0: p, crop0: Object.assign({}, App.S.crop), moved: false, view0: Object.assign({}, view) };
+    App.selAnno = null;
     if (h.type === 'lane') { App.selLane = h.i; App.selArrow = -1; drag.x0 = App.S.lanes[h.i].x; App.emit('select'); }
     else if (h.type === 'arrow') { App.selArrow = h.i; App.selLane = -1; drag.y0 = App.S.arrows[h.i].y; App.emit('select'); }
+    else if (h.type === 'boxmove' || h.type === 'boxsize') { App.selAnno = { kind: 'box', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = Object.assign({}, App.S.boxes[h.i]); }
+    else if (h.type === 'brend' || h.type === 'brmove') { App.selAnno = { kind: 'bracket', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = Object.assign({}, App.S.brackets[h.i]); }
     else if (h.type === 'band') { drag.y0 = App.S.markers[h.m].bands[h.i].y; }
     else if (h.type === 'inside') {
       let best = -1, bd = Infinity;
@@ -240,6 +296,7 @@
         cv.style.cursor = 'crosshair'; draw();
         return;
       }
+      if (App.mode === 'box' || App.mode === 'bracket') { cv.style.cursor = 'crosshair'; return; }
       const h = hitTest(sx, sy, e.shiftKey);
       const changed = JSON.stringify(h) !== JSON.stringify(hover);
       hover = h; cv.style.cursor = cursorFor(h);
@@ -250,6 +307,11 @@
     if (Math.abs(sx - drag.sx) + Math.abs(sy - drag.sy) > 2) drag.moved = true;
     const S = App.S, h = drag.h, rot = App.rot;
     if (h.type === 'pan' || h.type === 'inside') { view.ox = drag.view0.ox + (sx - drag.sx); view.oy = drag.view0.oy + (sy - drag.sy); draw(); return; }
+    if (h.type === 'draw') { const c = S.crop; drag.cur = { x: E_clamp(p.x, c.x, c.x + c.w), y: E_clamp(p.y, c.y, c.y + c.h) }; draw(); return; }
+    if (h.type === 'boxmove') { const o = drag.orig, q = S.boxes[h.i]; q.x = E_clamp(o.x + dx, 0, rot.w - o.w); q.y = E_clamp(o.y + dy, 0, rot.h - o.h); draw(); App.refresh(); return; }
+    if (h.type === 'boxsize') { const o = drag.orig, q = S.boxes[h.i]; q.w = Math.max(4, Math.min(rot.w - o.x, o.w + dx)); q.h = Math.max(4, Math.min(rot.h - o.y, o.h + dy)); draw(); App.refresh(); return; }
+    if (h.type === 'brend') { S.brackets[h.i][h.end] = E_clamp(drag.orig[h.end] + dy, 0, rot.h); draw(); App.refresh(); return; }
+    if (h.type === 'brmove') { const o = drag.orig, q = S.brackets[h.i]; q.y1 = E_clamp(o.y1 + dy, 0, rot.h); q.y2 = E_clamp(o.y2 + dy, 0, rot.h); draw(); App.refresh(); return; }
     if (h.type === 'crop' || h.type === 'cropmove') {
       const c0 = drag.crop0;
       let x0 = c0.x, y0 = c0.y, x1 = c0.x + c0.w, y1 = c0.y + c0.h;
@@ -281,7 +343,17 @@
     if (!drag) return;
     const d = drag; drag = null;
     const S = App.S;
+    if (d.h.type === 'draw') {
+      const q = d.cur || d.p0, x0 = Math.min(d.p0.x, q.x), x1 = Math.max(d.p0.x, q.x), y0 = Math.min(d.p0.y, q.y), y1 = Math.max(d.p0.y, q.y);
+      const kind = App.mode;
+      if (App.createAnno) App.createAnno(kind, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      return;
+    }
     if (!d.moved) {
+      if ((d.h.type === 'boxmove' || d.h.type === 'boxsize' || d.h.type === 'brend' || d.h.type === 'brmove') && App.openAnno) {
+        App.openAnno(d.h.type.startsWith('box') ? 'box' : 'bracket', d.h.i);
+        draw(); return;
+      }
       if (d.h.type === 'inside') { App.selLane = d.pickLane; App.selArrow = -1; App.emit('select'); draw(); }
       if (d.h.type === 'pan') { App.selLane = -1; App.selArrow = -1; App.emit('select'); draw(); }
       cv.style.cursor = cursorFor(hover);
@@ -322,12 +394,16 @@
     if (e.code === 'Space') { spaceDown = false; cv.style.cursor = cursorFor(hover); }
   });
 
-  // deleting / nudging only when the image area itself has focus — never while typing anywhere
+  // deleting / nudging only when the image area itself has focus — never while typing anywhere.
+  // Backspace counts too: it is the key labelled "delete" on a Mac keyboard.
   box.addEventListener('keydown', (e) => {
     if (!App.S || e.target !== box) return;
-    if (e.key === 'Delete') {
-      if (App.selLane >= 0) { App.removeLane(App.selLane); App.selLane = -1; App.commit(); e.preventDefault(); }
-      else if (App.selArrow >= 0) { App.S.arrows.splice(App.selArrow, 1); App.selArrow = -1; App.commit(); e.preventDefault(); }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (App.selLane >= 0) {
+        App.removeLane(App.selLane); App.selLane = -1; App.commit(); e.preventDefault();
+        if (G.UI) G.UI.toast(G.L('已删除泳道（Ctrl/⌘+Z 可撤销）', 'Lane deleted (Ctrl/⌘+Z to undo)'));
+      } else if (App.selArrow >= 0) { App.S.arrows.splice(App.selArrow, 1); App.selArrow = -1; App.commit(); e.preventDefault(); }
+      else if (App.selAnno) { App.removeAnno(App.selAnno); App.selAnno = null; App.commit(); e.preventDefault(); }
     }
     // H: cut the selected lane from the figure / bring it back (splice gap added automatically)
     if ((e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey && App.selLane >= 0 && App.toggleLaneHidden) {

@@ -15,15 +15,48 @@
     App.mode = m;
     $('modeBanner').classList.toggle('hidden', !m);
     $('modeText').textContent = m === 'arrow' ? L('点击目标条带（原图或成图上都行），自动吸附并估算大小', 'Click the target band (on either image); it snaps to the band and estimates the size')
-      : m === 'group' ? L('在成图上从第一个泳道名拖到最后一个，松开即生成分组横线', 'Drag from the first to the last lane name on the figure; release to create the group line') : '';
+      : m === 'group' ? L('在成图上从第一个泳道名拖到最后一个，松开即生成分组横线', 'Drag from the first to the last lane name on the figure; release to create the group line')
+      : m === 'box' ? L('在左侧原图上按住拖出一个矩形，框住要强调的条带', 'On the image on the left, drag a rectangle around the bands to highlight')
+      : m === 'bracket' ? L('在左侧原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'On the image on the left, drag from top to bottom over the region the bracket covers (smear, oligomers …)') : '';
     $('btnAddArrow').classList.toggle('on', m === 'arrow');
     $('btnAddGroup').classList.toggle('on', m === 'group');
+    $('btnAddBox').classList.toggle('on', m === 'box');
+    $('btnAddBracket').classList.toggle('on', m === 'bracket');
     prev.classList.toggle('arming', m === 'arrow');
     G.Editor.draw();
   }
   $('modeCancel').onclick = () => setMode(null);
   $('btnAddArrow').onclick = () => { if (S()) setMode(App.mode === 'arrow' ? null : 'arrow'); };
   $('btnAddGroup').onclick = () => { if (S()) setMode(App.mode === 'group' ? null : 'group'); };
+  $('btnAddBox').onclick = () => { if (S()) setMode(App.mode === 'box' ? null : 'box'); };
+  $('btnAddBracket').onclick = () => { if (S()) setMode(App.mode === 'bracket' ? null : 'bracket'); };
+  $('btnAddLabel').onclick = () => {
+    if (!S()) return;
+    // the first side text goes on the left (where blot panels name the stain / antibody), later ones below
+    S().labels.push({ text: '', pos: S().labels.some(t => t.pos === 'left') ? 'below' : 'left' });
+    App.commit();
+    App.openAnno('label', S().labels.length - 1);
+  };
+
+  // a box / bracket was drawn on the image (r in image pixels); tiny drags become a sensible default
+  App.createAnno = function (kind, r) {
+    const c = S().crop;
+    if (kind === 'box') {
+      if (r.w < 6 || r.h < 6) { const w = c.w * 0.14, h = c.h * 0.07; r = { x: r.x - w / 2, y: r.y - h / 2, w, h }; }
+      S().boxes.push({ x: r.x, y: r.y, w: r.w, h: r.h, text: '', dash: true, zoom: 0 });
+    } else {
+      let y1 = r.y, y2 = r.y + r.h;
+      if (y2 - y1 < 6) { y1 = r.y - c.h * 0.05; y2 = r.y + c.h * 0.05; }
+      S().brackets.push({ y1: Math.max(c.y, y1), y2: Math.min(c.y + c.h, y2), text: '', side: '' });
+    }
+    setMode(null);
+    App.commit();
+    App.openAnno(kind, (kind === 'box' ? S().boxes : S().brackets).length - 1);
+  };
+  App.openAnno = function (kind, k) {
+    App.selAnno = { kind, k };
+    requestAnimationFrame(() => annoPopover(kind, k, prev.querySelector(`g[data-edit="${kind}"][data-k="${k}"]`)));
+  };
   $('btnAddCond').onclick = () => {
     if (!S()) return;
     S().conditions.push({ name: '', values: S().lanes.map(() => '') });
@@ -87,13 +120,63 @@
   fed.addEventListener('blur', () => { if (edit) closeEd(false); });
 
   /* ---------- arrow popover ---------- */
-  let popK = -1;
-  function closePop() { if (popK >= 0) { popK = -1; pop.classList.add('hidden'); App.commit(); } }
+  let popK = -1, popAnno = null;
+  function closePop() {
+    if (popK >= 0 || popAnno) { popK = -1; popAnno = null; pop.classList.add('hidden'); App.commit(); }
+  }
+  function placePop(anchor) {
+    const r = (anchor || prev).getBoundingClientRect();
+    pop.classList.remove('hidden');
+    const pw = 250, ph = pop.offsetHeight;
+    pop.style.left = clamp(r.right + 10 + pw > innerWidth ? r.left - pw - 10 : r.right + 10, 6, innerWidth - pw - 6) + 'px';
+    pop.style.top = clamp(r.top - 20, 58, innerHeight - ph - 8) + 'px';
+  }
+
+  /* ---------- box / bracket / side-text popover ---------- */
+  function annoPopover(kind, k, anchor) {
+    const list = { box: S().boxes, bracket: S().brackets, label: S().labels }[kind], a = list && list[k];
+    if (!a) return;
+    closeEd(false);
+    popK = -1; popAnno = { kind, k };
+    const sel = (id, opts, v) => `<select id="${id}" style="width:auto">${opts.map(([val, t]) => `<option value="${val}"${String(v) === String(val) ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+    let title, body;
+    if (kind === 'box') {
+      title = L('区域框', 'Region box');
+      body = `<div class="field"><input type="text" id="qText" placeholder="${L('标签（可空），如 a、Short exposure', 'Label (optional), e.g. a, Short exposure')}" value="${esc(a.text)}"></div>
+        <div class="field inline"><label class="inline-label">${L('线型', 'Line')}</label>${sel('qDash', [['1', L('虚线', 'Dashed')], ['0', L('实线', 'Solid')]], a.dash !== false ? 1 : 0)}
+          <label class="inline-label">${L('放大展示', 'Enlarge')}</label>${sel('qZoom', [['0', L('不放大', 'No')], ['2', '×2'], ['3', '×3'], ['4', '×4']], a.zoom || 0)}</div>
+        <p class="hint">${L('放大后的区域放在成图右侧，与原框同一标签；拖动框的边移动，拖右下角改大小。', 'The enlarged region is placed to the right of the figure with the same label. Drag the box edge to move it, its corner to resize.')}</p>`;
+    } else if (kind === 'bracket') {
+      title = L('侧边括号', 'Side bracket');
+      body = `<div class="field"><input type="text" id="qText" placeholder="${L('如 (Ub)n、Smear、Dimer、IgG HC', 'e.g. (Ub)n, Smear, Dimer, IgG HC')}" value="${esc(a.text)}"></div>
+        <div class="field inline"><label class="inline-label">${L('位置', 'Side')}</label>${sel('qSide', [['', L('自动', 'Auto')], ['right', L('右侧', 'Right')], ['left', L('左侧', 'Left')]], a.side || '')}</div>
+        <p class="hint">${L('上下两端在原图上拖青色虚线调整。', 'Drag the teal dashed lines on the image to set its top and bottom.')}</p>`;
+    } else {
+      title = L('侧边文字', 'Side text');
+      body = `<div class="field"><input type="text" id="qText" placeholder="${L('如 Coomassie、EtBr、IB: anti-HA、30 s', 'e.g. Coomassie, EtBr, IB: anti-HA, 30 s')}" value="${esc(a.text)}"></div>
+        <div class="field inline"><label class="inline-label">${L('位置', 'Position')}</label>${sel('qPos', [['left', L('左侧竖排', 'Left, vertical')], ['right', L('右侧竖排', 'Right, vertical')], ['below', L('胶图下方', 'Below the gel')]], a.pos || 'left')}</div>
+        <p class="hint">${L('用于注明染色方法、抗体或曝光时间。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. *italic* works as in lane names.')}</p>`;
+    }
+    pop.innerHTML = `<h4>${title}</h4>${body}
+      <div class="actions"><button class="btn sm danger" id="qDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="qOk">${L('完成', 'Done')}</button></div>`;
+    placePop(anchor);
+    const upd = () => App.refresh();
+    const q = id => pop.querySelector('#' + id);
+    q('qText').addEventListener('input', e => { a.text = e.target.value; upd(); G.Editor.draw(); });
+    q('qText').addEventListener('keydown', e => { if (e.key === 'Enter' && !composing(e)) closePop(); });
+    if (q('qDash')) q('qDash').addEventListener('change', e => { a.dash = e.target.value === '1'; upd(); G.Editor.draw(); });
+    if (q('qZoom')) q('qZoom').addEventListener('change', e => { a.zoom = +e.target.value; upd(); G.Editor.draw(); });
+    if (q('qSide')) q('qSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
+    if (q('qPos')) q('qPos').addEventListener('change', e => { a.pos = e.target.value; upd(); });
+    q('qOk').onclick = closePop;
+    q('qDel').onclick = () => { list.splice(k, 1); App.selAnno = null; popAnno = null; pop.classList.add('hidden'); App.commit(); };
+    setTimeout(() => q('qText').focus(), 0);
+  }
   function arrowPopover(k, anchor) {
     const a = S().arrows[k];
     if (!a) return;
     closeEd(false);
-    popK = k; App.selArrow = k;
+    popK = k; popAnno = null; App.selArrow = k;
     const info = App.estimateInfo(a.y), est = info && info.bp;
     // honest about where the number comes from: which marker(s), and whether it lies outside the ladder
     let estHtml = L('没有可用的 Marker，无法估算大小', 'No usable marker; the size cannot be estimated');
@@ -106,6 +189,8 @@
     }
     pop.innerHTML = `<h4>${L('目标条带箭头', 'Target band arrow')}</h4>
       <div class="field"><input type="text" id="pName" placeholder="${L('名称（可空），如 GAPDH、PCR 产物', 'Name (optional), e.g. GAPDH, PCR product')}" value="${esc(a.text)}"></div>
+      <div class="field inline"><label class="inline-label">${L('标记', 'Mark')}</label>
+        <select id="pSym" style="width:auto"><option value="arrow">◀ ${L('箭头', 'Arrowhead')}</option><option value="star">* ${L('非特异条带', 'Non-specific band')}</option><option value="hash"># ${L('降解产物等', 'Degradation product etc.')}</option><option value="dagger">† ${L('其他', 'Other')}</option></select></div>
       <div class="est">${estHtml}</div>
       <div class="field inline"><label class="switch"><input type="checkbox" id="pSize" ${a.size ? 'checked' : ''}><span>${L('标注大小', 'Show size')}</span></label>
         <input type="text" id="pSizeText" placeholder="${est ? App.fmtSize(est) : L('如 452 bp / 55 kDa', 'e.g. 452 bp / 55 kDa')}" value="${esc(a.sizeText || '')}" style="flex:1" title="${L('留空 = 用估算值；也可填理论大小', 'Empty = use the estimate; or type the expected size')}"></div>
@@ -114,12 +199,15 @@
         <span class="hint" style="margin:0">${L('上下位置在原图上拖品红线', 'Drag the magenta line on the image to move it')}</span></div>
       <div class="actions"><button class="btn sm danger" id="pDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="pOk">${L('完成', 'Done')}</button></div>`;
     pop.querySelector('#pSide').value = a.side || '';
-    const r = (anchor || prev).getBoundingClientRect();
-    pop.classList.remove('hidden');
-    const pw = 250, ph = pop.offsetHeight;
-    pop.style.left = clamp(r.right + 10 + pw > innerWidth ? r.left - pw - 10 : r.right + 10, 6, innerWidth - pw - 6) + 'px';
-    pop.style.top = clamp(r.top - 20, 58, innerHeight - ph - 8) + 'px';
+    pop.querySelector('#pSym').value = a.sym || 'arrow';
+    placePop(anchor);
     const upd = () => App.refresh();
+    pop.querySelector('#pSym').addEventListener('change', e => {
+      a.sym = e.target.value;
+      // a symbol marks a band as "not the one": it does not carry a size unless typed in
+      if (a.sym !== 'arrow' && !a.sizeText) { a.size = false; pop.querySelector('#pSize').checked = false; }
+      upd();
+    });
     pop.querySelector('#pName').addEventListener('input', e => { a.text = e.target.value; upd(); });
     pop.querySelector('#pName').addEventListener('keydown', e => { if (e.key === 'Enter' && !composing(e)) closePop(); });
     pop.querySelector('#pSize').addEventListener('change', e => { a.size = e.target.checked; upd(); });
@@ -129,7 +217,11 @@
     pop.querySelector('#pDel').onclick = () => { S().arrows.splice(k, 1); App.selArrow = -1; popK = -1; pop.classList.add('hidden'); App.commit(); };
     setTimeout(() => pop.querySelector('#pName').focus(), 0);
   }
-  document.addEventListener('mousedown', e => { if (popK >= 0 && !pop.contains(e.target) && !e.target.closest('[data-aed]') && !e.target.closest('g[data-edit="arrow"]')) closePop(); });
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest) { if (popK >= 0 || popAnno) closePop(); return; }
+    if ((popK >= 0 || popAnno) && !pop.contains(e.target) && !e.target.closest('[data-aed]') && !e.target.closest('[data-qed]')
+      && !e.target.closest('g[data-edit="arrow"], g[data-edit="box"], g[data-edit="bracket"], g[data-edit="label"]') && e.target.id !== 'editor') closePop();
+  });
 
   /* ---------- preview pointer handling ---------- */
   let press = null;
@@ -176,6 +268,7 @@
       c.values[i] = cyc[c.values[i] || ''] != null ? cyc[c.values[i] || ''] : '';
       App.commit();
     } else if (kind === 'arrow') arrowPopover(+g.dataset.k, g);
+    else if (kind === 'box' || kind === 'bracket' || kind === 'label') { App.selAnno = { kind, k: +g.dataset.k }; annoPopover(kind, +g.dataset.k, g); G.Editor.draw(); }
     else if (kind === 'gel' && App.mode === 'arrow') {
       // map the click on the composed gel image back to raw-image coordinates
       const rect = g.getBoundingClientRect(), gel = App._lastGel, c = S().crop;
@@ -188,12 +281,12 @@
 
   window.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (popK >= 0) closePop();
+    if (popK >= 0 || popAnno) closePop();
     else if (App.mode) setMode(null);
   });
 
   G.FigEdit = {
-    setMode, arrowPopover, openEd,
+    setMode, arrowPopover, annoPopover, openEd,
     afterRender() {
       if (edit && edit.kind === 'lane') {
         const el = prev.querySelector(`g[data-edit="lane"][data-src="${edit.id}"]`);

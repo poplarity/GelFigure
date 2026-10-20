@@ -27,15 +27,28 @@
     await wait(60);
     R.names = fl.map(i => App.S.lanes[i].name);
     document.title = 'UITEST-AT 3 ' + JSON.stringify(R);
-    // 3. Backspace while typing never deletes lanes; Backspace on the image area does nothing either
+    // 3. Backspace while typing never deletes lanes; Backspace on the image (the Mac "delete" key)
+    // deletes the selected lane, and undo brings it back
     const n0 = App.S.lanes.length;
     G.FigEdit.openEd('lane', fl[2]); await wait(20);
     key(fed, 'Backspace'); key(fed, 'Delete');
     fed.blur(); await wait(20);
+    const whileTyping = App.S.lanes.length;
     App.selLane = fl[2];
     const box = document.getElementById('editorBox'); box.focus();
     key(box, 'Backspace');
-    R.backspace = { lanesBefore: n0, lanesAfter: App.S.lanes.length };
+    const afterKey = App.S.lanes.length;
+    App.undo();
+    // a lane picked by its number in the side list: ⌫ deletes it too; a stray ⌫ elsewhere does not
+    const n1 = App.S.lanes.length;
+    key(document.body, 'Backspace');
+    const strayKey = App.S.lanes.length;
+    const pick = document.querySelector('#laneList [data-pick]');
+    pick.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); pick.click();
+    key(document.body, 'Backspace');
+    const listKey = App.S.lanes.length;
+    App.undo();
+    R.backspace = { lanesBefore: n0, whileTyping, afterKey, afterUndo: n1, strayKey, listKey, final: App.S.lanes.length };
     document.title = 'UITEST-AT 4 ' + JSON.stringify(R);
     // 4. place an arrow by clicking a band: snaps to a band and gets a size label
     const mk = App.S.markers[0];
@@ -270,6 +283,9 @@
       App.setGelType('protein');
       const back = { kind: App.gelKind(), unit: App.S.markers[0].unit, name: App.S.lanes[fl2[1]].name, arrows: App.S.arrows.length, bands: App.S.markers[0].bands.filter(b => b.show).length };
       R.protein = { prot, asDna, back };
+      // the favourite-ladder list follows the gel type from the first render (it used to show DNA ladders)
+      const favIds = [...document.querySelectorAll('#favList [data-fav]')].map(b => b.dataset.fav);
+      R.protein.favKinds = [...new Set(favIds.map(id => G.Ladders.kindOf(G.Ladders.get(id))))];
 
       // a crowded gel: sample lanes carry more bands than the ladder, so only the lane a ladder
       // explains completely may be taken for the marker
@@ -293,6 +309,68 @@
       R.dnaAfter = { kind: App.gelKind(), unit: (App.S.markers[0] || {}).unit, ladderKind: (G.Ladders.get((App.S.markers[0] || {}).ladderId) || {}).kind };
     }
     document.title = 'UITEST-AT 20 ' + JSON.stringify(R);
+    // 21. lanes: equal spacing between the two end lanes the user placed by hand
+    {
+      const good = G.UI.figLanes().map(i => App.S.lanes[i].x);
+      const c = App.S.crop, n = good.length;
+      // a wrong detection: too few lanes, squeezed; then the user drags the two end lines into place
+      const bad = Array.from({ length: n - 2 }, (_, k) => c.x + c.w * 0.3 + k * 9);
+      App.replaceLanes(App.S.lanes.filter(l => l.x < c.x || l.x > c.x + c.w).map(l => l.x).concat(bad).sort((a, b) => a - b));
+      const r = App.laneRange();
+      App.S.lanes[r[0]].x = good[0]; App.S.lanes[r[1]].x = good[n - 1];
+      App.sortLanesIfNeeded(); App.commit();
+      document.getElementById('cropLaneN').value = n;
+      document.getElementById('btnEvenCrop').click();
+      const after = G.UI.figLanes().map(i => App.S.lanes[i].x);
+      R.endsEven = { n, got: after.length, maxErr: after.length === n ? +Math.max(...after.map((x, k) => Math.abs(x - good[k]))).toFixed(1) : null };
+      // the corrupted lanes above dropped the marker on purpose; find it again for the next steps
+      if (!App.S.markers.length) { App.autoMarkers(); App.commit(); }
+    }
+    document.title = 'UITEST-AT 21 ' + JSON.stringify(R);
+    // 22. new annotations: region box with zoom inset, side bracket, side text, band symbols
+    {
+      const S0 = App.S, c = S0.crop, fl4 = G.UI.figLanes();
+      App.createAnno('box', { x: S0.lanes[fl4[1]].x - 20, y: c.y + c.h * 0.3, w: 120, h: 60 });
+      S0.boxes[0].text = 'a'; S0.boxes[0].zoom = 2;
+      App.createAnno('bracket', { x: c.x, y: c.y + c.h * 0.5, w: 10, h: c.h * 0.2 });
+      S0.brackets[0].text = 'Smear';
+      S0.labels.push({ text: 'EtBr', pos: 'left' }, { text: '30 s exposure', pos: 'below' });
+      const mk = S0.markers[0], band = mk.bands.find(b => b.matched);
+      S0.arrows.push({ y: band.y, text: 'ns', size: false, side: '', sym: 'star' });
+      App.commit();
+      document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));   // close the popover
+      const svg = App.buildFigure(false).svg;
+      const legend = (G.Export.processingLog(App.S).legendHints || []).join(' ');
+      const tpl = App.template();
+      R.anno = {
+        inset: (svg.match(/<svg x=/g) || []).length, boxLabel: />a</.test(svg), bracket: />Smear</.test(svg),
+        sideText: /rotate\(-90\)/.test(svg) && />EtBr</.test(svg), below: />30 s exposure</.test(svg),
+        star: />\*</.test(svg), legendStar: /non-specific/.test(legend), legendZoom: /enlarged 2/.test(legend),
+        tplLabels: (tpl.labels || []).length, tplBrackets: (tpl.brackets || []).length
+      };
+      // rotation carries the bracket and the box with the gel and back
+      const y10 = S0.brackets[0].y1, bx0 = S0.boxes[0].x;
+      App.setRotation(S0.rotation + 2); App.setRotation(S0.rotation - 2);
+      R.anno.rotBack = +Math.max(Math.abs(App.S.brackets[0].y1 - y10), Math.abs(App.S.boxes[0].x - bx0)).toFixed(2);
+      // splice settings appear only once a lane in the figure is cut
+      const hidden0 = document.getElementById('spliceBox').classList.contains('hidden');
+      App.setLaneHidden(fl4[3], true, 'test'); App.commit();
+      R.anno.spliceBox = { before: hidden0, after: document.getElementById('spliceBox').classList.contains('hidden') };
+      App.setLaneHidden(fl4[3], false, 'test'); App.commit();
+    }
+    document.title = 'UITEST-AT 22 ' + JSON.stringify(R);
+    // 23. the band list of a marker stays open while bands are ticked
+    {
+      const d = document.querySelector('#markerList details[data-lane]');
+      d.open = true;
+      const cb = d.querySelector('[data-band]');
+      cb.click();
+      await wait(30);
+      const d2 = document.querySelector('#markerList details[data-lane]');
+      R.bandsOpen = { open: !!(d2 && d2.open), rebuilt: d2 !== d };
+      cb.click && d2.querySelector('[data-band]').click();
+    }
+    document.title = 'UITEST-AT 23 ' + JSON.stringify(R);
     // 19. autosaved draft survives a reload (needs a browser with working IndexedDB: ?uitest=1&draft=1;
     // headless Edge never answers indexedDB.open and holds its virtual clock)
     if (/[?&]draft=1/.test(location.search)) {

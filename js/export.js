@@ -222,6 +222,9 @@
           perMarker: e ? e.perMarker.map(p => ({ well: p.lane + 1, size: Math.round(p.bp * 10) / 10, bp: Math.round(p.bp), extrapolated: p.extrap })) : [] };
       }),
       groups: S.groups.map(g => ({ fromWell: Math.min(g.from, g.to) + 1, toWell: Math.max(g.from, g.to) + 1, text: g.text })),
+      regionBoxes: (S.boxes || []).map(b => ({ text: b.text, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), enlarged: b.zoom >= 2 ? b.zoom : null })),
+      brackets: (S.brackets || []).map(b => ({ text: b.text, y1: Math.round(b.y1), y2: Math.round(b.y2) })),
+      sideText: (S.labels || []).map(t => ({ text: t.text, position: t.pos })),
       conditions: S.conditions, style: S.style,
       legendHints: legendHints(S)
     };
@@ -232,6 +235,11 @@
     const cut = S.lanes.map((l, i) => (l.hidden ? i + 1 : null)).filter(v => v != null);
     if (cut.length) h.push(`Lane${cut.length > 1 ? 's' : ''} ${cut.join(', ')} ${cut.length > 1 ? 'were' : 'was'} removed from the same gel; splice sites are indicated by ` + (S.style.spliceStyle === 'line' ? 'lines.' : 'white gaps.'));
     if (S.levels.invert) h.push('Image colours were inverted for display.');
+    const syms = new Set((S.arrows || []).map(a => a.sym));
+    if (syms.has('star')) h.push('Asterisks (*) indicate non-specific bands.');
+    if (syms.has('hash')) h.push('# indicates [describe, e.g. degradation products].');
+    if (syms.has('dagger')) h.push('† indicates [describe].');
+    (S.boxes || []).filter(b => b.zoom >= 2).forEach(b => h.push(`The boxed region${b.text ? ` (${b.text})` : ''} is shown enlarged ${b.zoom}× on the right.`));
     if (S.levels.gamma !== 1) h.push(`A non-linear gamma adjustment (γ = ${S.levels.gamma}) was applied to the whole image.`);
     const names = [...new Set(S.markers.map(m => G.Ladders.get(m.ladderId)).filter(Boolean).map(l => l.name.replace(/\s*\(.*\)/, '')))];
     if (names.length === 1) h.push(`M, ${names[0]}.`);

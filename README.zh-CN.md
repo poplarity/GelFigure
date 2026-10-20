@@ -40,6 +40,7 @@
 - **DNA 胶和蛋白胶**：导入时自动判断胶种（颜色、条带宽度、条带数、迁移曲线），打开对应的模式——Ladder 库、匹配容差和单位（bp / kDa）一起切换。判断错了可在"图像"面板顶部一键切换，泳道名、分组和箭头都不会丢。
 - **直接在成图上编辑**：点泳道名就能输入，回车跳到下一条；从一个泳道名拖到另一个画分组横线；点格子切换 `+` / `−`。中文输入法选字时的回车不会误跳。
 - **泳道按加样孔编号**：裁切只是选择显示哪几孔，改裁切不会丢名称、Marker 和分组。
+- **论文常用的标注**：分组横线、`+`/`−` 条件行、区域框（可在成图旁放大展示）、侧边括号（拖尾、(Ub)n）、侧边文字（染色方法、抗体），以及非特异条带的 `*` / `#` 标记。
 - **目标条带箭头自动标大小**：点一下条带，箭头吸附过去并按 Marker 估算大小。超出 Marker 范围或两个 Marker 估算相差超过 10% 时标 `≈`。
 - **多张曝光一起拖入**：自动挑过曝最少、信噪比最好的一张；可随时切换，标注全部保留。
 - **旋转时标注跟着转**：泳道、条带、箭头、裁切框随图一起转动，不会错位。
@@ -120,7 +121,7 @@ Thermo Scientific GeneRuler：1 kb、1 kb Plus、100 bp、100 bp Plus、50 bp、
 
 [`docs/ladders.md`](docs/ladders.md) 里列出了每个型号的货号、条带数和参考带，也写明了哪几个型号条带完全相同、无法自动区分（把你常用的那个设为常用型号即可）。
 
-**蛋白 Ladder**（kDa，预染条带的表观分子量）：Thermo PageRuler 10–180（26616）、PageRuler Plus 10–250（26619）· Bio-Rad Precision Plus Dual Color（161-0374）· 翌圣 Yeasen GoldBand Plus 三色 10–180（26616ES）、三色 10–250。预染条带的大小是在 Tris-glycine 体系下标定的，换胶浓度或缓冲体系会偏移，读出的数值是估算值；导出前的预检会提醒在图注中写 "apparent molecular weight"。
+**蛋白 Ladder**（41 种，kDa，表观分子量）：Bio-Rad Precision Plus（Dual Color、All Blue、Kaleidoscope、Unstained、Dual Xtra）· Thermo / Invitrogen（PageRuler、PageRuler Plus、Unstained、Spectra Multicolor、Novex Sharp、SeeBlue Plus2）· NEB · Abcam · GenScript · 翌圣 · 雅酶 · 碧云天 · 全式金 · 索莱宝 · 生工。预染条带的大小是在 Tris-glycine 体系下标定的，换胶浓度或缓冲体系会偏移，读出的数值是估算值；导出前的预检会提醒在图注中写 "apparent molecular weight"。
 
 其他型号可在 **Marker → 自定义 Ladder** 中添加，自定义 Ladder 会随样式和项目文件一起保存。想把型号加进内置库供所有人使用，请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

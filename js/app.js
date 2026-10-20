@@ -103,6 +103,7 @@
       gelType: null,          // 'dna' | 'protein'; decided from the image below, the user can override
       markers: [],
       groups: [], conditions: [], arrows: [],
+      boxes: [], brackets: [], labels: [],
       style: Object.assign(defaultStyle(), p.style || {}),
       saturatedInCrop: 0
     };
@@ -278,6 +279,9 @@
     const laneX0 = S.lanes.map(l => l.x);
     S.markers.forEach(m => { const lx = laneX0[m.lane]; if (lx == null) return; m.bands.forEach(b => { b.y = T(lx, b.y).y; }); });
     S.arrows.forEach(a => { a.y = T(ccx, a.y).y; });
+    (S.brackets || []).forEach(b => { b.y1 = T(ccx, b.y1).y; b.y2 = T(ccx, b.y2).y; });
+    // a box keeps its size; its centre moves with the gel
+    (S.boxes || []).forEach(b => { const c2 = T(b.x + b.w / 2, b.y + b.h / 2); b.x = c2.x - b.w / 2; b.y = c2.y - b.h / 2; });
     S.lanes.forEach(l => { l.x = T(l.x, ccy).x; });
     const nc = T(ccx, ccy);
     const w = Math.min(c.w, W), h = Math.min(c.h, H);
@@ -444,6 +448,18 @@
     return n;
   };
 
+  /* n lanes spaced evenly between the outermost two lanes inside the crop, which stay where they are.
+   * Lanes on one gel come from one comb, so their spacing is constant: once the user has dragged the
+   * first and last lane lines onto their lanes, every lane in between is determined by the count. */
+  App.evenLanesBetweenEnds = function (n) {
+    const S = App.S, r = App.laneRange();
+    if (!r || r[1] <= r[0]) return { n: App.evenLanesInCrop(n), fromEnds: false };
+    n = Math.max(2, Math.min(60, Math.round(n || (r[1] - r[0] + 1))));
+    const a = S.lanes[r[0]].x, b = S.lanes[r[1]].x, p = (b - a) / (n - 1);
+    replaceInCrop(Array.from({ length: n }, (_, k) => a + k * p), p);
+    return { n, fromEnds: true, pitch: p };
+  };
+
   // indices of lanes whose centre lies inside the crop
   App.laneRange = function () {
     const S = App.S, c = S.crop, idx = [];
@@ -590,24 +606,36 @@
       if (!best || n > best.n) best = { i, prof, pk, n };
     }
     if (!best) return null;
-    // a ladder that fits well is decisive evidence for the shape of the migration curve; only accept a
-    // strong fit so a spurious alignment cannot sway the vote
-    const rD = E.rankLadders(best.pk, G.Ladders.all('dna'), h, 'dna')[0];
-    const rP = E.rankLadders(best.pk, G.Ladders.all('protein'), h, 'protein')[0];
-    let ladder = null;
-    if (rP && rP.matched >= 3 && rP.score >= 0.55 && (!rD || rP.score >= rD.score - 0.05)) ladder = G.Ladders.get(rP.id);
-    else if (rD && rD.matched >= 3 && rD.score >= 0.6) ladder = G.Ladders.get(rD.id);
-    const det = E.detectGelType({ colorStats: App._colorStats, peaks: best.pk, profile: best.prof, pitch: S.lanePitch, h, ladder, richLanes, laneCount });
+    // the migration-curve vote needs a matched ladder; it is added by confirmGelType once the
+    // markers have been matched, instead of ranking every ladder of both libraries here
+    App._gelVoteInput = { colorStats: App._colorStats, peaks: best.pk, profile: best.prof, pitch: S.lanePitch, h, richLanes, laneCount };
+    return applyGelVote(E.detectGelType(App._gelVoteInput), best.i);
+  };
+  function applyGelVote(det, lane) {
     // an ambiguous image with favourites of only one kind follows the favourites (they say what this lab runs)
     if (det.confidence < 0.35) {
       const kinds = new Set(G.Ladders.favorites().map(id => G.Ladders.kindOf(G.Ladders.get(id))));
       if (kinds.size === 1) det.kind = kinds.has('protein') ? 'protein' : 'dna';
       det.prior = true;
     }
-    det.lane = best.i; det.ladderId = ladder ? ladder.id : null;
-    S.gelType = det.kind;
+    det.lane = lane;
+    App.S.gelType = det.kind;
     App.gelDetection = det;
     return det;
+  }
+  /* Second look, once the markers are matched: how the matched marker bands fall against ln(size)
+   * adds the migration-curve vote. If that flips the verdict, switch and match again. */
+  App.confirmGelType = function () {
+    const S = App.S, inp = App._gelVoteInput, m = S.markers.find(x => x.bands.some(b => b.matched));
+    if (!inp || !m) return false;
+    const pts = m.bands.filter(b => b.matched).map(b => [Math.log(b.bp), b.y - S.crop.y]);
+    if (pts.length < 5) return false;
+    const before = App.gelKind();
+    const det = applyGelVote(E.detectGelType(Object.assign({}, inp, { curvePts: pts })), App.gelDetection && App.gelDetection.lane);
+    det.ladderId = m.ladderId;
+    if (det.kind === before) return false;
+    App.autoMarkers();
+    return true;
   };
 
   // one detection reason in words (the engine reports codes so the UI can translate them)
@@ -669,10 +697,15 @@
        * whole-cell lysate lane has more bands than any ladder and some ladder fits a subset of them.
        * Rank by how completely a ladder explains the lane, and keep only lanes close to the best. */
       const cand = [];
-      for (let i = rg[0]; i <= rg[1]; i++) {
-        if (counts[i] < minBands) continue;
-        const q = E.markerQuality(peaks[i], all, h, mode);
-        if (q) cand.push({ i, quality: q.quality, fit: q.score, explained: q.explained });
+      // most promising lanes first, so lanes that can no longer come close are skipped unscored
+      const order = [];
+      for (let i = rg[0]; i <= rg[1]; i++) if (counts[i] >= minBands) order.push({ i, ub: E.markerQuality.bound(peaks[i], all) });
+      order.sort((a, b) => b.ub - a.ub);
+      let topQ = 0;
+      for (const { i, ub } of order) {
+        if (ub < Math.max(0.42, topQ - 0.15)) continue;
+        const q = E.markerQuality(peaks[i], all, h, mode, Math.max(0.42, topQ - 0.15));
+        if (q) { cand.push({ i, quality: q.quality, fit: q.score, explained: q.explained }); topQ = Math.max(topQ, q.quality); }
       }
       cand.sort((a, b) => b.quality - a.quality);
       const top = cand.length ? cand[0].quality : 0;
@@ -793,6 +826,7 @@
     T('marker');
     App.guessGelType();
     App.autoMarkers();
+    App.confirmGelType();
     T('fix');
     App.fixIndices();
     App.updateSaturation();
@@ -889,7 +923,7 @@
       return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, k } : null;
     }).filter(Boolean);
     return {
-      preview: !!preview,
+      preview: !!preview, bright: S.bright,
       crop: S.crop, levels: S.levels, style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
       lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name, hidden: S.lanes[i].hidden, src: i })),
       conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || '') })),
@@ -898,8 +932,24 @@
         lane: remap.get(m.lane),
         bands: m.bands.map(b => Object.assign({}, b, { y: b.y - cy }))
       })),
-      arrows: S.arrows.map((a, k) => Object.assign({}, a, { y: a.y - cy, k, label: App.arrowLabel(a) })).filter(a => a.y >= 0 && a.y <= S.crop.h)
+      arrows: S.arrows.map((a, k) => Object.assign({}, a, { y: a.y - cy, k, label: App.arrowLabel(a) })).filter(a => a.y >= 0 && a.y <= S.crop.h),
+      // boxes are clipped to the crop; brackets to the crop rows
+      boxes: (S.boxes || []).map((b, k) => {
+        const x0 = Math.max(b.x, cx), y0 = Math.max(b.y, cy), x1 = Math.min(b.x + b.w, cx + S.crop.w), y1 = Math.min(b.y + b.h, cy + S.crop.h);
+        return x1 - x0 > 1 && y1 - y0 > 1 ? Object.assign({}, b, { x: x0 - cx, y: y0 - cy, w: x1 - x0, h: y1 - y0, k }) : null;
+      }).filter(Boolean),
+      brackets: (S.brackets || []).map((b, k) => {
+        const a = Math.max(Math.min(b.y1, b.y2) - cy, 0), z = Math.min(Math.max(b.y1, b.y2) - cy, S.crop.h);
+        return z - a > 1 ? Object.assign({}, b, { y1: a, y2: z, k }) : null;
+      }).filter(Boolean),
+      labels: (S.labels || []).map((t, k) => Object.assign({}, t, { k })).filter(t => t.text || preview)
     };
+  };
+
+  // remove one of the free annotations; sel = {kind: 'box' | 'bracket' | 'label', k}
+  App.removeAnno = function (sel) {
+    const list = { box: App.S.boxes, bracket: App.S.brackets, label: App.S.labels }[sel && sel.kind];
+    if (list && list[sel.k]) list.splice(sel.k, 1);
   };
 
   // ---------- figure ----------
@@ -1025,7 +1075,10 @@
       ladders: G.Ladders.defsFor(S.markers.map(m => m.ladderId)),
       groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text })),
       conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || '') })),
-      arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', bp: App.estimateBp(a.y) })),
+      arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y) })),
+      // side text travels as is; brackets by the sizes they span (positions differ between gels)
+      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos })),
+      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2) })).filter(b => b.bp1 && b.bp2),
       // recorded for reference only: each gel is straightened on its own
       rotation: S.rotation,
       style: S.style };
@@ -1070,8 +1123,14 @@
       let y = S.crop.y + S.crop.h / 2;
       const b = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);
       if (a.bp && b.length >= 2) { const pred = predictY(a.bp, b); if (pred != null) y = pred; }
-      return { text: a.text, side: a.side, size: a.size !== false, sizeText: a.sizeText || '', y };
+      return { text: a.text, side: a.side, size: a.size !== false, sizeText: a.sizeText || '', sym: a.sym || 'arrow', y };
     });
+    S.labels = (t.labels || []).map(x => ({ text: x.text || '', pos: x.pos || 'left' }));
+    const mb = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);
+    S.brackets = (t.brackets || []).map(b => {
+      const y1 = mb.length >= 2 ? predictY(b.bp1, mb) : null, y2 = mb.length >= 2 ? predictY(b.bp2, mb) : null;
+      return y1 != null && y2 != null ? { y1, y2, text: b.text || '', side: b.side || '' } : null;
+    }).filter(Boolean);
     App.commit();
     return { importedLadders: imported };
   };
@@ -1120,6 +1179,7 @@
     App.exposures = null;
     App.S = state;
     App.S.style = Object.assign(defaultStyle(), App.S.style || {});
+    ['boxes', 'brackets', 'labels'].forEach(k => { if (!Array.isArray(App.S[k])) App.S[k] = []; });   // older projects
     // projects made before protein mode existed carry no gelType: take it from the marker ladder
     if (App.S.gelType !== 'dna' && App.S.gelType !== 'protein') {
       const l = (App.S.markers[0] || {}).ladderId && G.Ladders.get(App.S.markers[0].ladderId);

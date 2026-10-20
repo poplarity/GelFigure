@@ -137,11 +137,22 @@
   }
   menu('btnTplMenu', 'tplMenu'); menu('btnExportMenu', 'exportMenu');
   document.addEventListener('click', () => document.querySelectorAll('.menu').forEach(x => x.classList.add('hidden')));
+  let listPick = false;
+  document.addEventListener('mousedown', e => { if (!(e.target.closest && e.target.closest('[data-pick]'))) listPick = false; }, true);
   window.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? App.redo() : App.undo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); App.redo(); }
+    // a lane picked by its number in the side list: Delete / ⌫ removes it, as on the image. Only that
+    // explicit pick arms it — typing a lane name also selects the lane, and a stray ⌫ after finishing
+    // the name must never delete it
+    if ((e.key === 'Delete' || e.key === 'Backspace') && listPick && S() && App.selLane >= 0 && e.target !== $('editorBox')) {
+      e.preventDefault();
+      listPick = false;
+      App.removeLane(App.selLane); App.selLane = -1; App.commit();
+      toast(L('已删除泳道（Ctrl/⌘+Z 可撤销）', 'Lane deleted (Ctrl/⌘+Z to undo)'));
+    }
     if (e.key === 'Escape') $('helpDlg').classList.add('hidden');
   });
   const baseName = () => (S() ? S().file.name.replace(/\.[^.]+$/, '') : 'gel');
@@ -297,8 +308,11 @@
     toast(n ? L(`框内识别出 ${n} 条泳道`, `Found ${n} lanes in the box`) : L('框内没识别到泳道，可以填条数后点"等间距排布"', 'No lanes found in the box; enter the number and click "Space evenly"'));
   });
   const evenCrop = done(() => {
-    const n = relaneMarkers(() => App.evenLanesInCrop(+$('cropLaneN').value || 0));
-    toast(L(`框内已等间距排布 ${n} 条泳道`, `Spaced ${n} lanes evenly in the box`));
+    let res = null;
+    relaneMarkers(() => { res = App.evenLanesBetweenEnds(+$('cropLaneN').value || 0); return res.n; });
+    toast(res.fromEnds
+      ? L(`已按最左、最右两条泳道等间距排布 ${res.n} 条泳道（间距 ${Math.round(res.pitch)} px）`, `${res.n} lanes spaced evenly between the outermost two (pitch ${Math.round(res.pitch)} px)`)
+      : L(`框内只有一条泳道，已在红框内等间距排布 ${res.n} 条`, `Only one lane was in the box; spaced ${res.n} lanes evenly across the box`));
   });
   G.UI_relane = relaneMarkers;
   $('btnEvenCrop').onclick = evenCrop;
@@ -325,6 +339,16 @@
   App.toggleLaneHidden = toggleLaneHidden;
   $('spliceGap').addEventListener('input', live(e => { S().style.spliceGapPt = +e.target.value; $('spliceGapV').textContent = e.target.value + ' pt'; }));
   $('spliceGap').addEventListener('change', done());
+  document.querySelectorAll('#spliceSeg button').forEach(b => b.onclick = done(() => { S().style.spliceStyle = b.dataset.sp; }));
+  // the splice settings only mean something once a lane in the figure has been cut out
+  function updateSpliceBox() {
+    const st = S(), r = range(), y = st.style;
+    const cut = r ? st.lanes.slice(r[0], r[1] + 1).some(l => l.hidden) : false;
+    $('spliceBox').classList.toggle('hidden', !cut);
+    document.querySelectorAll('#spliceSeg button').forEach(b => b.classList.toggle('on', b.dataset.sp === (y.spliceStyle || 'gap')));
+    $('spliceGapRow').classList.toggle('hidden', y.spliceStyle === 'line');
+    $('spliceGap').value = y.spliceGapPt != null ? y.spliceGapPt : 1.5; $('spliceGapV').textContent = $('spliceGap').value + ' pt';
+  }
 
   /* ---------- 3 names (bulk) ---------- */
   function applyBulk() {
@@ -389,9 +413,14 @@
     const mine = G.Ladders.favoritesOf(kind);
     $('favNote').textContent = mine.length ? L(`已选 ${mine.length} 个`, `${mine.length} chosen`) : L('未设置', 'none');
     // a plain tick list: a half-lit star gave no way to tell which ladders were actually chosen
+    let lastVendor = null;
     $('favList').innerHTML = G.Ladders.ordered(kind).map(l => {
       const on = G.Ladders.isFavorite(l.id);
-      return `<label class="item fav-row${on ? ' on' : ''}"><input type="checkbox" data-fav="${l.id}"${on ? ' checked' : ''}><span class="fav-name">${esc(l.name)}</span></label>`;
+      // vendor headings among the unticked ones: the protein list alone has dozens of entries
+      const v = on ? '★' : (l.custom ? L('自定义', 'Custom') : l.name.split(' ')[0]);
+      const head = v !== lastVendor ? `<div class="fav-head">${esc(v === '★' ? L('★ 已勾选', '★ Ticked') : v)}</div>` : '';
+      lastVendor = v;
+      return head + `<label class="item fav-row${on ? ' on' : ''}"><input type="checkbox" data-fav="${l.id}"${on ? ' checked' : ''}><span class="fav-name">${esc(l.name)}</span></label>`;
     }).join('');
     $('favList').querySelectorAll('[data-fav]').forEach(b => b.onchange = () => { G.Ladders.toggleFavorite(b.dataset.fav); renderFavs(); if (S()) renderMarkers(); });
     const custom = G.Ladders.all(kind).filter(l => l.custom);
@@ -405,8 +434,23 @@
   }
   renderFavs();
   function laneOpt(i, sel) { const l = S().lanes[i]; return `<option value="${i}"${i === sel ? ' selected' : ''}>${i + 1}${l.name ? ' · ' + esc(l.name.replace(/\*/g, '')).slice(0, 10) : ''}</option>`; }
+  // ladder menu: the lab's own ladders first, then one group per vendor (the list runs to dozens)
+  function ladderOptions(all, selId) {
+    const opt = l => `<option value="${l.id}"${l.id === selId ? ' selected' : ''}>${esc(l.name)}</option>`;
+    const favs = all.filter(l => G.Ladders.isFavorite(l.id)), rest = all.filter(l => !G.Ladders.isFavorite(l.id));
+    const groups = new Map();
+    rest.forEach(l => { const v = l.custom ? L('自定义', 'Custom') : l.name.split(' ')[0]; if (!groups.has(v)) groups.set(v, []); groups.get(v).push(l); });
+    return (favs.length ? `<optgroup label="${L('★ 常用', '★ Ours')}">${favs.map(opt).join('')}</optgroup>` : '')
+      + [...groups].map(([v, ls]) => `<optgroup label="${esc(v)}">${ls.map(opt).join('')}</optgroup>`).join('');
+  }
   function renderMarkers() {
     const st = S(), all = G.Ladders.ordered(App.gelKind()), r = range();
+    // the card list is rebuilt on every change: remember which band lists were open (and how far
+    // they were scrolled) so ticking a band does not fold the list away
+    const openWas = new Map();
+    $('markerList').querySelectorAll('details[data-lane]').forEach(d => {
+      if (d.open) openWas.set(d.dataset.lane, (d.querySelector('.list') || {}).scrollTop || 0);
+    });
     $('markerList').innerHTML = st.markers.map((m, mi) => {
       const sc = m.score != null ? Math.round(m.score * 100) : null;
       const out = !r || m.lane < r[0] || m.lane > r[1];
@@ -416,14 +460,14 @@
           ${out ? `<span class="h3-note">${L('不在出图范围', 'outside the figure')}</span>` : sc != null ? `<span class="mk-score${sc < 60 ? ' low' : ''}">${sc < 60 ? L('吻合度低，请核对型号', 'Poor fit — check the ladder') : L('吻合 ', 'Fit ') + sc + '%'}</span>` : ''}
           <button class="star${G.Ladders.isFavorite(m.ladderId) ? '' : ' off'}" data-f="fav" title="${L('把这个型号设为/取消常用（常用型号在自动识别时优先）', 'Add this ladder to / remove it from favourites (preferred during detection)')}">★</button>
           <button class="x" data-f="del" title="${L('不作为 Marker', 'Not a marker')}">×</button></div>
-        <select data-f="ladder">${all.map(l => `<option value="${l.id}"${l.id === m.ladderId ? ' selected' : ''}>${G.Ladders.isFavorite(l.id) ? '★ ' : ''}${esc(l.name)}</option>`).join('')}</select>
+        <select data-f="ladder">${ladderOptions(all, m.ladderId)}</select>
         <div class="row2">
           <select data-f="side"><option value="auto">${L('标签：自动分侧', 'Labels: auto side')}</option><option value="left">${L('标签在左', 'Labels left')}</option><option value="right">${L('标签在右', 'Labels right')}</option></select>
           <select data-f="unit">${App.gelKind() === 'protein'
             ? `<option value="kDa">kDa</option>`
             : `<option value="bp">bp</option><option value="kb">kb</option><option value="auto">bp/kb</option>`}</select>
         </div>
-        <details class="adv"><summary>${L(`条带（显示 ${shown}/${m.bands.length}）`, `Bands (${shown}/${m.bands.length} shown)`)}</summary>
+        <details class="adv" data-lane="${m.lane}"${openWas.has(String(m.lane)) ? ' open' : ''}><summary>${L(`条带（显示 ${shown}/${m.bands.length}）`, `Bands (${shown}/${m.bands.length} shown)`)}</summary>
           <div class="list">${m.bands.map((b, k) => `<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" ${b.show ? 'checked' : ''}></label>
             <span style="flex:1">${App.fmtSize(b.bp)}${b.ref ? ' ★' : ''}</span><span class="tag ${b.manual ? 'man' : b.matched ? 'ok' : ''}">${b.manual ? L('手动', 'manual') : b.matched ? L('已对上', 'matched') : L('推测', 'predicted')}</span></div>`).join('')}</div>
           <div class="field inline"><button class="btn sm" data-f="thin">${L('精简标签', 'Thin labels')}</button><button class="btn sm ghost" data-f="match">${L('重新匹配', 'Re-match')}</button></div>
@@ -442,6 +486,8 @@
       q('thin').onclick = done(() => { m.bands.forEach(b => { b.show = true; }); App.thinMarkerLabels(m, false); });
       q('match').onclick = done(() => { m.bands = []; App.matchMarkers(false); });
       card.querySelectorAll('[data-band]').forEach(inp => inp.addEventListener('change', done(e => { m.bands[+inp.dataset.band].show = e.target.checked; })));
+      const d = card.querySelector('details[data-lane]'), top = openWas.get(String(m.lane));
+      if (d && top) { const lst = d.querySelector('.list'); if (lst) lst.scrollTop = top; }
     });
   }
 
@@ -451,7 +497,7 @@
     $('laneList').innerHTML = st.lanes.map((l, i) => {
       const out = !r || i < r[0] || i > r[1];
       return `<div class="item${i === App.selLane ? ' sel' : ''}${out ? ' out' : ''}">
-        <span class="idx">${i + 1}</span>
+        <span class="idx" data-pick="${i}" title="${L('选中这条泳道（之后可按 Delete / ⌫ 删除）', 'Select this lane (then Delete / ⌫ removes it)')}">${i + 1}</span>
         <input type="text" data-i="${i}" value="${esc(l.name)}" placeholder="${isMarkerLane(i) ? 'M' : L('名称', 'Name')}">
         ${empty.has(i) ? `<span class="tag" title="${L('几乎没有条带', 'almost no bands')}">${L('空', 'empty')}</span>` : ''}
         <label class="switch" title="${L('取消 = 从成图剪除（自动加拼接间隙）；选中泳道后按 H 也可切换', 'Untick = remove from the figure (splice gap added); or select the lane and press H')}"><input type="checkbox" data-h="${i}" ${l.hidden ? '' : 'checked'}>${L('显示', 'Show')}</label>
@@ -466,6 +512,10 @@
     $('laneList').querySelectorAll('[data-h]').forEach(inp => inp.addEventListener('change', e => {
       if (toggleLaneHidden(+inp.dataset.h, !e.target.checked)) App.commit(); else e.target.checked = true;
     }));
+    $('laneList').querySelectorAll('[data-pick]').forEach(el => el.onclick = () => {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      App.selLane = +el.dataset.pick; App.selArrow = -1; listPick = true; App.emit('select'); G.Editor.draw();
+    });
     $('laneList').querySelectorAll('[data-del]').forEach(b => b.onclick = done(() => { App.removeLane(+b.dataset.del); App.selLane = -1; toast(L('已删除泳道（Ctrl+Z 可撤销）', 'Lane deleted (Ctrl+Z to undo)')); }));
     $('laneCountNote').textContent = L(`${st.lanes.length} 孔`, `${st.lanes.length} wells`);
     if (document.activeElement !== $('cropLaneN')) $('cropLaneN').value = r ? r[1] - r[0] + 1 : '';
@@ -482,9 +532,19 @@
       <span class="idx" style="width:auto">${Math.min(g.from, g.to) + 1}–${Math.max(g.from, g.to) + 1}</span>
       <input type="text" data-g="${k}" value="${esc(g.text)}" placeholder="${L('分组文字', 'Group label')}"><button class="x" data-gdel="${k}">×</button></div>`));
     st.arrows.forEach((a, k) => rows.push(`<div class="item${k === App.selArrow ? ' sel' : ''}"><span class="kind">${L('箭头', 'Arrow')}</span>
-      <button class="btn sm ghost" data-aed="${k}" style="flex:1;justify-content:flex-start">${esc(App.arrowLabel(a) || L('（未命名）', '(unnamed)'))}</button><button class="x" data-adel="${k}">×</button></div>`));
+      <button class="btn sm ghost" data-aed="${k}" style="flex:1;justify-content:flex-start">${{ star: '* ', hash: '# ', dagger: '† ' }[a.sym] || ''}${esc(App.arrowLabel(a) || L('（未命名）', '(unnamed)'))}</button><button class="x" data-adel="${k}">×</button></div>`));
     st.conditions.forEach((c, r) => rows.push(`<div class="item"><span class="kind">${L('条件', 'Condition')}</span>
       <input type="text" data-c="${r}" value="${esc(c.name)}" placeholder="${L('条件名，如 EcoRI', 'Condition, e.g. EcoRI')}"><button class="x" data-cdel="${r}">×</button></div>`));
+    const KIND = { box: L('区域框', 'Box'), bracket: L('括号', 'Bracket'), label: L('文字', 'Text') };
+    const POS = { left: L('左侧', 'left'), right: L('右侧', 'right'), below: L('下方', 'below') };
+    const qrow = (kind, k, text, note) => {
+      const sel = App.selAnno && App.selAnno.kind === kind && App.selAnno.k === k;
+      return `<div class="item${sel ? ' sel' : ''}"><span class="kind">${KIND[kind]}</span>
+        <button class="btn sm ghost" data-qed="${kind}:${k}" style="flex:1;justify-content:flex-start">${esc(text || L('（未命名）', '(unnamed)'))}${note ? ` <span class="h3-note">${note}</span>` : ''}</button><button class="x" data-qdel="${kind}:${k}">×</button></div>`;
+    };
+    (st.boxes || []).forEach((b, k) => rows.push(qrow('box', k, b.text, b.zoom >= 2 ? L(`放大 ×${b.zoom}`, `×${b.zoom} inset`) : '')));
+    (st.brackets || []).forEach((b, k) => rows.push(qrow('bracket', k, b.text, '')));
+    (st.labels || []).forEach((t, k) => rows.push(qrow('label', k, t.text, POS[t.pos] || '')));
     const box = $('annoList');
     box.innerHTML = rows.join('');
     box.querySelectorAll('[data-g]').forEach(inp => { const g = st.groups[+inp.dataset.g]; inp.addEventListener('input', live(e => { g.text = e.target.value; })); inp.addEventListener('change', done()); });
@@ -493,6 +553,8 @@
     box.querySelectorAll('[data-cdel]').forEach(b => b.onclick = done(() => st.conditions.splice(+b.dataset.cdel, 1)));
     box.querySelectorAll('[data-adel]').forEach(b => b.onclick = done(() => { st.arrows.splice(+b.dataset.adel, 1); App.selArrow = -1; }));
     box.querySelectorAll('[data-aed]').forEach(b => b.onclick = () => G.FigEdit.arrowPopover(+b.dataset.aed, b));
+    box.querySelectorAll('[data-qed]').forEach(b => b.onclick = () => { const [kind, k] = b.dataset.qed.split(':'); App.selAnno = { kind, k: +k }; G.FigEdit.annoPopover(kind, +k, b); G.Editor.draw(); });
+    box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = done(() => { const [kind, k] = b.dataset.qdel.split(':'); App.removeAnno({ kind, k: +k }); App.selAnno = null; }));
   }
 
   /* ---------- 6 layout ---------- */
@@ -502,7 +564,6 @@
   $('lineW').addEventListener('change', done(e => { S().style.lineWidthPt = E.clamp(+e.target.value || 0.5, 0.25, 2); }));
   $('labelAngle').addEventListener('change', done(e => { S().style.labelAngle = e.target.value; }));
   ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
-  $('spliceStyle').addEventListener('change', done(e => { S().style.spliceStyle = e.target.value; }));
   $('panelLetter').addEventListener('change', done(e => { S().style.panelLetter = e.target.value.trim(); }));
   $('laneNumberMode').addEventListener('change', done(e => { S().style.laneNumberMode = e.target.value; }));
   // journal column width = total figure width (labels included): solve for the gel width
@@ -583,15 +644,14 @@
     const darkBg = !!App.S.bright !== !!st.levels.invert;
     $('invNote').textContent = L(`当前成图：${darkBg ? '黑底白带' : '白底黑带'}`, `Figure now: ${darkBg ? 'white bands on black' : 'dark bands on white'}`)
       + (App.invertInherited ? L('（沿用了上次的选择）', ' (kept from last time)') : '');
-    $('spliceGap').value = y.spliceGapPt != null ? y.spliceGapPt : 1.5; $('spliceGapV').textContent = $('spliceGap').value + ' pt';
     $('laneNumberMode').value = y.laneNumberMode || 'well';
-    updateClipLine(); updateDpiLine(); updateEmptyBar();
+    updateClipLine(); updateDpiLine(); updateEmptyBar(); updateSpliceBox();
     $('gamma').value = st.levels.gamma; $('gammaUnlock').checked = st.levels.gamma !== 1; $('gamma').disabled = st.levels.gamma === 1 && !$('gammaUnlock').checked;
     $('autoWidth').checked = !!y.autoWidth; $('gelW').value = App.gelWidthMm(); $('gelW').disabled = !!y.autoWidth;
     $('fontPt').value = y.fontPt; $('lineW').value = y.lineWidthPt; $('labelAngle').value = String(y.labelAngle);
     ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => { $(id).checked = !!y[id]; });
     $('unitHeaderLbl').textContent = L(`(${App.sizeUnit()}) 标题`, `(${App.sizeUnit()}) header`);
-    $('spliceStyle').value = y.spliceStyle; $('panelLetter').value = y.panelLetter || '';
+    $('panelLetter').value = y.panelLetter || '';
     $('dpiTop').value = String(y.dpi);
     $('stLayout').textContent = `${App.gelWidthMm()} mm · ${y.fontPt} pt`;
     $('imgChipName').textContent = st.file.name;
@@ -654,7 +714,12 @@
     if (G.FigEdit) G.FigEdit.afterRender(f);
   }
 
-  function renderPanel() { renderLanes(); renderMarkers(); renderAnno(); }
+  // the favourite list depends on the gel type, which is only known once an image is loaded
+  let favKind = null;
+  function renderPanel() {
+    renderLanes(); renderMarkers(); renderAnno();
+    if (favKind !== App.gelKind()) { favKind = App.gelKind(); renderFavs(); }
+  }
 
   App.on(what => {
     if (!S()) return;
