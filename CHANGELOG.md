@@ -4,7 +4,21 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-10-20
+## [0.6.2] - 2026-10-21
+
+Mobile layout and touch support; same features as 0.6.1.
+
+**中文摘要**
+- **手机上也能用**：窄屏改为单列布局，原图 / 成图 / 设置三个页签切换，设置面板变成全屏抽屉。
+- **支持手势操作**：手指可以移动泳道线、拖裁切框、画区域框，在成图上点泳道名、加 +/−。
+- 桌面版界面和功能完全不变；三浏览器自测全过。
+
+### Added
+- **Responsive layout for phones (≤ 900 px).** Settings panel becomes a full-screen drawer; raw image and figure share the work area through three tabs. Loading a gel on a phone lands on the figure so you see what was detected. "Start over" and image-fit shortcuts live in the panel. The top bar keeps only essentials.
+- **Touch interactions**: crop edges, lane lines, region boxes and brackets can be moved with a finger; lane-name input, +/− cells and arrow taps work on the figure. Slider thumbs and text inputs use phone-friendly sizes; iOS no longer zooms when focusing a field.
+- Window uses 100dvh with `viewport-fit=cover` so the bottom of the page is not hidden behind the browser chrome.
+- Tests confirm Pointer Events work identically to mouse events on desktop; the full 49-check suite still passes in Chromium, Firefox and WebKit.
+ - 2026-10-20
 
 Marker detection on purification gels, and a review of the whole interface.
 
@@ -107,7 +121,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/poplarity/GelFigure/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/poplarity/GelFigure/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/poplarity/GelFigure/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/poplarity/GelFigure/releases/tag/v0.5.0

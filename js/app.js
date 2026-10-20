@@ -40,7 +40,7 @@
   App.defaultStyle = defaultStyle;
   App.onDropFile = null;   // set by the UI layer
 
-  App.VERSION = '0.6.1';
+  App.VERSION = '0.6.2';
   App.prefs = prefs;
   App.setPref = function (k, v) { const p = prefs(); p[k] = v; localStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 

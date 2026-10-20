@@ -68,7 +68,7 @@ The hint bar at the top always shows the most useful next step. Press `?` in the
 
 ## Versions
 
-The current version is **0.6.1**. The 0.6 series adds protein gels (41 verified protein ladders), the new annotations and much more robust marker and lane detection; 0.6.1 fixes marker detection on purification gels and a number of interface details. See the [changelog](CHANGELOG.md). Every version stays downloadable from [Releases](https://github.com/poplarity/GelFigure/releases). Earlier versions are kept as tags and branches if you need to go back: `v0.6.0` ([`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)) and `v0.5.0` ([`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)).
+The current version is **0.6.2**. The 0.6 series adds protein gels, annotations, and mobile support. 0.6.2 brings a responsive phone layout and touch support. Earlier versions are kept as tags and branches if you need to go back: `v0.6.1` ([`release/0.6.1`](https://github.com/poplarity/GelFigure/tree/release/0.6.1)), `v0.6.0` ([`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)) and `v0.5.0` ([`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)).
 
 ## Privacy
 

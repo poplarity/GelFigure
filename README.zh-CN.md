@@ -68,7 +68,7 @@
 
 ## 版本
 
-当前版本 **0.6.1**。0.6 系列新增蛋白胶（41 种核对过的蛋白 Marker）、论文常用的新标注，Marker 和泳道识别也稳得多；0.6.1 修正了纯化胶上的 Marker 识别和一批界面细节，详见[更新日志](CHANGELOG.md)。每个版本都可以在 [Releases](https://github.com/poplarity/GelFigure/releases) 下载。需要回到旧版本时：`v0.6.0`（分支 [`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)）、`v0.5.0`（分支 [`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)）。
+当前版本 **0.6.2**。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.2 补上响应式布局和触屏操作，在手机上也能正常排版和使用。需要回到旧版本时：`v0.6.1`（分支 [`release/0.6.1`](https://github.com/poplarity/GelFigure/tree/release/0.6.1)）、`v0.6.0`（分支 [`release/0.6`](https://github.com/poplarity/GelFigure/tree/release/0.6)）、`v0.5.0`（分支 [`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)）。
 
 ## 隐私
 
