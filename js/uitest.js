@@ -294,6 +294,7 @@
       R.crowded = {
         kind: App.gelKind(), markers: App.S.markers.map(m => m.lane),
         markerIsFirst: App.S.markers.length === 1 && App.S.markers[0].lane === fl3[0],
+        namedM: fl3.filter(i => App.S.lanes[i].name === 'M').length,
         bandsInSampleLane: App.lanePeaks(fl3[2] != null ? fl3[2] : fl3[0]).length
       };
       // removing a wrongly detected marker must survive re-spacing the lanes
@@ -303,6 +304,12 @@
       document.getElementById('cropLaneN').value = G.UI.figLanes().length;
       document.getElementById('btnEvenCrop').click();
       R.crowded.markersAfterEven = App.S.markers.length;
+
+      // a purification gel: lysate lanes that some ladder fits on its own must still fail the
+      // migration curve of the real marker, so only the marker lane is kept
+      await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeProteinGel({ purification: true, tilt: 0 }))], 'demo_purification.tif', { type: 'image/tiff' }));
+      const fl5 = G.UI.figLanes();
+      R.purification = { markers: App.S.markers.map(m => fl5.indexOf(m.lane)), candidates: (App.markerCandidates || []).length };
 
       // DNA regression: the standard demo is still detected as DNA with bp labels
       await App.load(new File([G.Demo.encodeTiff16(G.Demo.makeGel())], 'demo_gel.tif', { type: 'image/tiff' }));

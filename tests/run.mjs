@@ -61,8 +61,9 @@ const UI_CHECKS = [
   ['protein values are labelled in kDa', r => /kDa\)?/.test(r.protein.prot.label || '') && r.protein.prot.header >= 1],
   ['manual gel-type switch keeps names and arrows', r => r.protein.asDna.kind === 'dna' && r.protein.asDna.ladderKind === 'dna' && r.protein.asDna.unit !== 'kDa' && r.protein.asDna.name === 'Prot A' && r.protein.asDna.arrows === 1
     && r.protein.back.kind === 'protein' && r.protein.back.unit === 'kDa' && r.protein.back.name === 'Prot A' && r.protein.back.arrows === 1 && r.protein.back.bands > 4],
-  ['crowded gel: only the ladder lane is taken for the marker', r => r.crowded.kind === 'protein' && r.crowded.bandsInSampleLane >= 10 && r.crowded.markerIsFirst],
+  ['crowded gel: only the ladder lane is taken for the marker', r => r.crowded.kind === 'protein' && r.crowded.bandsInSampleLane >= 10 && r.crowded.markerIsFirst && r.crowded.namedM === 1],
   ['a removed marker stays removed when lanes are re-spaced', r => r.crowded.markersAfterEven === 0],
+  ['purification gel: lysate lanes are not taken for markers', r => JSON.stringify(r.purification.markers) === '[0]' && r.purification.candidates > 1],
   ['favourite ladders follow the gel type', r => JSON.stringify(r.protein.favKinds) === '["protein"]'],
   ['equal spacing between hand-placed end lanes', r => r.endsEven.got === r.endsEven.n && r.endsEven.maxErr != null && r.endsEven.maxErr < 3],
   ['region box with enlarged inset', r => r.anno.inset === 1 && r.anno.boxLabel && r.anno.legendZoom],

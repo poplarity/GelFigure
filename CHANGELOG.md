@@ -4,6 +4,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- A synthetic purification gel (`Demo.makeProteinGel({ purification: true })`) and an interface check that only its marker lane is taken for a marker (48 checks).
+
+### Fixed
+- On a protein purification gel (several lysate lanes with the same pattern, then the elutions), lysate lanes could be taken for extra markers: a ladder fits about a dozen merged lysate peaks as well as it fits the real marker lane on its own. Markers of one gel must share a migration curve, so a lane that the shared curve explains poorly is now dropped, and on a tie the outermost lane wins.
+- A lane named "M" by a first, discarded marker guess (before the gel type was settled) kept the name.
+
 ## [0.6.0] - 2026-10-20
 
 Protein gels, annotations from real figures, and much sturdier lane and marker detection.

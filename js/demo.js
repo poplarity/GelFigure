@@ -70,11 +70,17 @@
       [[55, 0.9], [25, 0.35]], [[55, 0.95]], [[70, 0.7], [55, 0.5], [25, 0.4]], [],
       [[100, 0.6]], [[40, 0.55], [15, 0.3]], [[55, 0.8], [30, 0.25]], [[130, 0.5], [70, 0.75], [25, 0.3]], []
     ];
+    // purification gel: one lysate pattern repeated over most lanes, merged into about a dozen peaks
+    // per lane, so some ladder fits each of them about as well as the real marker lane on its own
+    const lys = opts.purification ? Array.from({ length: 26 }, () => [Math.exp(Math.log(12) + rnd() * Math.log(160 / 12)), 0.12 + rnd() * 0.4, 6 + rnd() * 4]) : null;
     const bands = [];
     for (let L = 0; L < opts.lanes; L++) {
       const cx = x0 + L * pitch;
       if (L === 0) lad.sizes.forEach(k => bands.push({ cx, y: yOf(k), a: lad.ref.includes(k) ? 0.95 : 0.6, s: 9 }));
-      else if (opts.crowded) {
+      else if (lys) {
+        if (L < opts.lanes - 2) lys.forEach(([k, a, s]) => bands.push({ cx, y: yOf(k), a: a * (0.8 + rnd() * 0.3), s }));
+        bands.push({ cx, y: yOf(28), a: L < opts.lanes - 2 ? 0.5 : 1, s: 10 });
+      } else if (opts.crowded) {
         // whole-cell lysate: a couple of dozen bands across the lane, as on a real Coomassie gel.
         // Such a lane has far more bands than any ladder, which is why band count alone cannot
         // decide which lane is the marker.

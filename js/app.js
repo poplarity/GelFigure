@@ -707,43 +707,61 @@
         const q = E.markerQuality(peaks[i], all, h, mode, Math.max(0.42, topQ - 0.15));
         if (q) { cand.push({ i, quality: q.quality, fit: q.score, explained: q.explained }); topQ = Math.max(topQ, q.quality); }
       }
-      cand.sort((a, b) => b.quality - a.quality);
-      const top = cand.length ? cand[0].quality : 0;
+      // on a tie the outermost lanes win: a marker is almost always loaded first or last
+      const fig = App.figureLanes(), edge = i => (i === fig[0] || i === fig[fig.length - 1] ? 0.03 : 0);
+      cand.sort((a, b) => (b.quality + edge(b.i)) - (a.quality + edge(a.i)));
+      const top = cand.length ? Math.max(...cand.map(c => c.quality)) : 0;
       const picked = [];
       cand.filter(c => c.quality >= Math.max(0.42, top - 0.15)).forEach(c => {
         // nobody loads two ladders side by side: neighbouring hits are one lane found twice
         if (picked.length < 3 && !picked.some(p => Math.abs(p.i - c.i) <= 1)) picked.push(c);
       });
-      let lanes = picked.map(c => c.i).sort((a, b) => a - b);
       App.markerCandidates = cand;
       // "my ladders" get a bonus; without favourites the last used ladder plays that role
       const prefOk = App.prefLadder && G.Ladders.get(App.prefLadder) && G.Ladders.kindOf(G.Ladders.get(App.prefLadder)) === kind;
       const prefer = favs.length ? favs : [prefOk ? App.prefLadder : App.defaultLadder(kind)];
-      const pk = lanes.map(i => peaks[i]);
-      let picks = null;
-      App.ladderNotice = null;
-      if (lanes.length) {
-        if (favs.length && prefs().onlyFavLadders) {
-          picks = E.jointLadders(pk, favs.map(G.Ladders.get), h, favs, mode);
-          // never lock in a clearly wrong favourite: a partial fit (e.g. a 100 bp ladder matching the
-          // lower half of a 1 kb ladder) still scores fairly, so compare with the whole library
-          const full = E.jointLadders(pk, all, h, favs, mode);
-          if (full && (!picks || picks.score < 0.55 || full.score > picks.score + 0.08)) {
-            picks = full; App.ladderNotice = L(`常用型号都不吻合，已改用：${full.map(p => G.Ladders.get(p.id).name).join('、')}`, `None of your favourite ladders fits; using ${full.map(p => G.Ladders.get(p.id).name).join(', ')}`);
-          }
-        } else picks = E.jointLadders(pk, all, h, prefer, mode);
+      const assign = lanes => {
+        const pk = lanes.map(i => peaks[i]);
+        let picks = null;
+        App.ladderNotice = null;
+        if (lanes.length) {
+          if (favs.length && prefs().onlyFavLadders) {
+            picks = E.jointLadders(pk, favs.map(G.Ladders.get), h, favs, mode);
+            // never lock in a clearly wrong favourite: a partial fit (e.g. a 100 bp ladder matching the
+            // lower half of a 1 kb ladder) still scores fairly, so compare with the whole library
+            const full = E.jointLadders(pk, all, h, favs, mode);
+            if (full && (!picks || picks.score < 0.55 || full.score > picks.score + 0.08)) {
+              picks = full; App.ladderNotice = L(`常用型号都不吻合，已改用：${full.map(p => G.Ladders.get(p.id).name).join('、')}`, `None of your favourite ladders fits; using ${full.map(p => G.Ladders.get(p.id).name).join(', ')}`);
+            }
+          } else picks = E.jointLadders(pk, all, h, prefer, mode);
+        }
+        if (picks && lanes.length === 1) {
+          // a single lane cannot tell ladders apart well: stay with a preferred ladder unless it clearly misfits
+          let bestPref = null;
+          prefer.forEach(id => { const l = G.Ladders.get(id); if (!l) return; const s = E.matchLadder(peaks[lanes[0]], l.sizes, h, null, mode).score; if (!bestPref || s > bestPref.score) bestPref = { id, score: s }; });
+          if (bestPref && bestPref.score >= picks[0].score - 0.12) picks = [bestPref];
+        }
+        if (picks && favs.length && picks.some(p => !favs.includes(p.id)) && !App.ladderNotice)
+          App.ladderNotice = L(`识别到的型号不在"常用"里：${picks.filter(p => !favs.includes(p.id)).map(p => G.Ladders.get(p.id).name).join('、')}，请核对`, `Detected ladder is not among your favourites: ${picks.filter(p => !favs.includes(p.id)).map(p => G.Ladders.get(p.id).name).join(', ')} — please check`);
+        S.markers = lanes.map((ln, k) => App.newMarker(ln, picks ? picks[k].id : prefer[0]));
+        App.matchMarkers(true);
+      };
+      // the "M" a previous detection wrote on its marker lanes goes with them (lanes outside the
+      // figure are not looked at again, so they keep their names)
+      S.markers.forEach(m => { if (m.lane >= rg[0] && m.lane <= rg[1] && S.lanes[m.lane] && S.lanes[m.lane].name === 'M') S.lanes[m.lane].name = ''; });
+      let lanes = picked.map(c => c.i).sort((a, b) => a - b);
+      assign(lanes);
+      /* A sample lane can pass on its own — some ladder fits a subset of its bands — and still fail
+       * the migration curve all markers of a gel share. Matched jointly, it keeps only a few bands
+       * (a real second marker keeps most of them): drop such lanes and match the rest again. The
+       * lane the curve explains best always stays. */
+      if (S.markers.length > 1) {
+        const nMatched = m => m.bands.filter(b => b.matched).length;
+        const best = Math.max(...S.markers.map(nMatched));
+        const keep = S.markers.filter(m => nMatched(m) === best || (nMatched(m) >= minBands && nMatched(m) >= 0.6 * counts[m.lane] && nMatched(m) >= 0.6 * best));
+        if (keep.length < lanes.length) { lanes = keep.map(m => m.lane); assign(lanes); }
       }
-      if (picks && lanes.length === 1) {
-        // a single lane cannot tell ladders apart well: stay with a preferred ladder unless it clearly misfits
-        let bestPref = null;
-        prefer.forEach(id => { const l = G.Ladders.get(id); if (!l) return; const s = E.matchLadder(peaks[lanes[0]], l.sizes, h, null, mode).score; if (!bestPref || s > bestPref.score) bestPref = { id, score: s }; });
-        if (bestPref && bestPref.score >= picks[0].score - 0.12) picks = [bestPref];
-      }
-      if (picks && favs.length && picks.some(p => !favs.includes(p.id)) && !App.ladderNotice)
-        App.ladderNotice = L(`识别到的型号不在"常用"里：${picks.filter(p => !favs.includes(p.id)).map(p => G.Ladders.get(p.id).name).join('、')}，请核对`, `Detected ladder is not among your favourites: ${picks.filter(p => !favs.includes(p.id)).map(p => G.Ladders.get(p.id).name).join(', ')} — please check`);
-      S.markers = lanes.map((ln, k) => App.newMarker(ln, picks ? picks[k].id : prefer[0]));
       S.markers.forEach(m => { if (!S.lanes[m.lane].name) S.lanes[m.lane].name = 'M'; });
-      App.matchMarkers(true);
     } finally { App._peakCrop = null; }
   };
 
