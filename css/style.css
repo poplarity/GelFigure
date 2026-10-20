@@ -298,6 +298,9 @@ body { overflow: hidden; touch-action: manipulation; }
   .topbar { height: 46px; gap: 8px; padding: 0 10px; }
   .brand { font-size: 15px; }
   .coach, .divider, #dpiTop { display: none; }  /* no room for the hint bar / export menu on the bar */
+  .topbar-right { gap: 5px; flex: none; margin-left: auto; flex-wrap: nowrap; overflow: visible; }
+  /* phone: only the essentials stay on the bar */
+  #btnUndo, #btnRedo, .menu-wrap, #btnHelp { display: none !important; }
   #btnPanel { display: inline-block; }
   #imgChipName { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .split .caret { padding: 6px 6px; }

@@ -746,6 +746,12 @@
     $('btnMobileFull').onclick = () => { setView('raw'); G.Editor.fitFull(); };
     $('btnMobileCrop').onclick = () => { setView('raw'); G.Editor.fitCrop(); };
     $('btnResetAllMobile').onclick = () => { App.resetAll(); setView('raw'); };
+    $('btnUndoM').onclick = () => App.undo();
+    $('btnRedoM').onclick = () => App.redo();
+    $('btnPNGm').onclick = () => $('btnPNG').click();
+    $('btnSaveProjM').onclick = () => $('btnSaveProj').click();
+    $('btnOpenProjM').onclick = () => $('projInputM').click();
+    $('projInputM').onchange = e => { const f = e.target.files[0]; if (f) openProject(f); e.target.value = ''; };
   }
   $('viewTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
   $('panelClose').onclick = () => setView('fig');
