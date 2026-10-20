@@ -33,7 +33,7 @@
 - [浏览器支持](#浏览器支持)
 - [已知局限](#已知局限)
 - [开发](#开发)
-- [参与贡献](#参与贡献) · [引用](#引用) · [许可证](#许可证)
+- [参与贡献](#参与贡献) · [引用](#引用) · [致谢](#致谢) · [许可证](#许可证)
 
 ## 功能
 
@@ -163,6 +163,12 @@ npm test
 ## 引用
 
 如果 GelFigure 对你的论文有帮助，欢迎引用，见 [CITATION.cff](CITATION.cff)，或点 GitHub 页面上的 "Cite this repository"。
+
+## 致谢
+
+GelFigure 由 [poplarity](https://github.com/poplarity) 设计与开发。
+
+开发使用的 API 额度由 **Zhao Bowen**（[@zhober](https://github.com/zhober)）提供。
 
 ## 许可证
 

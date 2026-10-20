@@ -33,7 +33,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - [Browser support](#browser-support)
 - [Known limitations](#known-limitations)
 - [Development](#development)
-- [Contributing](#contributing) · [Citing](#citing) · [License](#license)
+- [Contributing](#contributing) · [Citing](#citing) · [Acknowledgements](#acknowledgements) · [License](#license)
 
 ## Features
 
@@ -179,6 +179,12 @@ Bug reports, gel images that break detection (only if you are allowed to share t
 ## Citing
 
 If GelFigure helped with a publication, please cite it; see [CITATION.cff](CITATION.cff) or use GitHub's "Cite this repository" button.
+
+## Acknowledgements
+
+GelFigure is designed and developed by [poplarity](https://github.com/poplarity).
+
+Development is supported by API tokens provided by **Zhao Bowen** ([@zhober](https://github.com/zhober)).
 
 ## License
 
