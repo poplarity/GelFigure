@@ -2,7 +2,7 @@
 
 # GelFigure
 
-**Turn a raw agarose gel image into a publication-ready figure — in your browser, offline.**
+**Turn a raw DNA or protein gel image into a publication-ready figure — in your browser, offline.**
 
 [**Open the app**](https://poplarity.github.io/GelFigure/) · [Download](https://github.com/poplarity/GelFigure/releases/latest) · [中文说明](README.zh-CN.md)
 
@@ -15,7 +15,7 @@
 
 </div>
 
-Drop in the TIFF from your gel imager. GelFigure straightens the gel, crops it, finds the lanes, identifies the DNA ladder and labels its band sizes. You type the lane names on the figure and export. Everything happens in the browser; **nothing is uploaded, nothing is installed**.
+Drop in the image from your gel imager or scanner. GelFigure works out whether it is a DNA (agarose) or a protein (SDS-PAGE) gel, straightens and crops it, finds the lanes, identifies the ladder and labels its band sizes in bp or kDa. You type the lane names on the figure and export. Everything happens in the browser; **nothing is uploaded, nothing is installed**.
 
 <p align="center"><img src="docs/example-figure.png" alt="Example output" width="560"></p>
 
@@ -23,6 +23,7 @@ Drop in the TIFF from your gel imager. GelFigure straightens the gel, crops it, 
 
 - [Features](#features)
 - [Quick start](#quick-start)
+- [Versions](#versions)
 - [Privacy](#privacy)
 - [Supported input](#supported-input)
 - [What is detected automatically](#what-is-detected-automatically)
@@ -44,7 +45,8 @@ Drop in the TIFF from your gel imager. GelFigure straightens the gel, crops it, 
 - **Target-band arrows with sizes**: click a band; the arrow snaps to it and its size is estimated from the marker(s). Sizes outside the ladder, or where two markers disagree by more than 10 %, are marked `≈`.
 - **Several exposures at once**: drop all exposures of one gel; the best one (least saturation, best signal-to-noise) is chosen, and you can switch with all annotations kept.
 - **Rotation keeps annotations in place**: lanes, bands, arrows and the crop box rotate with the image.
-- **Lane removal with splice marks**: select a lane and press `H`; a splice gap is added and recorded. Empty lanes are suggested for removal (never removed silently).
+- **Lane removal with splice marks**: select a lane and press `H`; a splice gap or line is added and recorded. Empty lanes are suggested for removal (never removed silently). `Delete` / `⌫` deletes a wrongly detected lane.
+- **Lane lines in two clicks**: if detection is off, drag the leftmost and rightmost lane lines onto their lanes and enter the lane count — the lanes in between are spaced evenly.
 - **Pre-flight check before export**: camera saturation, contrast clipping, effective resolution below 300 dpi, tiny fonts, extrapolated sizes, with one-click fixes.
 - **Reproducible**: project files (`.gelfig`) contain the original image and every setting; reusable style templates; an autosaved draft survives a page reload.
 - **Bilingual interface**: English and Chinese, switchable at any time. Figures are always in English.
@@ -59,10 +61,14 @@ Then:
 
 1. **Drop the gel image** into the window. Everything is detected automatically.
 2. **Click the grey lane numbers** on the figure and type the names (Enter = next lane). Or paste a whole row from Excel into the panel on the left.
-3. **Check the marker ladder** on the left; a poor fit is flagged.
+3. **Check the gel type and the marker ladder** on the left; a poor fit is flagged. Tick the ladders your lab uses once, and detection prefers them from then on.
 4. **Export PNG** (top right).
 
 The hint bar at the top always shows the most useful next step. Press `?` in the app for help.
+
+## Versions
+
+The current version is **0.6.0**, which adds protein gels (41 verified protein ladders), the new annotations and much more robust marker and lane detection; see the [changelog](CHANGELOG.md). Every version stays downloadable from [Releases](https://github.com/poplarity/GelFigure/releases). The previous version is kept as tag `v0.5.0` and as branch [`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5) if you need to go back.
 
 ## Privacy
 
@@ -78,7 +84,7 @@ The page carries a [Content Security Policy](index.html) that **forbids it from 
 | PNG / JPG / BMP | Read as 8-bit by the browser; a warning suggests using the raw 16-bit TIFF instead. |
 | `.gelfig` | GelFigure project file. |
 
-Both "white bands on black" and inverted images are handled; polarity is detected automatically.
+Both bright-bands-on-dark (EtBr, SYBR, fluorescence) and dark-bands-on-light (Coomassie, scanned films) images are handled. One **Invert** checkbox swaps black and white, and the panel always says what the figure currently looks like.
 
 ## What is detected automatically
 
@@ -86,9 +92,9 @@ Both "white bands on black" and inverted images are handled; polarity is detecte
 |---|---|
 | Straightening | Searches ±15° for the angle that makes wells and bands horizontal. Larger angles can be set by hand (±45°), with a reference grid. Perspective (keystone) distortion is not corrected. |
 | Crop | The gel slab is found from the well row and the band region; the default crop includes the wells. |
-| Lanes | Combines band signal, the gel slab edges and the shape of the wells (template matching), so edges are not mistaken for lanes and empty wells are still found. If detection is wrong, re-detect inside the red box only, or space a given number of lanes evenly. |
+| Lanes | Combines band signal, the gel slab edges and the shape of the wells (template matching), so edges are not mistaken for lanes and empty wells are still found. Where lanes run together (crowded protein gels), the top of the gel, where samples have not spread yet, corrects the spacing. If detection is still wrong, place the two end lanes and space the rest evenly, or re-detect inside the red box only. |
 | Gel type | DNA or protein, from the image itself: blue-dominant colour (Coomassie) and broad bands point to protein, thin bands and many evenly spaced ladder bands to DNA, and the curvature of the migration curve votes too. The reasons are shown under the switch. Protein bands are detected with wider smoothing and tolerances; prestained markers are accepted from 4 bands up. |
-| Marker lanes | Lanes with many sharp bands. Several markers on one gel share one migration curve and are matched jointly against the built-in ladders of the gel type (favourites are preferred). |
+| Marker lanes | Lanes that a ladder explains completely — not simply the lanes with the most bands, which on a protein gel are the lysates. Several markers on one gel share one migration curve and are matched jointly against the built-in ladders of the gel type (favourites are preferred). |
 | Band sizes | Robust fit (RANSAC + polynomial) with order-preserving assignment; dragging one band re-fits the others around it. |
 
 ## Exports
@@ -117,7 +123,7 @@ GelFigure helps you comply, but **you remain responsible** for following your jo
 
 ## Built-in ladders
 
-Thermo Scientific GeneRuler: 1 kb, 1 kb Plus, 100 bp, 100 bp Plus, 50 bp, DNA Ladder Mix, Low Range, Ultra Low Range, Express · NEB: 1 kb, 100 bp, 1 kb Plus · Takara: DL2000, DL5000, DL15000 · TransGen: Trans2K, Trans2K Plus, Trans2K Plus II, Trans5K, Trans15K · Tiangen: Marker D2000 · Yeasen: GoldBand 1 kb, GoldBand 100 bp Plus.
+**DNA ladders** (23): Thermo Scientific GeneRuler: 1 kb, 1 kb Plus, 100 bp, 100 bp Plus, 50 bp, DNA Ladder Mix, Low Range, Ultra Low Range, Express · NEB: 1 kb, 100 bp, 1 kb Plus · Takara: DL2000, DL5000, DL15000 · TransGen: Trans2K, Trans2K Plus, Trans2K Plus II, Trans5K, Trans15K · Tiangen: Marker D2000 · Yeasen: GoldBand 1 kb, GoldBand 100 bp Plus.
 
 [`docs/ladders.md`](docs/ladders.md) lists each one with its catalogue number, band count and reference bands — and the few whose band sizes are identical, which no algorithm can tell apart (mark the one you use as a favourite).
 
@@ -134,7 +140,7 @@ When `index.html` is opened directly from disk, some browsers disable IndexedDB 
 ## Known limitations
 
 - Automatic detection has been validated on DNA agarose gels, Coomassie-stained SDS-PAGE gels and synthetic gels. On a crowded protein gel whose lanes touch, lane detection can merge neighbours — set the lane count under **Lanes in figure** and the rest follows. If detection fails on your images, please [open an issue](https://github.com/poplarity/GelFigure/issues/new/choose).
-- Western blots, protein ladders and densitometry are not supported yet.
+- Band quantification (densitometry) is not supported.
 - Bio-Rad `.scn` / `.1sc` and other proprietary formats must be exported to TIFF first. BigTIFF and palette TIFFs are not supported.
 - 16-bit PNGs are read as 8-bit by browsers.
 

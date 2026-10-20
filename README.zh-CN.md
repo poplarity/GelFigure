@@ -2,7 +2,7 @@
 
 # GelFigure
 
-**把原始琼脂糖凝胶图一键做成可投稿的成图 —— 在浏览器里完成，离线可用。**
+**把原始 DNA 胶或蛋白胶图一键做成可投稿的成图 —— 在浏览器里完成，离线可用。**
 
 [**在线使用**](https://poplarity.github.io/GelFigure/) · [下载](https://github.com/poplarity/GelFigure/releases/latest) · [English](README.md)
 
@@ -15,7 +15,7 @@
 
 </div>
 
-把成像仪导出的 TIFF 拖进去，GelFigure 会自动转正、裁切、识别泳道、识别 DNA Marker 型号并标出条带大小。你只需要在成图上填泳道名，然后导出。所有处理都在浏览器里完成，**不上传、不安装**。
+把成像仪或扫描仪导出的图拖进去，GelFigure 会自动判断是 DNA（琼脂糖）胶还是蛋白（SDS-PAGE）胶，转正、裁切、识别泳道、识别 Marker 型号，并按 bp 或 kDa 标出条带大小。你只需要在成图上填泳道名，然后导出。所有处理都在浏览器里完成，**不上传、不安装**。
 
 <p align="center"><img src="docs/example-figure.png" alt="导出示例" width="560"></p>
 
@@ -23,6 +23,7 @@
 
 - [功能](#功能)
 - [快速开始](#快速开始)
+- [版本](#版本)
 - [隐私](#隐私)
 - [支持的输入](#支持的输入)
 - [自动识别了什么](#自动识别了什么)
@@ -44,7 +45,8 @@
 - **目标条带箭头自动标大小**：点一下条带，箭头吸附过去并按 Marker 估算大小。超出 Marker 范围或两个 Marker 估算相差超过 10% 时标 `≈`。
 - **多张曝光一起拖入**：自动挑过曝最少、信噪比最好的一张；可随时切换，标注全部保留。
 - **旋转时标注跟着转**：泳道、条带、箭头、裁切框随图一起转动，不会错位。
-- **剪除泳道自动加拼接标记**：选中泳道按 `H` 即可，原因写入处理记录。空泳道会提示是否剪除，从不自动剪。
+- **剪除泳道自动加拼接标记**：选中泳道按 `H` 即可，自动加拼接缝隙或分隔线，原因写入处理记录。空泳道会提示是否剪除，从不自动剪。识别错的泳道选中后按 `Delete` / `⌫` 删除。
+- **两步排好泳道线**：自动识别不准时，把最左、最右两条泳道线拖到位，填上泳道数，中间的泳道自动等间距排好。
 - **导出前体检**：相机过曝、色阶削顶、有效分辨率不足 300 dpi、字号过小、外推的大小等，能修的给一键修正。
 - **可复现**：项目文件（`.gelfig`）包含原图和全部设置；样式模板可复用；自动保存草稿，刷新页面也不丢。
 - **中英双语界面**，随时切换。成图本身始终是英文。
@@ -59,10 +61,14 @@
 
 1. **把胶图拖进窗口**，全部自动识别。
 2. **在成图上点灰色的泳道号**输入名称（回车跳到下一条）。也可以把 Excel 里的一整行名称粘贴到左侧。
-3. **在左侧核对 Marker 型号**，吻合度低时会提示。
+3. **在左侧核对胶的类型和 Marker 型号**，吻合度低时会提示。把实验室常用的型号勾选一次，之后自动识别会优先选它们。
 4. 右上角 **导出 PNG**。
 
 顶部提示条会一直告诉你下一步做什么。软件里按 `?` 可查看帮助。
+
+## 版本
+
+当前版本 **0.6.0**：新增蛋白胶（41 种核对过的蛋白 Marker）、论文常用的新标注，Marker 和泳道识别也稳得多，详见[更新日志](CHANGELOG.md)。每个版本都可以在 [Releases](https://github.com/poplarity/GelFigure/releases) 下载。需要回到上一版时，0.5.0 保留为标签 `v0.5.0` 和分支 [`release/0.5`](https://github.com/poplarity/GelFigure/tree/release/0.5)。
 
 ## 隐私
 
@@ -78,7 +84,7 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 | PNG / JPG / BMP | 浏览器按 8 位读取，会提示改用 16 位原始 TIFF。 |
 | `.gelfig` | GelFigure 项目文件。 |
 
-"黑底白带"和反色图都能处理，黑白方向自动判断。
+亮带暗底（EtBr、SYBR、荧光）和暗带亮底（考马斯亮蓝、扫描胶片）的图都能处理。一个"反色"勾选框对调黑白，面板上会写明成图当前是哪种。
 
 ## 自动识别了什么
 
@@ -86,9 +92,9 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 |---|---|
 | 转正 | 在 ±15° 内寻找让加样孔和条带水平的角度。更大角度可手动设置（±45°），并有参考网格。不能校正透视/梯形畸变。 |
 | 裁切 | 根据加样孔所在行和条带区域找到胶块，默认包含加样孔。 |
-| 泳道 | 结合条带信号、胶块边缘和加样孔形状（模板匹配），不会把胶边当成泳道，空孔也能找到。识别错了可以只对红框内重新识别，或指定条数等间距排布。 |
+| 泳道 | 结合条带信号、胶块边缘和加样孔形状（模板匹配），不会把胶边当成泳道，空孔也能找到。泳道挨在一起的蛋白胶，会用样品尚未扩散的胶顶部纠正泳道间距。仍不对时，可把首尾两条泳道拖到位后等间距排布，或只对红框内重新识别。 |
 | 胶的类型 | 导入时自动判断 DNA 胶还是蛋白胶：Coomassie 蓝染（蓝通道占优）和宽条带指向蛋白胶，细条带和条带多的 Ladder 指向 DNA 胶，迁移曲线的弯曲程度也参与投票。判断依据显示在切换按钮下方。蛋白胶用更宽的平滑和匹配容差，预染 Marker 从 4 条带起即可识别。 |
-| Marker 泳道 | 条带多且清晰的泳道。同一块胶上的多个 Marker 共用一条迁移曲线，与当前胶种的内置 Ladder 联合匹配（常用型号优先）。 |
+| Marker 泳道 | 能被某个 Ladder 完整解释的泳道——而不是条带最多的泳道（蛋白胶上条带最多的是裂解液样品）。同一块胶上的多个 Marker 共用一条迁移曲线，与当前胶种的内置 Ladder 联合匹配（常用型号优先）。 |
 | 条带大小 | 稳健拟合（RANSAC + 多项式）加保序匹配；拖动一条条带，其余会围绕它重新拟合。 |
 
 ## 导出
@@ -117,7 +123,7 @@ GelFigure 帮你合规，但**是否符合期刊要求仍由作者负责**。
 
 ## 内置 Ladder
 
-Thermo Scientific GeneRuler：1 kb、1 kb Plus、100 bp、100 bp Plus、50 bp、DNA Ladder Mix、Low Range、Ultra Low Range、Express · NEB：1 kb、100 bp、1 kb Plus · Takara：DL2000、DL5000、DL15000 · 全式金 TransGen：Trans2K、Trans2K Plus、Trans2K Plus II、Trans5K、Trans15K · 天根 Tiangen：Marker D2000 · 翌圣 Yeasen：GoldBand 1 kb、GoldBand 100 bp Plus。
+**DNA Ladder**（23 种）：Thermo Scientific GeneRuler：1 kb、1 kb Plus、100 bp、100 bp Plus、50 bp、DNA Ladder Mix、Low Range、Ultra Low Range、Express · NEB：1 kb、100 bp、1 kb Plus · Takara：DL2000、DL5000、DL15000 · 全式金 TransGen：Trans2K、Trans2K Plus、Trans2K Plus II、Trans5K、Trans15K · 天根 Tiangen：Marker D2000 · 翌圣 Yeasen：GoldBand 1 kb、GoldBand 100 bp Plus。
 
 [`docs/ladders.md`](docs/ladders.md) 里列出了每个型号的货号、条带数和参考带，也写明了哪几个型号条带完全相同、无法自动区分（把你常用的那个设为常用型号即可）。
 
@@ -134,7 +140,7 @@ Windows、macOS、Linux 上较新的 Chrome、Edge、Firefox，以及 Safari 16.
 ## 已知局限
 
 - 自动识别已在 DNA 琼脂糖胶、考马斯亮蓝染色的 SDS-PAGE 胶和合成胶图上验证。泳道挨得很近的蛋白胶（例如全细胞裂解液）可能把相邻泳道并成一条，在"出图范围"里填上泳道条数即可纠正。如果在你的图上识别失败，欢迎[提交 issue](https://github.com/poplarity/GelFigure/issues/new/choose)。
-- 暂不支持 Western blot 条带灰度定量（蛋白胶模式处理的是泳道、Ladder 和条带位置）。
+- 暂不支持条带灰度定量。
 - Bio-Rad `.scn` / `.1sc` 等专有格式需先导出为 TIFF。不支持 BigTIFF 和调色板 TIFF。
 - 16 位 PNG 会被浏览器按 8 位读取。
 

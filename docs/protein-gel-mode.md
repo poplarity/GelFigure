@@ -2,7 +2,7 @@
 
 Goal: one tool that takes a gel image, **works out by itself whether it is a DNA or a protein gel**, opens the matching mode, and lets the user switch if the guess is wrong. Protein mode keeps everything that works well for DNA gels and replaces what does not.
 
-Status: **v0.6.0-dev**, built on the `dev` branch. Not deployed to the live site until the user has tested it.
+Status: released in **0.6.0** (2026-10-20). The notes below record the design; see `CHANGELOG.md` for what shipped.
 
 ## What actually differs (and what does not)
 

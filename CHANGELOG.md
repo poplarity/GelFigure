@@ -4,49 +4,59 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-### Added
-- **Protein gel mode.** The gel type is now part of the state (`dna` / `protein`) and drives the ladder library, the matching tolerances, band detection and the size unit.
-- Automatic gel-type detection on import: colour statistics (Coomassie blue), band width relative to the lane pitch, ladder band count and the curvature of the migration curve each cast an explainable vote; the reasons are shown under the switch.
-- A DNA / protein switch at the top of the Image panel overrides a wrong guess: lane names, groups, conditions and arrows are kept, markers are re-labelled in the new unit, and a toast on import says which type was recognised and how sure it is.
-- 41 protein ladders (apparent kDa, Tris-glycine values unless noted), each checked against the vendor's own page or manual: Bio-Rad (Precision Plus Dual Color, All Blue, Kaleidoscope, Unstained, Dual Xtra), Thermo / Invitrogen (PageRuler prestained, Plus, Unstained, Unstained Low Range; Spectra Broad / High / Low Range; Novex Sharp; SeeBlue Plus2), NEB, Abcam, GenScript, Yeasen, Epizyme, Beyotime, TransGen, Solarbio and Sangon. The marker menu and the favourites list are grouped by vendor. Sources and the groups with identical size lists are in `docs/ladders.md`.
-- Protein-specific tuning: broader band smoothing, wider assignment tolerance and window, more size skipping, markers accepted from 4 bands, and `(kDa)` column header, `55 kDa` labels and kDa arrow estimates.
-- Pre-flight note in protein mode that prestained sizes are apparent molecular weights.
-- Gel type and detection confidence are written to the processing log (JSON) and to style templates.
-- Synthetic protein gel (`G.Demo.makeProteinGel`, `?demo=protein`) and four new interface checks.
-- Two Yeasen (翌圣生物) ladders: GoldBand 1 kb (10510ES) and GoldBand 100 bp Plus (10516ES).
-- `docs/ladders.md`: every built-in ladder with its catalogue number, band count, range and reference bands, plus the groups of ladders whose band sizes are identical and therefore cannot be told apart automatically.
+## [0.6.0] - 2026-10-20
 
-### Added (annotations, from what gel figures in papers actually carry)
-- **Region box**: drag a rectangle on the image to frame bands, dashed or solid, with a label; optionally shown enlarged (×2–×4) beside the figure from the same raster, and noted in the legend hints.
-- **Side bracket**: drag over a size range to mark a smear, (Ub)n ladder, oligomers or IgG chains; placed clear of marker labels and arrows only where they actually overlap.
-- **Side text**: stain, antibody or exposure (e.g. "Coomassie", "IB: anti-HA", "30 s") vertically beside the gel or below it.
-- **Band symbols**: a target band can be marked `*` (non-specific), `#` or `†` instead of an arrowhead; the legend hints say what `*` means.
-- Boxes and brackets rotate with the gel; brackets and side text travel in style templates.
-- **Equal spacing between the end lanes**: drag the leftmost and rightmost lane lines onto their lanes, enter the lane count and click "Align" — the lanes in between are spaced evenly (lanes from one comb have constant spacing).
+Protein gels, annotations from real figures, and much sturdier lane and marker detection.
+
+**中文摘要**
+- **蛋白胶模式**：导入时自动判断 DNA 胶还是蛋白胶，自动切到对应的 Ladder 库、匹配容差和单位（bp / kDa）；判断错了可一键切换，泳道名和标注都保留。
+- **41 种蛋白 Marker**：Bio-Rad、Thermo/Invitrogen、NEB、Abcam、GenScript、翌圣、雅酶、碧云天、全式金、索莱宝、生工，每一种都对照厂家资料核对过。
+- **新标注**：区域框（可在成图旁放大展示）、侧边括号（拖尾、(Ub)n）、侧边文字（染色、抗体、曝光时间）、非特异条带 `*` / `#` 标记。
+- **泳道**：首尾两条泳道拖到位、填泳道数，中间自动等间距；Mac 上 `⌫` 可删除选中泳道；挤在一起的蛋白胶泳道识别更准。
+- **Marker 识别**：按"Ladder 能否完整解释这条泳道"判断，不再把裂解液泳道误认成 Marker。
+- **界面**：单个"反色"勾选框；出图范围、拼接设置、常用型号重新设计；勾选框对齐；导入速度约快一倍。
+
+### Added
+- **Protein gel mode.** The gel type (`dna` / `protein`) drives the ladder library, matching tolerances, band detection and the size unit: `(kDa)` header, kDa labels and kDa arrow estimates. Protein bands use broader smoothing, a wider assignment window and tolerance, and prestained markers are accepted from 4 bands.
+- **Automatic gel-type detection** from explainable votes — Coomassie colour, band width against the lane spacing, ladder band count, how many lanes are full of bands, and the curvature of the matched marker's migration curve. The reasons are shown under a DNA / protein switch at the top of the Image panel; switching keeps lane names, groups, conditions and arrows. A notice on import says which type was recognised and how sure it is.
+- **41 protein ladders** (apparent kDa, Tris-glycine values unless the name says otherwise), each checked against the vendor's own product page or manual: Bio-Rad Precision Plus (Dual Color, All Blue, Kaleidoscope, Unstained, Dual Xtra), Thermo / Invitrogen (PageRuler Prestained, Plus, Unstained, Unstained Low Range; Spectra Multicolor Broad / High / Low Range; Novex Sharp; SeeBlue Plus2), NEB, Abcam, GenScript, Yeasen, Epizyme, Beyotime, TransGen, Solarbio and Sangon. Bio-Rad Precision Plus Dual Color is the default.
+- Two Yeasen DNA ladders: GoldBand 1 kb (10510ES) and GoldBand 100 bp Plus (10516ES).
+- `docs/ladders.md`: every built-in ladder with catalogue number, bands, range, reference bands and sources, and the groups of products with identical size lists, which no algorithm can tell apart.
+- **Annotations** that gel figures in papers carry:
+  - **Region box** — drag a rectangle to frame bands, dashed or solid, with a label; optionally shown enlarged ×2–×4 beside the figure from the same raster.
+  - **Side bracket** — over a size range: a smear, an (Ub)n ladder, oligomers, IgG chains.
+  - **Side text** — the stain, antibody or exposure, vertical beside the gel or below it.
+  - **Band marks** — `*` (non-specific), `#` or `†` instead of an arrowhead.
+  - The legend hints explain `*` and the enlarged region; boxes and brackets rotate with the gel; brackets and side text travel in style templates; everything is in the processing log.
+- **Equal spacing between the end lanes**: drag the leftmost and rightmost lane lines onto their lanes, enter the lane count and click "Align"; the lanes in between are spaced evenly (lanes from one comb have constant spacing).
+- Pre-flight note on protein gels that prestained sizes are apparent molecular weights.
+- Gel type and detection confidence in the processing log and in style templates.
+- A synthetic protein gel, including a crowded lysate gel (`?demo=protein`), and 17 new interface checks (47 in total, run in Chromium, Firefox and WebKit).
 
 ### Changed
-- "Lane lines wrong?" now offers two labelled methods — A: equal spacing between the end lanes, B: detect again in the box — instead of two unexplained buttons.
-- The splice settings appear only once a lane in the figure is cut, with a sentence on why journals require the mark; the gap width is hidden for the line style.
-- `⌫` deletes the selected lane on the image (it is the delete key on a Mac keyboard), and a lane picked by its number in the lane list can be deleted the same way. Typing never deletes lanes.
-- A marker's band list stays open (and scrolled) while bands are ticked.
-- Marker lanes are no longer chosen by band count. A lane is a marker when a ladder explains *all* of it: on a protein gel a whole-cell lysate lane has more bands than any ladder and some ladder always fits a subset, which used to make sample lanes look like markers. Neighbouring hits are also collapsed, since nobody loads two ladders side by side.
-- Lane detection catches the case where neighbouring lanes merge in the band region and the measured spacing comes out a whole multiple of the real one; the top of the gel, where samples have not spread, is used to correct it, with a notice.
-- Gel-type detection also counts how many lanes are full of bands, which does not depend on the lane spacing being right.
-- The polarity control is one **Invert** checkbox instead of two buttons that assumed the image was always white-bands-on-black, and it states what the figure looks like now.
-- "Lanes in figure" is simpler: wells, then one row to correct the lane count, with per-lane editing in a single collapsible.
-- Favourite ladders are a tick list; the half-lit star gave no way to see which ones were actually chosen. The list only shows ladders of the current gel type.
-- Bio-Rad Precision Plus Dual Color is the default protein ladder.
-- Wording no longer names one vendor's imager: both DNA and protein gels are mentioned on the start screen, and any imager or scanner is fine.
+- **Marker lanes** are the lanes a ladder explains completely, not the lanes with the most bands: a whole-cell lysate lane has more bands than any ladder, and some ladder always fits a subset of them. Neighbouring hits collapse into one.
+- **Lane detection** recognises when neighbouring lanes run together and the measured spacing comes out a whole multiple of the real one; the top of the gel, where samples have not spread yet, corrects it, with a notice.
+- Gel-type detection takes its curvature vote from the marker bands actually matched instead of ranking every ladder of both libraries, so import is about twice as fast.
+- **Polarity** is one **Invert** checkbox instead of two buttons that assumed the image was always white-bands-on-black; the panel states what the figure looks like now.
+- **Lanes in figure**: "Lane lines wrong?" offers two labelled methods — A, equal spacing between the end lanes; B, detect again inside the box. The splice settings appear only once a lane is cut, with a sentence on why journals require the mark.
+- `Delete` / `⌫` deletes the selected lane on the image (`⌫` is the delete key on a Mac) and a lane picked by its number in the lane list. Typing never deletes a lane.
+- **Favourite ladders** are a tick list grouped by vendor ("Ladders we use"); the half-lit star gave no way to see which ones were chosen. The marker menu is grouped by vendor too, the lab's own ladders first.
+- A marker's band list stays open while bands are ticked.
+- Wording no longer names one vendor's imager; the start screen mentions both DNA and protein gels.
 
 ### Fixed
-- Gel-type detection no longer ranks every ladder of both libraries on import. The curvature vote is taken from the marker bands actually matched, which is both faster (import about twice as fast) and sounder: with a large library some protein ladder always fits a DNA ladder lane about as well, and judging the curve against it tipped a real DNA gel to "protein". A band-width reading wider than the lane spacing (merged bands) no longer votes.
-- The splice line was drawn white whenever the image was not inverted, so on a dark-bands-on-white figure it was invisible ("choosing the divider line did nothing").
-- The favourite-ladder list showed DNA ladders on a protein gel until something was clicked.
 - Removing a wrongly detected marker and then re-spacing the lanes brought the marker back.
-- The `(kDa)` unit header was clipped in the figure: its width was still measured as `(bp)`.
-- Checkboxes in the side panel were not aligned with their labels — `.field > label` overrode the switch layout on specificity.
-- A loaded outer lane could be mistaken for the gel edge during lattice detection, which trimmed the marker lane from the lane list.
-- Colour statistics were discarded for PNG/JPG input, so colour-based classification only worked for TIFF.
+- The splice line was drawn white unless the image was inverted, so it was invisible on dark-bands-on-white figures.
+- The `(kDa)` unit header was clipped: its width was measured as `(bp)`.
+- The `*` band mark was swallowed by the `*italic*` markup.
+- Side-panel checkboxes were not aligned with their labels (`.field > label` overrode the switch layout).
+- The favourite-ladder list showed DNA ladders on a protein gel until something was clicked.
+- A loaded outer lane could be taken for the gel edge and trimmed from the lane list.
+- A band width wider than the lane spacing (merged bands) could vote in gel-type detection.
+- Colour statistics were dropped for PNG / JPG input.
+
+### Upgrading
+Projects and drafts from 0.5 open unchanged and are treated as DNA gels unless their marker is a protein ladder. Version 0.5 stays available as tag `v0.5.0` and branch `release/0.5`.
 
 ## [0.5.0] - 2026-10-19
 
@@ -66,5 +76,6 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/poplarity/GelFigure/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/poplarity/GelFigure/releases/tag/v0.5.0
