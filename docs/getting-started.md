@@ -8,7 +8,7 @@
 
 ## 1. Download
 
-**[Download GelFigure-v0.6.3.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html)** and save it to your Desktop or Downloads folder.
+**[Download GelFigure-v0.6.4.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.4/GelFigure-v0.6.4.html)** and save it to your Desktop or Downloads folder.
 
 This is the complete tool, about 380 KB. The interface, styles and image-processing code are all inside the same file.
 

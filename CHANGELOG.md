@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-22
+
+The phone layout, reworked for real use; plus resilient startup and the one-file download guide.
+
 **中文摘要**
 - **手机端完整可用**：底部导航切换原图 / 成图 / 设置，右下角「导出」提供 PNG、TIFF、SVG、未裁切图、原始数据、处理日志和保存项目，可选 300 / 600 / 1200 dpi 并提示像素尺寸。顶部恢复撤销 / 重做，⋯ 里有打开、样式、说明和语言。
 - **导出后长按保存**：手机上导出的 PNG 直接显示成图片，长按即可存到相册或发给朋友（微信内也可用）；支持系统分享时可存到「文件」。
@@ -159,7 +163,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/poplarity/GelFigure/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/poplarity/GelFigure/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/poplarity/GelFigure/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/poplarity/GelFigure/compare/v0.6.0...v0.6.1
