@@ -64,12 +64,14 @@
       <p data-en-html="<b>DNA / agarose gels and protein gels (SDS-PAGE, Coomassie or ECL)</b> — the type is recognised on import.<br>TIFF (16 / 8-bit), PNG or JPG from any imager or scanner.<br>Straightening, cropping, lanes and marker sizes are automatic — you only type the lane names and export."><b>DNA / 琼脂糖胶和蛋白胶（SDS-PAGE，考马斯亮蓝或 ECL）</b>都可以，导入时自动判断是哪种。<br>任意成像仪或扫描仪导出的 TIFF（16 / 8 位）、PNG、JPG 都能读。<br>转正、裁切、泳道、Marker 全部自动完成，你只需要填泳道名然后导出。</p>
       <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig" multiple hidden></label>
       <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
+      <p class="hint" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
       <div id="draftBox" class="draft hidden">
         <div><span data-en="Unfinished figure from last time:">上次有未完成的图：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
         <div class="inline"><button class="btn sm primary" id="btnDraftRestore" data-en="Restore">恢复</button><button class="btn sm ghost" id="btnDraftDrop" data-en="Discard">丢弃</button></div>
       </div>
       <p class="hint" data-en="You can drop several exposures of the same gel at once; the best one is picked automatically.">可以一次拖入同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
       <p class="privacy" data-en="Images are processed only in this browser and never uploaded.">图片只在本机浏览器处理，不会上传。</p>
+      <p class="hint storage-note hidden" data-en="Browser storage is unavailable. You can still edit and export; preferences and custom ladders stay in this tab only. Save a project before closing.">浏览器存储不可用，仍可编辑和导出；偏好与自定义 Marker 仅在本页暂存，关闭前请保存项目。</p>
     </div>
 
     <div id="sections" class="hidden">
@@ -82,6 +84,7 @@
             <button data-gel="dna" data-en="DNA (bp)">DNA 胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button>
           </div>
           <p class="hint" id="gelTypeWhy"></p>
+          <p class="hint storage-note hidden" data-en="Browser storage is unavailable. You can still edit and export; preferences and custom ladders stay in this tab only. Save a project before closing.">浏览器存储不可用，仍可编辑和导出；偏好与自定义 Marker 仅在本页暂存，关闭前请保存项目。</p>
         </div>
         <div class="field">
           <label class="switch"><input type="checkbox" id="invChk"><span data-en="Invert (swap black and white)">反色（黑白对调）</span></label>
@@ -326,6 +329,9 @@
 <div id="helpDlg" class="dlg hidden"><div class="dlg-body">
   <button class="dlg-x" id="btnHelpClose" title="关闭" data-en-title="Close">×</button>
   <div data-en-html="
+  <h3>Offline use: download just one file</h3>
+  <p>Download <a href='https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html'>GelFigure-v0.6.3.html</a>, save it to your computer, then double-click to open in your browser. No installation or ZIP extraction. The repository's index.html alone is not the complete tool.</p>
+  <p>Before closing, use File → Save project (Settings on a phone) to keep the original image and annotations in a .gelfig file. Open that project to continue next time.</p>
   <h3>Fastest way to a figure</h3>
   <ol>
     <li>Drop the gel image — straightening, cropping, lanes, markers and contrast are automatic. Several exposures of one gel can be dropped together; the best is chosen.</li>
@@ -354,6 +360,9 @@
   </ul>
   <p class='muted small'>Shortcuts: Ctrl+Z undo · Ctrl+Shift+Z redo · Space+drag pan · wheel zoom · H remove/restore lane · Esc cancel</p>
   <p class='muted small'>Open source (MIT): <a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a> — bug reports and ladder additions welcome.</p>">
+  <h3>离线使用：只下载一个文件</h3>
+  <p>下载 <a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html">GelFigure-v0.6.3.html</a>，保存到电脑，双击用浏览器打开即可。不用安装、不用解压。仓库里的 index.html 单独下载不包含完整工具。</p>
+  <p>关闭前点“文件 → 保存项目”（手机在“设置”中），将原图和标注存为 .gelfig 文件；下次打开项目即可继续。</p>
   <h3>最快的出图方式</h3>
   <ol>
     <li>拖入胶图 —— 转正、裁切、泳道、Marker、对比度全部自动完成。同一块胶的多张曝光可以一起拖进来，自动挑最好的一张。</li>
@@ -398,6 +407,7 @@
 
 <div id="busy" class="hidden"><div class="spinner"></div><div class="busy-text" id="busyText"></div></div>
 
+<script src="js/storage.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/tiff.js"></script>
 <script src="js/ladders.js"></script>

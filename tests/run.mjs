@@ -9,6 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
+import { execFileSync } from 'node:child_process';
+import { startupChecks } from './startup.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -85,6 +87,9 @@ async function runIn(name, base) {
   const pass = what => out.results.push(['ok', what]);
   const browser = await ENGINES[name].launch(channel && name === 'chromium' ? { channel } : {});
   try {
+    const startup = await startupChecks(browser, base, ROOT);
+    out.results.push(...startup);
+    if (startup.some(r => r[0] === 'FAIL')) out.ok = false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];
@@ -150,6 +155,7 @@ async function runIn(name, base) {
   return out;
 }
 
+execFileSync(process.execPath, ['scripts/bundle-onefile.mjs'], { cwd: ROOT });
 const server = await serve();
 const base = `http://127.0.0.1:${server.address().port}`;
 // a second origin that records anything the page manages to send

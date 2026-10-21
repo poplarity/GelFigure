@@ -1,6 +1,6 @@
 name: Release
 
-# push a tag like v0.5.0 to publish a downloadable zip of the app
+# Publish the single HTML for users, plus an optional folder ZIP.
 on:
   push:
     tags: ['v*']
@@ -13,16 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build offline downloads
         run: |
           mkdir -p dist/GelFigure
           cp -r index.html css js test docs LICENSE README.md README.zh-CN.md CHANGELOG.md CONTRIBUTING.md CITATION.cff dist/GelFigure/
           node scripts/bundle-onefile.mjs   # writes dist/GelFigure.html
+          node scripts/release-notes.mjs "$GITHUB_REF_NAME"
           cd dist && zip -r "GelFigure-${GITHUB_REF_NAME}.zip" GelFigure
           cp GelFigure.html "GelFigure-${GITHUB_REF_NAME}.html"
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes=$(awk "/^## \[${GITHUB_REF_NAME#v}\]/{f=1;next} /^## \[/{f=0} f" CHANGELOG.md)
-          gh release create "$GITHUB_REF_NAME" "dist/GelFigure-${GITHUB_REF_NAME}.zip" "dist/GelFigure-${GITHUB_REF_NAME}.html" --title "GelFigure $GITHUB_REF_NAME" --notes "$notes"
+          gh release create "$GITHUB_REF_NAME" "dist/GelFigure-${GITHUB_REF_NAME}.html" "dist/GelFigure-${GITHUB_REF_NAME}.zip" --title "GelFigure $GITHUB_REF_NAME" --notes-file dist/release-notes.md

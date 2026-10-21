@@ -4,16 +4,35 @@
 
 **把原始 DNA 胶或蛋白胶图一键做成可投稿的成图 —— 在浏览器里完成，离线可用。**
 
-[**在线使用**](https://poplarity.github.io/GelFigure/) · [下载](https://github.com/poplarity/GelFigure/releases/latest) · [English](README.md)
+[**下载单文件 HTML**](https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html) · [在线使用](https://poplarity.github.io/GelFigure/) · [English](README.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![免安装](https://img.shields.io/badge/安装-不需要-brightgreen)
 ![图片不上传](https://img.shields.io/badge/图片-不上传-brightgreen)
 
-<img src="docs/screenshot-zh.png" alt="GelFigure：左边原图，右边成图" width="900">
 
 </div>
+
+## 快速开始
+
+**只需下载一个文件，用浏览器打开就能做图。不用安装、不用解压，也不用注册 GitHub。**
+
+1. **[点击下载 GelFigure-v0.6.3.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html)**，约 380 KB，保存到桌面或“下载”文件夹。
+2. **双击刚下载的文件。** 它会在浏览器中打开；如果打开的是记事本等软件，右键文件 → **打开方式** → 选择 Firefox、Chrome、Edge 或 Safari。
+3. **点“选择文件”，导入你的胶图。** 核对识别出的胶种、泳道和 Marker，点泳道名填写名称，再点 **导出 PNG**。
+
+这一个 HTML 文件已经包含完整界面和处理功能。保存后可以断网使用，也可以把同一个文件直接发给同事。
+
+**认准文件名：** 下载的是 **GelFigure-v0.6.3.html**，不是仓库里的 **index.html**，也不是 **Source code (zip)** 或 **Source code (tar.gz)**。不需要点 **Code → Download ZIP**。如果进入了[版本下载页](https://github.com/poplarity/GelFigure/releases/latest)，展开 **Assets（附件）**，只点结尾为 **.html** 的文件即可。
+
+**下次接着做：** 关闭前点 **文件 → 保存项目**；手机端在 **设置** 中。得到的 **.gelfig** 项目文件会保存原图和标注，下次用 GelFigure 打开即可继续。
+
+**也可在线使用：** [打开 GelFigure 网页版](https://poplarity.github.io/GelFigure/)。手机、平板优先在浏览器中打开此链接；微信等软件里的 HTML 附件预览不一定能运行工具。
+
+详细步骤见[下载与打开图解](docs/getting-started.zh-CN.md)，工具内点 **?** 也可查看帮助。
+
+<img src="docs/screenshot-zh.png" alt="GelFigure：左边原图，右边成图" width="900">
 
 把成像仪或扫描仪导出的图拖进去，GelFigure 会自动判断是 DNA（琼脂糖）胶还是蛋白（SDS-PAGE）胶，转正、裁切、识别泳道、识别 Marker 型号，并按 bp 或 kDa 标出条带大小。你只需要在成图上填泳道名，然后导出。所有处理都在浏览器里完成，**不上传、不安装**。
 
@@ -50,21 +69,6 @@
 - **导出前体检**：相机过曝、色阶削顶、有效分辨率不足 300 dpi、字号过小、外推的大小等，能修的给一键修正。
 - **可复现**：项目文件（`.gelfig`）包含原图和全部设置；样式模板可复用；自动保存草稿，刷新页面也不丢。
 - **中英双语界面**，随时切换。成图本身始终是英文。
-
-## 快速开始
-
-**在线：** 打开 **https://poplarity.github.io/GelFigure/** 。这是静态网页，图片同样不会离开你的电脑。
-
-**离线：** 下载最新版本（或 *Code → Download ZIP*），解压后双击 `index.html`。不需要服务器、不需要安装、不需要联网。
-
-然后：
-
-1. **把胶图拖进窗口**，全部自动识别。
-2. **在成图上点灰色的泳道号**输入名称（回车跳到下一条）。也可以把 Excel 里的一整行名称粘贴到左侧。
-3. **在左侧核对胶的类型和 Marker 型号**，吻合度低时会提示。把实验室常用的型号勾选一次，之后自动识别会优先选它们。
-4. 右上角 **导出 PNG**。
-
-顶部提示条会一直告诉你下一步做什么。软件里按 `?` 可查看帮助。
 
 ## 版本
 
@@ -135,9 +139,13 @@ GelFigure 帮你合规，但**是否符合期刊要求仍由作者负责**。
 
 Windows、macOS、Linux 上较新的 Chrome、Edge、Firefox，以及 Safari 16.4 及以上。每次改动都会在 Chromium、Firefox、WebKit 三个内核上自动测试。
 
-直接双击打开本地 `index.html` 时，部分浏览器会禁用本地文件的 IndexedDB，此时除"自动保存草稿"外一切正常。需要草稿功能请用在线版，或使用"保存项目"。
+双击打开下载的 HTML 文件时，部分浏览器会禁用本地文件的 IndexedDB，此时除"自动保存草稿"外一切正常。需要草稿功能请用在线版，或使用"保存项目"。
 
 ## 已知局限
+
+如果页面只剩文字和没有排版的按钮，说明样式文件没有加载成功，或浏览器关闭了页面样式。可按 Ctrl+Shift+R（macOS 为 Command+Shift+R）强制刷新。离线使用请下载 [Releases](https://github.com/poplarity/GelFigure/releases/latest) 中的**单文件 HTML**，或**完整解压 ZIP**，保持 `css/`、`js/` 与 `index.html` 在一起；仓库里的 `index.html` 单独下载不能运行完整工具。
+
+浏览器禁止存储或空间不足时，仍可编辑和导出；偏好与自定义 Marker 仅在当前页面暂存，关闭前请使用**保存项目**。自动草稿恢复另需浏览器允许 IndexedDB。
 
 - 自动识别已在 DNA 琼脂糖胶、考马斯亮蓝染色的 SDS-PAGE 胶和合成胶图上验证。泳道挨得很近的蛋白胶（例如全细胞裂解液）可能把相邻泳道并成一条，在"出图范围"里填上泳道条数即可纠正。如果在你的图上识别失败，欢迎[提交 issue](https://github.com/poplarity/GelFigure/issues/new/choose)。
 - 暂不支持条带灰度定量。
@@ -145,6 +153,8 @@ Windows、macOS、Linux 上较新的 Chrome、Edge、Firefox，以及 Safari 16.
 - 16 位 PNG 会被浏览器按 8 位读取。
 
 ## 开发
+
+以下内容面向修改源码的开发者。只使用工具请按上面的单文件下载步骤操作。源码版需要保留 `index.html` 旁的 `css/` 和 `js/` 文件夹。
 
 没有构建步骤，也没有依赖：纯 HTML、CSS、JavaScript，用普通 `<script>` 标签加载，所以也能从 `file://` 直接运行。目录结构和测试方法见 [英文 README 的 Development 部分](README.md#development)。
 

@@ -24,12 +24,12 @@
     selLane: -1, selArrow: -1,
   };
 
-  function prefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch (e) { return {}; } }
+  function prefs() { try { return JSON.parse(G.PrefStorage.getItem(PREF_KEY) || '{}') || {}; } catch (e) { return {}; } }
   function savePrefs() {
     const S = App.S; if (!S) return;
     const m0 = S.markers[0] || {};
     const unit = m0.unit || (App.gelKind() === 'protein' ? 'kDa' : App.prefUnit);
-    localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(prefs(), { style: S.style, ladderId: m0.ladderId || App.prefLadder, unit, invert: S.levels.invert })));
+    G.PrefStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(prefs(), { style: S.style, ladderId: m0.ladderId || App.prefLadder, unit, invert: S.levels.invert })));
   }
 
   function busy(on, text) {
@@ -42,7 +42,7 @@
 
   App.VERSION = '0.6.3';
   App.prefs = prefs;
-  App.setPref = function (k, v) { const p = prefs(); p[k] = v; localStorage.setItem(PREF_KEY, JSON.stringify(p)); };
+  App.setPref = function (k, v) { const p = prefs(); p[k] = v; G.PrefStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 
   // ---------- hashing ----------
   App.sha256 = async function (buffer) {

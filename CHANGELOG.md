@@ -4,6 +4,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Documentation
+- Put the single-file HTML download first in both READMEs, add illustrated English/Chinese opening guides, and explain how to save and reopen a project. The start screen, help dialog and future release notes also explain the one-file workflow. ZIP/source instructions are reserved for source users.
+
+### Fixed
+- **Startup with browser storage blocked.** Reading a language preference no longer stops the whole interface when Firefox blocks cookies/site data or disables DOM storage. Preferences, favourites and custom ladders use temporary memory if storage is unavailable or full; the interface explains that these will not survive closing the page. Editing, image export and saving/opening project files remain available.
+- Added cross-browser startup checks for blocked storage, a full quota, an offline folder and the single-file HTML without network access.
+
 ## [0.6.3] - 2026-10-21
 
 Mobile polish and a one-file offline build.

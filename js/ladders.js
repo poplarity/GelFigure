@@ -94,14 +94,14 @@
 
   const CUSTOM_KEY = 'gelfig.customLadders', FAV_KEY = 'gelfig.favLadders';
   function loadCustom() {
-    try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]').map(l => Object.assign({ custom: true }, l, { kind: kindOf(l) })); } catch (e) { return []; }
+    try { return JSON.parse(G.PrefStorage.getItem(CUSTOM_KEY) || '[]').map(l => Object.assign({ custom: true }, l, { kind: kindOf(l) })); } catch (e) { return []; }
   }
   function saveCustom(name, sizes, kind) {
     const list = loadCustom().filter(l => l.name !== name);
     // a size entered twice would leave one band that can never be matched
     const lad = { id: 'custom_' + Date.now(), name, sizes: [...new Set(sizes)].sort((a, b) => b - a), ref: [], custom: true, kind: kind === 'protein' ? 'protein' : 'dna' };
     list.push(lad);
-    localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+    G.PrefStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
     return lad;
   }
   // register a ladder definition carried by a template / project (keeps its id); true if it was new
@@ -109,11 +109,11 @@
     if (!def || !def.id || !Array.isArray(def.sizes) || get(def.id)) return false;
     const list = loadCustom();
     list.push({ id: def.id, name: def.name || def.id, sizes: [...new Set(def.sizes)].sort((a, b) => b - a), ref: def.ref || [], custom: true, kind: def.kind === 'protein' ? 'protein' : 'dna' });
-    localStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+    G.PrefStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
     return true;
   }
   function removeCustom(id) {
-    localStorage.setItem(CUSTOM_KEY, JSON.stringify(loadCustom().filter(l => l.id !== id)));
+    G.PrefStorage.setItem(CUSTOM_KEY, JSON.stringify(loadCustom().filter(l => l.id !== id)));
     setFavorites(favorites().filter(f => f !== id));
   }
   // all(kind): only that gel type; no argument: everything
@@ -124,9 +124,9 @@
 
   // "my ladders": ordered favourites, built-in and custom alike
   function favorites() {
-    try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]').filter(id => get(id)); } catch (e) { return []; }
+    try { return JSON.parse(G.PrefStorage.getItem(FAV_KEY) || '[]').filter(id => get(id)); } catch (e) { return []; }
   }
-  function setFavorites(ids) { localStorage.setItem(FAV_KEY, JSON.stringify([...new Set(ids)])); }
+  function setFavorites(ids) { G.PrefStorage.setItem(FAV_KEY, JSON.stringify([...new Set(ids)])); }
   function isFavorite(id) { return favorites().includes(id); }
   function toggleFavorite(id) {
     const f = favorites();

@@ -7,8 +7,9 @@
   'use strict';
   const KEY = 'gelfig.lang';
   const fromUrl = new URLSearchParams(location.search).get('lang');
+  const savedLang = G.PrefStorage.getItem(KEY);
   let lang = fromUrl === 'en' || fromUrl === 'zh' ? fromUrl
-    : (localStorage.getItem(KEY) || (/^zh\b/i.test(navigator.language || '') ? 'zh' : 'en'));
+    : (savedLang === 'en' || savedLang === 'zh' ? savedLang : (/^zh\b/i.test(navigator.language || '') ? 'zh' : 'en'));
   const listeners = [];
 
   const L = (zh, en) => (lang === 'en' ? en : zh);
@@ -33,7 +34,7 @@
   function set(l) {
     if (l !== 'en' && l !== 'zh') return;
     lang = l;
-    try { localStorage.setItem(KEY, l); } catch (e) { /* private mode */ }
+    G.PrefStorage.setItem(KEY, l);
     apply();
     listeners.forEach(fn => fn(l));
   }

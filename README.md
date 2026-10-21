@@ -4,16 +4,35 @@
 
 **Turn a raw DNA or protein gel image into a publication-ready figure — in your browser, offline.**
 
-[**Open the app**](https://poplarity.github.io/GelFigure/) · [Download](https://github.com/poplarity/GelFigure/releases/latest) · [中文说明](README.zh-CN.md)
+[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![No install](https://img.shields.io/badge/install-none-brightgreen)
 ![Images stay local](https://img.shields.io/badge/images-never%20uploaded-brightgreen)
 
-<img src="docs/screenshot-en.png" alt="GelFigure: raw gel on the left, finished figure on the right" width="900">
 
 </div>
+
+## Quick start
+
+**Download one file, open it in your browser, and start making your figure. No installation, ZIP extraction or GitHub account is needed.**
+
+1. **[Download GelFigure-v0.6.3.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html)** (about 380 KB). Save it to your Desktop or Downloads folder.
+2. **Double-click the downloaded file.** It opens in your browser. If a text editor opens instead, right-click → **Open with** → Firefox, Chrome, Edge or Safari.
+3. **Click “Choose file” and select your gel image.** Check the detected gel type, lanes and marker, click the lane names to edit them, then choose **Export PNG**.
+
+That one HTML file is the complete tool, including its layout and image-processing code. Keep it on your computer or send the same file to a colleague. Once downloaded, it works without an internet connection.
+
+**Get the right file:** choose the release attachment named **GelFigure-v0.6.3.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
+
+**Keep your work:** use **File → Save project** before closing. On a phone this is in **Settings**. Your **.gelfig** file contains the original image and annotations; reopen it in GelFigure to continue.
+
+**Prefer the website?** [Open GelFigure online](https://poplarity.github.io/GelFigure/). On phones and tablets, use this link in your browser; an HTML attachment preview in a messaging app may not run the tool.
+
+Need help? See [the illustrated download and opening guide](docs/getting-started.md) or press **?** inside the app.
+
+<img src="docs/screenshot-en.png" alt="GelFigure: raw gel on the left, finished figure on the right" width="900">
 
 Drop in the image from your gel imager or scanner. GelFigure works out whether it is a DNA (agarose) or a protein (SDS-PAGE) gel, straightens and crops it, finds the lanes, identifies the ladder and labels its band sizes in bp or kDa. You type the lane names on the figure and export. Everything happens in the browser; **nothing is uploaded, nothing is installed**.
 
@@ -50,21 +69,6 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Pre-flight check before export**: camera saturation, contrast clipping, effective resolution below 300 dpi, tiny fonts, extrapolated sizes, with one-click fixes.
 - **Reproducible**: project files (`.gelfig`) contain the original image and every setting; reusable style templates; an autosaved draft survives a page reload.
 - **Bilingual interface**: English and Chinese, switchable at any time. Figures are always in English.
-
-## Quick start
-
-**Online:** open **https://poplarity.github.io/GelFigure/**. The page is static; your images still never leave the computer.
-
-**Offline:** download the latest release (or *Code → Download ZIP*), unzip it and double-click `index.html`. No server, no installation, no internet connection needed.
-
-Then:
-
-1. **Drop the gel image** into the window. Everything is detected automatically.
-2. **Click the grey lane numbers** on the figure and type the names (Enter = next lane). Or paste a whole row from Excel into the panel on the left.
-3. **Check the gel type and the marker ladder** on the left; a poor fit is flagged. Tick the ladders your lab uses once, and detection prefers them from then on.
-4. **Export PNG** (top right).
-
-The hint bar at the top always shows the most useful next step. Press `?` in the app for help.
 
 ## Versions
 
@@ -135,9 +139,13 @@ Any other ladder can be added under **Marker → Custom ladder**; custom ladders
 
 Current Chrome, Edge, Firefox and Safari 16.4+ on Windows, macOS and Linux. The test suite runs in Chromium, Firefox and WebKit on every change.
 
-When `index.html` is opened directly from disk, some browsers disable IndexedDB for local files; everything works except the autosaved draft. Use the online version or "Save project" if you need it.
+When the downloaded HTML is opened directly from disk, some browsers disable IndexedDB for local files; everything works except the autosaved draft. Use the online version or "Save project" if you need it.
 
 ## Known limitations
+
+If the page looks like plain text and unstyled buttons, its stylesheet has not loaded or page styles have been disabled. Reload with Ctrl+Shift+R (Command+Shift+R on macOS). For offline use, download the **single-file HTML** from [Releases](https://github.com/poplarity/GelFigure/releases/latest), or extract the **whole ZIP** and keep `css/` and `js/` beside `index.html`; the repository's `index.html` alone is not a standalone app.
+
+If browser storage is blocked or full, the app can still edit and export. Preferences and custom ladders stay in the current tab only; use **Save project** before closing. Automatic draft recovery also depends on the browser allowing IndexedDB.
 
 - Automatic detection has been validated on DNA agarose gels, Coomassie-stained SDS-PAGE gels and synthetic gels. On a crowded protein gel whose lanes touch, lane detection can merge neighbours — set the lane count under **Lanes in figure** and the rest follows. If detection fails on your images, please [open an issue](https://github.com/poplarity/GelFigure/issues/new/choose).
 - Band quantification (densitometry) is not supported.
@@ -146,11 +154,14 @@ When `index.html` is opened directly from disk, some browsers disable IndexedDB 
 
 ## Development
 
+This section is for contributors editing the source. To use GelFigure, follow the single-file download steps above. Source checkouts keep `css/` and `js/` beside `index.html`; those files must stay together.
+
 No build step and no dependencies: the app is plain HTML, CSS and JavaScript loaded with ordinary `<script>` tags, so it also runs from `file://`.
 
 ```
 index.html          the page
 css/style.css       styles
+js/storage.js       optional preferences with in-memory fallback
 js/i18n.js          interface language (L('中文', 'English') pairs)
 js/tiff.js          TIFF decoder            js/engine.js    image analysis
 js/ladders.js       ladder library          js/render.js    figure layout (SVG)

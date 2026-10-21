@@ -6,7 +6,7 @@ Thank you for helping! Issues and pull requests in English or Chinese are both w
 
 Please use the [issue templates](https://github.com/poplarity/GelFigure/issues/new/choose). The most useful reports include:
 
-- browser and operating system, and whether you used the online version or a local `index.html`;
+- browser and operating system, and whether you used the online version, the single-file `GelFigure-vVERSION.html`, or `index.html` from a ZIP (and whether the ZIP was fully extracted);
 - the gel type (DNA or protein), the imager or scanner, and the file type (e.g. "gel imager, 16-bit TIFF");
 - what you expected and what happened; a screenshot helps a lot;
 - the **processing log** (*Export ▾ → Processing log (JSON)*). It contains settings and statistics but no pixel data. Remove lane names first if they are confidential.
