@@ -545,7 +545,7 @@
     const st = S(), rows = [];
     st.groups.forEach((g, k) => rows.push(`<div class="item"><span class="kind">${L('分组', 'Group')}</span>
       <span class="idx" style="width:auto">${Math.min(g.from, g.to) + 1}–${Math.max(g.from, g.to) + 1}</span>
-      <input type="text" data-g="${k}" value="${esc(g.text)}" placeholder="${L('分组文字', 'Group label')}"><button class="x" data-gdel="${k}">×</button></div>`));
+      <input type="text" data-g="${k}" value="${esc((g.text || '').replace(/\n/g, ' ↵ '))}" placeholder="${L('分组文字', 'Group label')}" title="${L('↵ = 换行', '↵ = line break')}"><button class="x" data-gdel="${k}">×</button></div>`));
     st.arrows.forEach((a, k) => rows.push(`<div class="item${k === App.selArrow ? ' sel' : ''}"><span class="kind">${L('箭头', 'Arrow')}</span>
       <button class="btn sm ghost" data-aed="${k}" style="flex:1;justify-content:flex-start">${{ star: '* ', hash: '# ', dagger: '† ' }[a.sym] || ''}${esc(App.arrowLabel(a) || L('（未命名）', '(unnamed)'))}</button><button class="x" data-adel="${k}" title="${L('删除', 'Delete')}" aria-label="${L('删除', 'Delete')}">×</button></div>`));
     st.conditions.forEach((c, r) => rows.push(`<div class="item"><span class="kind">${L('条件', 'Condition')}</span>
@@ -562,7 +562,8 @@
     (st.labels || []).forEach((t, k) => rows.push(qrow('label', k, t.text, POS[t.pos] || '')));
     const box = $('annoList');
     box.innerHTML = rows.join('');
-    box.querySelectorAll('[data-g]').forEach(inp => { const g = st.groups[+inp.dataset.g]; inp.addEventListener('input', live(e => { g.text = e.target.value; })); inp.addEventListener('change', done()); });
+    // a one-line field: line breaks of a group label show as ↵ and come back as breaks
+    box.querySelectorAll('[data-g]').forEach(inp => { const g = st.groups[+inp.dataset.g]; inp.addEventListener('input', live(e => { g.text = e.target.value.replace(/\s*↵\s*/g, '\n'); })); inp.addEventListener('change', done()); });
     box.querySelectorAll('[data-c]').forEach(inp => { const c = st.conditions[+inp.dataset.c]; inp.addEventListener('input', live(e => { c.name = e.target.value; })); inp.addEventListener('change', done()); });
     box.querySelectorAll('[data-gdel]').forEach(b => b.onclick = done(() => st.groups.splice(+b.dataset.gdel, 1)));
     box.querySelectorAll('[data-cdel]').forEach(b => b.onclick = done(() => st.conditions.splice(+b.dataset.cdel, 1)));
@@ -579,6 +580,10 @@
   $('gelW').addEventListener('change', done(e => { S().style.gelWidthMm = E.clamp(+e.target.value || 45, 10, 180); S().style.autoWidth = false; }));
   $('fontPt').addEventListener('change', done(e => { S().style.fontPt = E.clamp(+e.target.value || 7, 4, 14); }));
   $('lineW').addEventListener('change', done(e => { S().style.lineWidthPt = E.clamp(+e.target.value || 0.5, 0.25, 2); }));
+  // empty = follow the figure font size
+  ['lanePt', 'markerPt'].forEach(id => $(id).addEventListener('change', done(e => { const v = +e.target.value; S().style[id] = e.target.value === '' || !(v > 0) ? null : E.clamp(v, 4, 14); })));
+  $('groupFit').addEventListener('change', done(e => { S().style.groupFit = e.target.value; }));
+  $('minFontPt').addEventListener('change', done(e => { S().style.minFontPt = E.clamp(+e.target.value || 5, 4, 10); }));
   $('labelAngle').addEventListener('change', done(e => { S().style.labelAngle = e.target.value; }));
   ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
   $('panelLetter').addEventListener('change', done(e => { S().style.panelLetter = e.target.value.trim(); }));
@@ -674,6 +679,9 @@
     $('gamma').value = st.levels.gamma; $('gammaUnlock').checked = st.levels.gamma !== 1; $('gamma').disabled = st.levels.gamma === 1 && !$('gammaUnlock').checked;
     $('autoWidth').checked = !!y.autoWidth; $('gelW').value = App.gelWidthMm(); $('gelW').disabled = !!y.autoWidth;
     $('fontPt').value = y.fontPt; $('lineW').value = y.lineWidthPt; $('labelAngle').value = String(y.labelAngle);
+    ['lanePt', 'markerPt'].forEach(id => { $(id).value = y[id] || ''; $(id).placeholder = y.fontPt; });
+    $('groupFit').value = y.groupFit || 'wrap'; $('minFontPt').value = y.minFontPt || 5;
+    $('minFontRow').classList.toggle('hidden', (y.groupFit || 'wrap') !== 'shrink');
     ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => { $(id).checked = !!y[id]; });
     $('unitHeaderLbl').textContent = L(`(${App.sizeUnit()}) 标题`, `(${App.sizeUnit()}) header`);
     $('panelLetter').value = y.panelLetter || '';

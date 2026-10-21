@@ -235,7 +235,7 @@
           extrapolated: e ? e.extrap : null, markersDisagree: e ? e.disagree : null, markersUsed: e ? e.used.map(i => i + 1) : [],
           perMarker: e ? e.perMarker.map(p => ({ well: p.lane + 1, size: Math.round(p.bp * 10) / 10, bp: Math.round(p.bp), extrapolated: p.extrap })) : [] };
       }),
-      groups: S.groups.map(g => ({ fromWell: Math.min(g.from, g.to) + 1, toWell: Math.max(g.from, g.to) + 1, text: g.text })),
+      groups: S.groups.map(g => ({ fromWell: Math.min(g.from, g.to) + 1, toWell: Math.max(g.from, g.to) + 1, text: g.text, fontPt: g.pt || null })),
       regionBoxes: (S.boxes || []).map(b => ({ text: b.text, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), dashed: b.dash !== false, enlarged: b.zoom >= 2 ? b.zoom : null })),
       brackets: (S.brackets || []).map(b => {
         const s1 = A.estimateBp(Math.min(b.y1, b.y2)), s2 = A.estimateBp(Math.max(b.y1, b.y2));

@@ -248,6 +248,16 @@
             <label class="inline-label"><span data-en="Line">线宽</span> <input type="number" id="lineW" min="0.25" max="2" step="0.25" class="num"> pt</label>
           </div>
           <div class="field inline">
+            <label class="inline-label"><span data-en="Lane names">泳道名</span> <input type="number" id="lanePt" min="4" max="14" step="0.5" class="num"> pt</label>
+            <label class="inline-label"><span data-en="Marker labels">Marker 标签</span> <input type="number" id="markerPt" min="4" max="14" step="0.5" class="num"> pt</label>
+          </div>
+          <div class="field inline">
+            <label class="inline-label"><span data-en="Group text too wide">分组文字放不下时</span>
+              <select id="groupFit" style="width:auto"><option value="wrap" data-en="Wrap to the line">自动换行</option><option value="shrink" data-en="Shrink the font">缩小字号</option><option value="none" data-en="Keep one line">保持一行</option></select></label>
+            <label class="inline-label" id="minFontRow"><span data-en="not below">最小</span> <input type="number" id="minFontPt" min="4" max="10" step="0.5" class="num"> pt</label>
+          </div>
+          <p class="hint" data-en="Empty = the font size above. Every group line, +/− row, arrow, box and side text can also have its own size: click it on the figure. Group labels that still collide move up a row on their own.">留空 = 跟随上面的字号。每条分组、+/− 行、箭头、区域框、侧边文字也能单独设字号：在成图上点它即可。仍会相撞的分组文字会自动错开到上一行。</p>
+          <div class="field inline">
             <label class="inline-label" data-en="Label angle">泳道名角度</label>
             <select id="labelAngle" style="width:auto">
               <option value="auto" data-en="Auto">自动</option><option value="0">0°</option><option value="45">45°</option><option value="60">60°</option><option value="90">90°</option>
@@ -379,7 +389,15 @@
 </div>
 
 <div id="popover" class="popover hidden" role="dialog"></div>
-<input id="floatEd" class="float-ed hidden" type="text" autocomplete="off" spellcheck="false" title="编辑文字" data-en-title="Edit text">
+<textarea id="floatEd" class="float-ed hidden" rows="1" autocomplete="off" spellcheck="false" title="编辑文字" data-en-title="Edit text"></textarea>
+<!-- under the text editor: font size of what is being edited; a line break for group labels -->
+<div id="fedBar" class="fed-bar hidden">
+  <span class="fed-lbl" id="fedSizeLbl"></span>
+  <button data-fz="-" title="小一点" data-en-title="Smaller">A−</button><span class="fed-size" id="fedSize"></span><button data-fz="+" title="大一点" data-en-title="Larger">A+</button>
+  <button data-fz="reset" id="fedReset" data-en="Default">默认</button>
+  <button data-fz="br" id="fedBr" data-en="↵ New line">↵ 换行</button>
+  <span class="fed-hint" id="fedHint"></span>
+</div>
 <div id="warnings"></div>
 <div id="toasts"></div>
 

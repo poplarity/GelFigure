@@ -407,6 +407,53 @@
       App.setLaneHidden(fl6[3], false, 'test'); App.S.boxes = []; App.commit();
     }
     document.title = 'UITEST-AT 24 ' + JSON.stringify(R);
+    // 25. long group labels never overlap: wrap (default, size kept), shrink (not below the minimum)
+    // or one line (moved up a tier); typed line breaks; per-item sizes; pre-flight sees the smallest text
+    {
+      const fl = G.UI.figLanes(), st = App.S.style, saved = JSON.stringify(st), names = App.S.lanes.map(l => l.name);
+      fl.slice(0, 4).forEach((li, k) => { App.S.lanes[li].name = 'L' + k; });
+      App.S.groups = [
+        { from: fl[1], to: fl[2], text: '按时打算肯定建行卡去上课吧就是都对你好看' },
+        { from: fl[2], to: fl[3], text: '暗示大家' },
+        { from: fl[3], to: fl[4], text: 'A rather long group label that cannot fit' },
+        { from: fl[6], to: fl[8], text: 'Line one\n*Eco*RI', pt: 9 }];
+      const layout = mode => {
+        st.groupFit = mode; App.commit();
+        const gs = [...document.querySelectorAll('#preview g[data-edit="group"]')].map(g => {
+          const rs = [...g.querySelectorAll('text')].map(t => t.getBoundingClientRect());
+          return { lines: rs.length, size: +g.querySelector('text').getAttribute('font-size'), x0: Math.min(...rs.map(r => r.left)), x1: Math.max(...rs.map(r => r.right)), y0: Math.min(...rs.map(r => r.top)), y1: Math.max(...rs.map(r => r.bottom)) };
+        });
+        let overlaps = 0;
+        gs.forEach((a, i) => gs.slice(i + 1).forEach(b => { if (a.x0 < b.x1 - 0.5 && b.x0 < a.x1 - 0.5 && a.y0 < b.y1 - 0.5 && b.y0 < a.y1 - 0.5) overlaps++; }));
+        return { overlaps, lines: gs.map(g => g.lines), sizes: gs.map(g => g.size) };
+      };
+      const wrap = layout('wrap'), shrink = layout('shrink'), none = layout('none');
+      st.groupFit = 'wrap'; st.lanePt = 8.5; App.S.arrows = [{ y: App.S.crop.y + App.S.crop.h / 2, text: 'X', size: false, side: '', pt: 10 }]; App.commit();
+      const svg = App.buildFigure(false).svg;
+      const tpl = App.template();
+      App.S.groups[0].pt = 4; App.commit();
+      const pf = App.preflight().find(i => /4 pt/.test(i.text));
+      if (pf && pf.fix) pf.fix.run();
+      // the editor's bar: ↵ inserts a line break in a group label, A+ gives the group its own size
+      await wait(60);
+      G.FigEdit.openEd('group', 1);
+      const fedEl = document.getElementById('floatEd'), barShown = !document.getElementById('fedBar').classList.contains('hidden');
+      fedEl.value = 'AB'; fedEl.dispatchEvent(new Event('input')); fedEl.setSelectionRange(1, 1);
+      document.getElementById('fedBr').click();
+      document.querySelector('#fedBar [data-fz="+"]').click(); document.querySelector('#fedBar [data-fz="+"]').click();
+      key(fedEl, 'Enter');
+      const barEdit = { barShown, text: App.S.groups[1].text, pt: App.S.groups[1].pt, closed: fedEl.classList.contains('hidden') };
+      R.groupFit = {
+        wrap, shrink, none, barEdit,
+        manualBreak: wrap.lines[3] === 2,
+        groupPt: svg.includes('font-size="9"'), lanePt: (svg.match(/font-size="8\.5"/g) || []).length >= 3, arrowPt: svg.includes('font-size="10"'),
+        tplKeeps: tpl.groups[3].pt === 9 && tpl.groups[3].text.includes('\n') && tpl.arrows[0].pt === 10,
+        preflightMin: !!pf, fixedTo6: App.S.groups[0].pt === 6
+      };
+      App.S.groups = []; App.S.arrows = []; App.S.style = JSON.parse(saved);
+      App.S.lanes.forEach((l, i) => { l.name = names[i]; }); App.commit();
+    }
+    document.title = 'UITEST-AT 25 ' + JSON.stringify(R);
     // 19. autosaved draft survives a reload (needs a browser with working IndexedDB: ?uitest=1&draft=1;
     // headless Edge never answers indexedDB.open and holds its virtual clock)
     if (/[?&]draft=1/.test(location.search)) {

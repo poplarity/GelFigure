@@ -4,6 +4,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- **分组文字不再重叠**：排布分组横线时按文字的实际宽度计算，放不下会自动错开到上一行。
+- **放不下时可选处理方式**（版式 → 分组文字放不下时）：自动换行（默认，保持字号，各行长度均衡）、缩小字号（不低于设定的最小字号）、保持一行。
+- **手动换行**：编辑分组文字时 Shift+Enter 换行，手机上点“↵ 换行”。
+- **每个字段可单独设字号**：编辑文字时下方出现字号条（A− / A+ / 默认）；箭头、区域框、侧边括号、侧边文字在设置框里填字号；泳道名、Marker 标签可在版式里统一设置。
+- 导出前检查改为看成图里实际最小的字号；样式模板会带上各项的字号和换行。
+
+### Added
+- **Group labels never overlap.** Group lines are stacked by the real width of their text, not only by the lanes they span, so a label that would run into its neighbour moves up a tier.
+- **What to do with a group label wider than its line** (Layout → "Group text too wide"): wrap it to the line (default; size kept, lines balanced, Chinese breaks between characters, other text after spaces, "-" or "/", *italic* kept across lines), shrink it down to a minimum size (default 5 pt), or keep one line.
+- **Typed line breaks in group labels**: Shift+Enter in the editor, or "↵ New line" in the bar below it (phones). In the annotation list a break shows as ↵.
+- **Font size per item**: a bar under the text editor sets the size of a group label or a +/− row (A− / A+ / Default); arrows, region boxes, side brackets and side text have a size field in their popover; lane names and marker labels each have one size under Layout. Empty = the figure font size.
+- Pre-flight checks the smallest text actually printed (per-item sizes, shrunk labels) and can raise everything to 6 pt. Style templates and the processing log carry per-item sizes and line breaks.
+
 ## [0.6.4] - 2026-10-22
 
 The phone layout, reworked for real use; plus resilient startup and the one-file download guide.

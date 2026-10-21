@@ -11,7 +11,10 @@
   const defaultStyle = () => ({
     gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneNumbers: false, frame: false,
     panelLetter: '', panelPt: 8, spliceStyle: 'gap', spliceGapPt: 1.5, tickLenPt: 2.5, labelGapPt: 2.5,
-    unitHeader: true, groupTicks: false, dpi: 600, laneNumberMode: 'well'
+    unitHeader: true, groupTicks: false, dpi: 600, laneNumberMode: 'well',
+    // text that does not fit: lane names / marker labels can have their own size (null = fontPt);
+    // a group label wider than its line wraps ('wrap'), shrinks down to minFontPt ('shrink') or stays ('none')
+    lanePt: null, markerPt: null, groupFit: 'wrap', minFontPt: 5
   });
 
   const App = {
@@ -979,13 +982,13 @@
     const groups = S.groups.map((g, k) => {
       const a = Math.min(g.from, g.to), b = Math.max(g.from, g.to);
       const ins = keep.filter(i => i >= a && i <= b);
-      return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, k } : null;
+      return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, pt: g.pt, k } : null;
     }).filter(Boolean);
     return {
       preview: !!preview, bright: S.bright,
       crop: S.crop, levels: S.levels, style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
       lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name, hidden: S.lanes[i].hidden, src: i })),
-      conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || '') })),
+      conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt })),
       groups,
       markers: S.markers.filter(m => remap.has(m.lane) && !S.lanes[m.lane].hidden).map(m => Object.assign({}, m, {
         lane: remap.get(m.lane),
@@ -1058,9 +1061,15 @@
     const sp = (k.sensorFrac * 100).toFixed(2), bp = (bc * 100).toFixed(2);
     if (k.sensorFrac > 0.0005) add('warn', L(`相机过曝：裁切区 ${sp}% 像素饱和。建议换一张较短曝光。`, `Camera saturation: ${sp}% of the pixels in the crop are saturated. Consider a shorter exposure.`));
     if (bc > 0.001) add('block', L(`色阶削顶：${bp}% 像素被对比度压平。`, `Contrast clipping: ${bp}% of the pixels are flattened by the contrast setting.`), { label: L('重置对比度', 'Reset contrast'), run: () => App.resetLevels() });
-    if (st.fontPt < 5) add('warn', L(`字号 ${st.fontPt} pt 偏小（多数期刊要求 ≥ 5–6 pt）。`, `Font size ${st.fontPt} pt is small (most journals ask for ≥ 5–6 pt).`), { label: L('改为 6 pt', 'Use 6 pt'), run: () => { st.fontPt = 6; } });
-    if (st.lineWidthPt < 0.25) add('warn', L(`线宽 ${st.lineWidthPt} pt 太细。`, `Line width ${st.lineWidthPt} pt is too thin.`), { label: L('改为 0.5 pt', 'Use 0.5 pt'), run: () => { st.lineWidthPt = 0.5; } });
     const fig = App.buildFigure(false), wmm = fig.w / G.Render.MM;
+    // the smallest text actually printed: per-item sizes and shrunk group labels count, not just the base size
+    const minPt = Math.round(fig.minPt * 10) / 10;
+    if (minPt < 5) add('warn', L(`最小字号 ${minPt} pt 偏小（多数期刊要求 ≥ 5–6 pt）。`, `The smallest text is ${minPt} pt (most journals ask for ≥ 5–6 pt).`), { label: L('全部至少 6 pt', 'Make all text ≥ 6 pt'), run: () => {
+      const up = v => (v && v < 6 ? 6 : v);
+      st.fontPt = Math.max(st.fontPt, 6); st.lanePt = up(st.lanePt); st.markerPt = up(st.markerPt); st.minFontPt = Math.max(st.minFontPt || 5, 6);
+      [S.groups, S.conditions, S.arrows, S.labels, S.boxes, S.brackets].forEach(list => (list || []).forEach(o => { if (o.pt) o.pt = up(o.pt); }));
+    } });
+    if (st.lineWidthPt < 0.25) add('warn', L(`线宽 ${st.lineWidthPt} pt 太细。`, `Line width ${st.lineWidthPt} pt is too thin.`), { label: L('改为 0.5 pt', 'Use 0.5 pt'), run: () => { st.lineWidthPt = 0.5; } });
     if (wmm > 183) add('warn', L(`成图宽 ${wmm.toFixed(0)} mm，超过双栏宽度（约 180 mm）。`, `The figure is ${wmm.toFixed(0)} mm wide, wider than a double column (about 180 mm).`));
     (fig.overlaps || []).forEach(w => add('warn', w));
     if (S.levels.gamma !== 1) add('warn', L(`Gamma = ${S.levels.gamma}：非线性调整，图注中必须说明。`, `Gamma = ${S.levels.gamma}: a non-linear adjustment that must be stated in the legend.`));
@@ -1139,12 +1148,12 @@
     return { gelfigTemplate: 3, app: 'GelFigure ' + App.VERSION, gelType: App.gelKind(), lanes,
       // custom ladders travel with the template, so another computer gets the same Markers
       ladders: G.Ladders.defsFor(S.markers.map(m => m.ladderId)),
-      groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text })),
-      conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || '') })),
-      arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y) })),
+      groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text, pt: g.pt || null })),
+      conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || ''), pt: c.pt || null })),
+      arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y), pt: a.pt || null })),
       // side text travels as is; brackets by the sizes they span (positions differ between gels)
-      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos })),
-      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2) })).filter(b => b.bp1 && b.bp2),
+      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, pt: t.pt || null })),
+      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null })).filter(b => b.bp1 && b.bp2),
       // recorded for reference only: each gel is straightened on its own
       rotation: S.rotation,
       style: S.style };
@@ -1178,8 +1187,9 @@
     tl.forEach((l, k) => { const i = abs(k); S.lanes[i].name = l.name || ''; S.lanes[i].hidden = !!l.hidden; });
     const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto' }) : null)).filter(Boolean);
     if (mk.length) S.markers = mk;
-    S.groups = (t.groups || []).map(g => ({ from: abs(g.from), to: abs(g.to), text: g.text || '' }));
-    S.conditions = (t.conditions || []).map(c => ({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }));
+    const ptOf = o => (o && +o.pt > 0 ? { pt: +o.pt } : {});   // per-item font size, when the style has one
+    S.groups = (t.groups || []).map(g => Object.assign({ from: abs(g.from), to: abs(g.to), text: g.text || '' }, ptOf(g)));
+    S.conditions = (t.conditions || []).map(c => Object.assign({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }, ptOf(c)));
     S.style = Object.assign(defaultStyle(), t.style || {});
     App.fixIndices();
     App.matchMarkers(true);
@@ -1187,13 +1197,13 @@
       let y = S.crop.y + S.crop.h / 2;
       const b = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);
       if (a.bp && b.length >= 2) { const pred = predictY(a.bp, b); if (pred != null) y = pred; }
-      return { text: a.text, side: a.side, size: a.size !== false, sizeText: a.sizeText || '', sym: a.sym || 'arrow', y };
+      return Object.assign({ text: a.text, side: a.side, size: a.size !== false, sizeText: a.sizeText || '', sym: a.sym || 'arrow', y }, ptOf(a));
     });
-    S.labels = (t.labels || []).map(x => ({ text: x.text || '', pos: x.pos || 'left' }));
+    S.labels = (t.labels || []).map(x => Object.assign({ text: x.text || '', pos: x.pos || 'left' }, ptOf(x)));
     const mb = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);
     S.brackets = (t.brackets || []).map(b => {
       const y1 = mb.length >= 2 ? predictY(b.bp1, mb) : null, y2 = mb.length >= 2 ? predictY(b.bp2, mb) : null;
-      return y1 != null && y2 != null ? { y1, y2, text: b.text || '', side: b.side || '' } : null;
+      return y1 != null && y2 != null ? Object.assign({ y1, y2, text: b.text || '', side: b.side || '' }, ptOf(b)) : null;
     }).filter(Boolean);
     App.commit();
     return { importedLadders: imported };

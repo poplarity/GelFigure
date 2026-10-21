@@ -243,7 +243,15 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 
 /* ---------- floating editor / popover ---------- */
 .float-ed { position: fixed; z-index: 70; width: 140px; padding: 4px 8px !important; border: 1.5px solid var(--accent) !important; border-radius: 6px;
-  box-shadow: 0 6px 20px rgba(16,24,40,.22) !important; font-size: 13px; background: #fff; }
+  box-shadow: 0 6px 20px rgba(16,24,40,.22) !important; font-size: 13px; background: #fff; resize: none; overflow: hidden; line-height: 1.35; display: block; }
+/* under the text editor: size of what is being edited, line break for group labels */
+.fed-bar { position: fixed; z-index: 71; display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: #16202c; color: #fff; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(16,24,40,.25); font-size: 12px; white-space: nowrap; }
+.fed-bar button { border: none; background: rgba(255,255,255,.13); color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; min-height: 0; }
+.fed-bar button:hover { background: rgba(255,255,255,.24); }
+.fed-lbl { color: #b8c3d1; margin-right: 2px; }
+.fed-size { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
+.fed-hint { color: #8e9aab; margin-left: 4px; }
 .popover { position: fixed; z-index: 70; background: #fff; border-radius: var(--r); box-shadow: 0 10px 34px rgba(16,24,40,.25); padding: 12px; width: 250px; }
 .popover h4 { margin: 0 0 8px; font-size: 12.5px; }
 .popover .field { margin: 7px 0; }
@@ -360,6 +368,8 @@ html, body { height: 100dvh; }
 
   /* lane-name editor docked at the top (clear of the keyboard); popovers above the bottom bar or keyboard */
   #floatEd { left: 10px !important; right: 10px !important; width: auto !important; top: calc(var(--top) + 8px) !important; padding: 10px 12px !important; border-radius: 10px; font-size: 16px; }
+  #fedBar { left: 10px !important; right: 10px !important; padding: 6px 8px; gap: 6px; }
+  #fedBar button { padding: 7px 11px; font-size: 13px; }
   #popover { left: 8px !important; right: 8px !important; width: auto !important; top: auto !important; bottom: calc(max(var(--nav) + var(--sb), var(--kb)) + 8px) !important;
     max-height: calc(100dvh - var(--top) - 24px - max(var(--nav) + var(--sb), var(--kb))); overflow-y: auto; border-radius: 14px; padding: 14px; z-index: 75; }
   #popover h4 { font-size: 14px; }

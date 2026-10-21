@@ -79,6 +79,11 @@ const UI_CHECKS = [
   ['undo drops a selection that no longer exists', r => r.undoSel.selLane === -1 && r.undoSel.lanesBack],
   ['popover Delete removes its own arrow', r => JSON.stringify(r.popDel) === '["C"]'],
   ['a box starting in a cut lane keeps its width', r => r.cutBox.width != null && r.cutBox.width > 5],
+  ['long group labels never overlap (wrap / shrink / one line)', r => [r.groupFit.wrap, r.groupFit.shrink, r.groupFit.none].every(m => m.overlaps === 0)
+    && r.groupFit.wrap.lines[0] > 1 && r.groupFit.wrap.sizes[0] === 7 && r.groupFit.shrink.sizes[0] < 7 && r.groupFit.shrink.sizes[0] >= 5 && r.groupFit.none.lines[0] === 1],
+  ['typed line breaks, per-item and lane-name sizes, carried by templates', r => r.groupFit.manualBreak && r.groupFit.groupPt && r.groupFit.lanePt && r.groupFit.arrowPt && r.groupFit.tplKeeps],
+  ['pre-flight checks the smallest printed text', r => r.groupFit.preflightMin && r.groupFit.fixedTo6],
+  ['editor bar: ↵ breaks a group label, A+ sets its own size', r => r.groupFit.barEdit.barShown && r.groupFit.barEdit.text === 'A\nB' && r.groupFit.barEdit.pt === 8 && r.groupFit.barEdit.closed],
   ['DNA gel still detected after protein mode', r => r.dnaAfter.kind === 'dna' && r.dnaAfter.ladderKind === 'dna' && r.dnaAfter.unit !== 'kDa'],
   ['draft is saved and restored', r => r.draft && r.draft.restored && r.draftDropped]
 ];

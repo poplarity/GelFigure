@@ -83,11 +83,40 @@
     requestAnimationFrame(() => arrowPopover(k, prev.querySelector(`g[data-edit="arrow"][data-k="${k}"]`)));
   };
 
-  /* ---------- inline text editor ---------- */
+  /* ---------- inline text editor (with a size / line-break bar) ---------- */
   let edit = null;   // { kind, id, orig }
+  const bar = $('fedBar');
   const getVal = (kind, id) => kind === 'lane' ? S().lanes[id].name : kind === 'group' ? S().groups[id].text : S().conditions[id].name;
   const setVal = (kind, id, v) => { if (kind === 'lane') S().lanes[id].name = v; else if (kind === 'group') S().groups[id].text = v; else S().conditions[id].name = v; };
+  // font size of what is being edited: lane names share one size; a group label or a +/− row has its own
+  const sizeHost = () => (edit.kind === 'lane' ? { o: S().style, k: 'lanePt' } : { o: edit.kind === 'group' ? S().groups[edit.id] : S().conditions[edit.id], k: 'pt' });
+  const curSize = () => { const h = sizeHost(); return h.o[h.k] || S().style.fontPt; };
+  function setSize(v) {
+    const h = sizeHost();
+    if (v == null || v === S().style.fontPt) { if (h.k === 'pt') delete h.o.pt; else h.o[h.k] = null; }
+    else h.o[h.k] = clamp(Math.round(v * 2) / 2, 4, 14);
+    syncBar(); App.refresh();
+  }
+  function syncBar() {
+    if (!edit) return;
+    const own = sizeHost().o[sizeHost().k];
+    $('fedSizeLbl').textContent = edit.kind === 'lane' ? L('泳道名字号', 'Lane names') : edit.kind === 'group' ? L('字号', 'Size') : L('本行字号', 'Row size');
+    $('fedSize').textContent = curSize() + ' pt';
+    $('fedReset').classList.toggle('hidden', !own);
+    $('fedBr').classList.toggle('hidden', edit.kind !== 'group');
+    $('fedHint').textContent = edit.kind === 'group' && !coarse.matches ? L('Shift+Enter 换行', 'Shift+Enter: new line') : '';
+  }
+  function placeBar() {
+    const r = fed.getBoundingClientRect();
+    bar.classList.remove('hidden');
+    const below = r.bottom + 4 + bar.offsetHeight < innerHeight;
+    bar.style.left = clamp(r.left, 4, Math.max(4, innerWidth - bar.offsetWidth - 4)) + 'px';
+    bar.style.top = (below ? r.bottom + 4 : r.top - bar.offsetHeight - 4) + 'px';
+  }
+  // the textarea grows with typed line breaks (group labels only)
+  const autoRows = () => { fed.rows = Math.min(4, Math.max(1, fed.value.split('\n').length)); if (edit) placeBar(); };
   function openEd(kind, id) {
+    if (edit) closeEd(false);   // a previous editor whose blur has not been handled yet
     closePop();
     const el = prev.querySelector(kind === 'lane' ? `g[data-edit="lane"][data-src="${id}"]` : kind === 'group' ? `g[data-edit="group"][data-k="${id}"]` : `g[data-edit="condname"][data-r="${id}"]`);
     if (!el) return;
@@ -102,21 +131,33 @@
     fed.style.left = clamp(r.left + r.width / 2 - w / 2, 4, innerWidth - w - 4) + 'px';
     fed.style.top = clamp(r.top + r.height / 2 - 15, 56, innerHeight - 40) + 'px';
     fed.classList.remove('hidden');
+    fed.rows = 1; autoRows();
+    syncBar(); placeBar();
     fed.focus(); fed.select();
     if (kind === 'lane') { App.selLane = id; G.Editor.draw(); }
   }
+  // only a group label keeps line breaks; tidy spaces around them
+  const clean = (kind, v) => (kind === 'group'
+    ? v.split('\n').map(s => s.trim()).join('\n').replace(/\n{2,}/g, '\n').trim()
+    : v.replace(/\s*\n\s*/g, ' ').trim());
   function closeEd(revert) {
     if (!edit) return;
     const e = edit; edit = null;
     if (revert) setVal(e.kind, e.id, e.orig);
-    else setVal(e.kind, e.id, fed.value.trim());
-    fed.classList.add('hidden');
+    else setVal(e.kind, e.id, clean(e.kind, fed.value));
+    fed.classList.add('hidden'); bar.classList.add('hidden');
     App.commit();
   }
-  fed.addEventListener('input', () => { if (edit) { setVal(edit.kind, edit.id, fed.value); App.refresh(); } });
+  fed.addEventListener('input', () => {
+    if (!edit) return;
+    if (edit.kind !== 'group' && fed.value.includes('\n')) fed.value = fed.value.replace(/\n/g, ' ');   // pasted text
+    setVal(edit.kind, edit.id, fed.value); autoRows(); App.refresh();
+  });
   fed.addEventListener('keydown', e => {
     if (!edit || composing(e)) return;          // IME is choosing characters: Enter belongs to it
     if (e.key === 'Escape') { e.preventDefault(); closeEd(true); return; }
+    // Shift+Enter in a group label = a line break (the textarea inserts it)
+    if (e.key === 'Enter' && edit.kind === 'group' && (e.shiftKey || e.altKey)) return;
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       const { kind, id } = edit;
@@ -128,7 +169,21 @@
       }
     }
   });
-  fed.addEventListener('blur', () => { if (edit) closeEd(false); });
+  // leaving the field finishes the edit — unless the tap went to the size / line-break bar
+  let barPress = false;
+  fed.addEventListener('blur', () => { setTimeout(() => { if (edit && !barPress && document.activeElement !== fed) closeEd(false); }, 0); });
+  bar.addEventListener('pointerdown', e => { barPress = true; e.preventDefault(); setTimeout(() => { barPress = false; }, 800); });
+  bar.addEventListener('mousedown', e => e.preventDefault());   // keeps the focus (and the keyboard) in the text field
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('button[data-fz]');
+    barPress = false;
+    if (!b || !edit) return;
+    const k = b.dataset.fz;
+    if (k === '+' || k === '-') setSize(curSize() + (k === '+' ? 0.5 : -0.5));
+    else if (k === 'reset') setSize(null);
+    else if (k === 'br') { fed.setRangeText('\n', fed.selectionStart, fed.selectionEnd, 'end'); fed.dispatchEvent(new Event('input')); }
+    fed.focus();
+  });
 
   /* ---------- arrow popover ---------- */
   let popK = -1, popAnno = null;
@@ -141,6 +196,18 @@
     const pw = 250, ph = pop.offsetHeight;
     pop.style.left = clamp(r.right + 10 + pw > innerWidth ? r.left - pw - 10 : r.right + 10, 6, innerWidth - pw - 6) + 'px';
     pop.style.top = clamp(r.top - 20, 58, innerHeight - ph - 8) + 'px';
+  }
+
+  // this item's own font size; empty = the figure's font size
+  const ptField = (id, v) => `<div class="field inline"><label class="inline-label" for="${id}">${L('字号', 'Size')}</label>
+    <input type="number" id="${id}" min="4" max="14" step="0.5" class="num" placeholder="${S().style.fontPt}" value="${v || ''}"> pt
+    <span class="hint" style="margin:0">${L('留空 = 跟随全局字号', 'empty = figure font size')}</span></div>`;
+  function bindPt(inp, o) {
+    inp.addEventListener('input', () => {
+      const v = +inp.value;
+      if (inp.value !== '' && v >= 4 && v <= 14) o.pt = v; else if (inp.value === '') delete o.pt;
+      App.refresh();
+    });
   }
 
   /* ---------- box / bracket / side-text popover ---------- */
@@ -168,11 +235,12 @@
         <div class="field inline"><label class="inline-label">${L('位置', 'Position')}</label>${sel('qPos', [['left', L('左侧竖排', 'Left, vertical')], ['right', L('右侧竖排', 'Right, vertical')], ['below', L('胶图下方', 'Below the gel')]], a.pos || 'left')}</div>
         <p class="hint">${L('用于注明染色方法、抗体或曝光时间。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. *italic* works as in lane names.')}</p>`;
     }
-    pop.innerHTML = `<h4>${title}</h4>${body}
+    pop.innerHTML = `<h4>${title}</h4>${body}${ptField('qPt', a.pt)}
       <div class="actions"><button class="btn sm danger" id="qDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="qOk">${L('完成', 'Done')}</button></div>`;
     placePop(anchor);
     const upd = () => App.refresh();
     const q = id => pop.querySelector('#' + id);
+    bindPt(q('qPt'), a);
     q('qText').addEventListener('input', e => { a.text = e.target.value; upd(); G.Editor.draw(); });
     q('qText').addEventListener('keydown', e => { if (e.key === 'Enter' && !composing(e)) closePop(); });
     if (q('qDash')) q('qDash').addEventListener('change', e => { a.dash = e.target.value === '1'; upd(); G.Editor.draw(); });
@@ -210,6 +278,7 @@
       <div class="field inline"><label class="inline-label">${L('位置', 'Side')}</label>
         <select id="pSide" style="width:auto"><option value="">${L('自动', 'Auto')}</option><option value="right">${L('右侧', 'Right')}</option><option value="left">${L('左侧', 'Left')}</option></select>
         <span class="hint" style="margin:0">${L('上下位置在原图上拖品红线', 'Drag the magenta line on the image to move it')}</span></div>
+      ${ptField('pPt', a.pt)}
       <div class="actions"><button class="btn sm danger" id="pDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="pOk">${L('完成', 'Done')}</button></div>`;
     pop.querySelector('#pSide').value = a.side || '';
     pop.querySelector('#pSym').value = a.sym || 'arrow';
@@ -226,6 +295,7 @@
     pop.querySelector('#pSize').addEventListener('change', e => { a.size = e.target.checked; upd(); });
     pop.querySelector('#pSizeText').addEventListener('input', e => { a.sizeText = e.target.value.trim(); if (a.sizeText) { a.size = true; pop.querySelector('#pSize').checked = true; } upd(); });
     pop.querySelector('#pSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
+    bindPt(pop.querySelector('#pPt'), a);
     pop.querySelector('#pOk').onclick = closePop;
     pop.querySelector('#pDel').onclick = () => { const i = S().arrows.indexOf(a); if (i >= 0) S().arrows.splice(i, 1); App.selArrow = -1; popK = -1; pop.classList.add('hidden'); App.commit(); };
     if (!coarse.matches) setTimeout(() => pop.querySelector('#pName').focus(), 0);
@@ -316,7 +386,7 @@
 
   // drop open editors without writing them back (undo, redo, a new image): they belong to the old state
   function reset() {
-    if (edit) { edit = null; fed.classList.add('hidden'); }
+    if (edit) { edit = null; fed.classList.add('hidden'); bar.classList.add('hidden'); }
     if (popK >= 0 || popAnno) { popK = -1; popAnno = null; pop.classList.add('hidden'); }
   }
   App.on(w => { if (w === 'loaded') reset(); });
