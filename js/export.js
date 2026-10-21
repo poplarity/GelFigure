@@ -4,6 +4,11 @@
   'use strict';
 
   function download(blob, name) {
+    // phones hand the file over differently (long-press save, share sheet): see mobile.js
+    if (G.Export && typeof G.Export.deliver === 'function' && G.Export.deliver(blob, name)) return;
+    saveAs(blob, name);
+  }
+  function saveAs(blob, name) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name;
@@ -273,5 +278,5 @@
     return h;
   }
 
-  G.Export = { download, exportPNG, exportTIFF, exportSVG, exportUncropped, exportOriginal, processingLog, legendHints, svgToCanvas, encodeTiffGray, pngDecorate };
+  G.Export = { download, saveAs, deliver: null, exportPNG, exportTIFF, exportSVG, exportUncropped, exportOriginal, processingLog, legendHints, svgToCanvas, encodeTiffGray, pngDecorate };
 })(window);

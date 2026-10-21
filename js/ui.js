@@ -11,6 +11,11 @@
   const live = fn => e => { if (!S()) return; fn(e); App.refresh(); };
   const done = fn => e => { if (!S()) return; if (fn) fn(e); App.commit(); };
   const list = a => a.join(L('、', ', '));
+  // phone layout (tabs instead of side-by-side panes; mobile.js). Must match the @media rule in style.css
+  const phoneMq = matchMedia('(max-width: 900px), (max-height: 520px) and (pointer: coarse)');
+  const isPhone = () => phoneMq.matches;
+  // where things are, in words that fit the layout on screen
+  const P = (desk, ph) => (isPhone() ? ph : desk);
 
   function storageNotice() {
     document.querySelectorAll('.storage-note').forEach(el => el.classList.toggle('hidden', G.PrefStorage.persistent));
@@ -57,6 +62,8 @@
     if (!files.length) return;
     const proj = files.find(f => /\.gelfig$/i.test(f.name));
     if (proj) return openProject(proj);
+    // phones: very large camera photos are scaled to what a phone browser can draw (mobile.js)
+    if (G.Mobile && G.Mobile.fitPhotos) files = await G.Mobile.fitPhotos(files);
     await App.load(files.length > 1 ? files : files[0]);
     if (!S()) return;
     const r = range(), n = r ? r[1] - r[0] + 1 : 0, nw = S().lanes.length, nm = S().markers.length;
@@ -623,12 +630,20 @@
     if (firstTodo >= 0 && secs[firstTodo]) secs[firstTodo].classList.add('todo');
     // coach: the single most useful next step
     let msg, ok = false;
-    if (!r) msg = L('在原图上拖红框，或在左侧"出图范围"选择泳道', 'Drag the red box on the image, or choose wells under "Lanes in figure"');
-    else if (named < fl.length) msg = L(`下一步：在右侧成图上<b>点灰色的泳道号</b>输入名称，回车跳到下一条（还差 ${fl.length - named} 条）`,
-      `Next: <b>click a grey lane number</b> on the figure and type its name; Enter moves on (${fl.length - named} to go)`);
-    else if (!visMk.length) msg = L('出图范围里没有 Marker：左侧第 4 步把 Marker 泳道加上', 'No marker in the figure: add the marker lane in step 4 on the left');
+    if (!r) msg = P(L('在原图上拖红框，或在左侧"出图范围"选择泳道', 'Drag the red box on the image, or choose wells under "Lanes in figure"'),
+      L('在「原图」页拖红框，或在「设置 → 出图范围」选择泳道', 'Drag the red box on the Image tab, or choose wells under Settings → Lanes in figure'));
+    else if (named < fl.length) msg = P(L(`下一步：在右侧成图上<b>点灰色的泳道号</b>输入名称，回车跳到下一条（还差 ${fl.length - named} 条）`,
+      `Next: <b>click a grey lane number</b> on the figure and type its name; Enter moves on (${fl.length - named} to go)`),
+      L(`下一步：在「成图」页<b>点灰色泳道号</b>输入名称，键盘上的“下一项”跳到下一条（还差 ${fl.length - named} 条）`,
+        `Next: on the Figure tab <b>tap a grey lane number</b> and type; the keyboard’s Next key moves on (${fl.length - named} to go)`));
+    else if (!visMk.length) msg = P(L('出图范围里没有 Marker：左侧第 4 步把 Marker 泳道加上', 'No marker in the figure: add the marker lane in step 4 on the left'),
+      L('出图范围里没有 Marker：在「设置」第 4 步把 Marker 泳道加上', 'No marker in the figure: add the marker lane in Settings, step 4'));
     else if (lowMk.length) msg = L(`孔 ${lowMk[0].lane + 1} 的 Marker 与所选 Ladder 吻合度低，<b>请核对型号</b>`, `The marker in well ${lowMk[0].lane + 1} fits the chosen ladder poorly — <b>check the ladder</b>`);
-    else { msg = L('已可导出 —— 右上角<b>导出 PNG</b>；需要分组、箭头、+/− 时用左侧"标注"', 'Ready — <b>Export PNG</b> at the top right; add groups, arrows or +/− rows under "Annotations"'); ok = true; }
+    else {
+      msg = P(L('已可导出 —— 右上角<b>导出 PNG</b>；需要分组、箭头、+/− 时用左侧"标注"', 'Ready — <b>Export PNG</b> at the top right; add groups, arrows or +/− rows under "Annotations"'),
+        L('已可导出 —— 点右下角<b>导出</b>；分组、箭头、+/− 在「设置 → 标注」', 'Ready — tap <b>Export</b> at the bottom right; groups, arrows and +/− rows are under Settings → Annotations'));
+      ok = true;
+    }
     $('coachText').innerHTML = msg;
     $('coach').classList.toggle('done', ok);
     $('imgChip').classList.toggle('warn', st.saturatedInCrop > 0);
@@ -695,6 +710,7 @@
 
   /* ---------- preview ---------- */
   let lastFig = null, buildMs = 0, lastLive = 0, liveTimer = 0;
+  let figZoom = 1;   // × the fitted size; the phone's zoom button reads small labels this way
   // live updates while dragging: skip frames when building the figure is slow (large images),
   // always finishing with a final render shortly after the last input
   function livePreview() {
@@ -712,7 +728,8 @@
     lastFig = f;
     $('preview').innerHTML = f.svg;
     const svg = $('preview').querySelector('svg'), box = $('previewBox').getBoundingClientRect();
-    const k = Math.max(0.5, Math.min((box.width - 48) / f.w, (box.height - 48) / f.h, 4));
+    const pad = 2 * (parseFloat(getComputedStyle($('preview')).paddingLeft) || 24);
+    const k = Math.max(0.5, Math.min((box.width - pad) / f.w, (box.height - pad) / f.h, 4)) * figZoom;
     svg.removeAttribute('width'); svg.removeAttribute('height');
     svg.style.width = (f.w * k) + 'px'; svg.style.height = (f.h * k) + 'px';
     $('figSize').textContent = `${(f.w / G.Render.MM).toFixed(1)} × ${(f.h / G.Render.MM).toFixed(1)} mm`;
@@ -731,46 +748,10 @@
     if (favKind !== App.gelKind()) { favKind = App.gelKind(); renderFavs(); }
   }
 
-  // ---------- phone layout only (≤ 900 px; see style.css) ----------
-  const mqMobile = matchMedia('(max-width: 900px)');
-  const isMobile = () => mqMobile.matches;
-  function setView(v) {
-    document.body.classList.remove('view-raw', 'view-fig', 'view-panel');
-    document.body.classList.add('view-' + v);
-    document.body.classList.toggle('pnl-closed', v !== 'panel');
-    document.body.classList.toggle('tabs-hidden', v === 'panel');
-    $('viewTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
-    if (S() && (v === 'fig' || v === 'raw')) requestAnimationFrame(() => { updatePreview(); drawHisto(); if (v === 'raw') G.Editor.resize(); });
-  }
-  function mobileSync() {
-    const has = !!S();
-    document.body.classList.toggle('has-image', has);
-    $('btnPanel').style.display = isMobile() && has ? 'inline-block' : 'none';
-    if (!isMobile()) { document.body.classList.remove('view-raw', 'view-fig', 'view-panel', 'pnl-closed', 'tabs-hidden'); return; }
-    if (!has) { document.body.classList.remove('view-raw', 'view-fig'); document.body.classList.add('view-panel'); document.body.classList.add('tabs-hidden'); }
-    else if (!document.body.className.match(/view-(raw|fig|panel)/)) setView('fig');
-    $('panelClose').style.display = isMobile() && has ? 'inline-block' : 'none';
-    $('btnMobileFull').onclick = () => { setView('raw'); G.Editor.fitFull(); };
-    $('btnMobileCrop').onclick = () => { setView('raw'); G.Editor.fitCrop(); };
-    $('btnResetAllMobile').onclick = () => { App.resetAll(); setView('raw'); };
-    $('btnUndoM').onclick = () => App.undo();
-    $('btnRedoM').onclick = () => App.redo();
-    $('btnPNGm').onclick = () => $('btnPNG').click();
-    $('btnSaveProjM').onclick = () => $('btnSaveProj').click();
-    $('btnOpenProjM').onclick = () => $('projInputM').click();
-    $('projInputM').onchange = e => { const f = e.target.files[0]; if (f) openProject(f); e.target.value = ''; };
-  }
-  $('viewTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
-  $('panelClose').onclick = () => setView('fig');
-  $('btnPanel').onclick = () => setView(document.body.classList.contains('view-panel') ? 'fig' : 'panel');
-  mqMobile.addEventListener('change', mobileSync);
-
   App.on(what => {
     if (!S()) return;
     if (what === 'loaded') {
       $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden');
-      if (isMobile()) setView('fig');   // land on the figure so you see what was detected
-      mobileSync();
       histCache = null; renderExposures();
       // lanes that had to be re-spaced because neighbours ran together: worth a look before naming
       if (App.laneNotice) toast(App.laneNotice, 6000);
@@ -778,22 +759,26 @@
       const det = App.gelDetection;
       if (det && !det.manual) {
         const pct = Math.round((det.confidence || 0) * 100);
-        if (App.gelKind() === 'protein') toast(L(`识别为蛋白胶（${pct}%）：Marker 按 kDa 标注。不是蛋白胶？在左侧第 1 步切换。`,
-          `Read as a protein gel (${pct}%): marker sizes in kDa. Not protein? Switch in step 1 on the left.`), 5200);
+        if (App.gelKind() === 'protein') toast(P(L(`识别为蛋白胶（${pct}%）：Marker 按 kDa 标注。不是蛋白胶？在左侧第 1 步切换。`,
+          `Read as a protein gel (${pct}%): marker sizes in kDa. Not protein? Switch in step 1 on the left.`),
+          L(`识别为蛋白胶（${pct}%）：Marker 按 kDa 标注。不是蛋白胶？在「设置」第 1 步切换。`,
+            `Read as a protein gel (${pct}%): marker sizes in kDa. Not protein? Switch in Settings, step 1.`)), 5200);
         else if (pct >= 60) toast(L(`识别为 DNA 胶（${pct}%）：Marker 按 bp 标注`, `Read as a DNA gel (${pct}%): marker sizes in bp`), 3200);
       }
     }
     if (what === 'refresh') { livePreview(); return; }
-    if (what === 'change' || what === 'select') mobileSync();
     clearTimeout(liveTimer);
  if (what === 'select') { renderLanes(); renderAnno(); return; }
     syncControls(); renderPanel(); updateStatus(); updatePreview();
   });
   window.addEventListener('resize', () => { if (S()) { updatePreview(); drawHisto(); } });
 
-  G.UI = { toast, updatePreview, figLanes, range, esc, lastFig: () => lastFig, preflight, renderExposures };
+  G.UI = {
+    toast, updatePreview, figLanes, range, esc, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
+    figZoom: () => figZoom,
+    setFigZoom(z) { figZoom = z; if (S()) updatePreview(); }
+  };
   $('btnUndo').disabled = $('btnRedo').disabled = true;
-  mobileSync();
   offerDraft();
 
   /* ---------- development / self-test URL parameters ----------

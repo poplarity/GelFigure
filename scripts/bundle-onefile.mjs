@@ -18,11 +18,14 @@ html = html.replace(/<link rel="stylesheet" href="css\/[^"]+"\s*\/?>/g, `<style>
 
 // inline scripts in the same order as index.html
 // script order must match index.html exactly
-for (const f of ['storage', 'i18n', 'tiff', 'ladders', 'engine', 'render', 'export', 'demo', 'app', 'editor', 'ui', 'figedit']) {
+for (const f of ['storage', 'i18n', 'tiff', 'ladders', 'engine', 'render', 'export', 'demo', 'app', 'editor', 'ui', 'figedit', 'mobile']) {
   const code = read(path.join(root, 'js', f + '.js'));
   const tag = new RegExp(`<script src="js/${f}\\.js"><\\/script>`, 'g');
   html = html.replace(tag, `<script>/* js/${f}.js */\n${code}\n</script>`);
 }
+// a script added to index.html but not to the list above would silently be missing from the single file
+const left = html.match(/<script src="js\/(?!uitest)[^"]+"><\/script>/g);
+if (left) { console.error('not inlined:', left.join(' ')); process.exit(1); }
 
 // test scripts (test/test.html loads uitest.js too): inline if present
 if (html.includes('js/uitest.js')) {

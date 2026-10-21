@@ -2,6 +2,7 @@
 /* Runs GelFigure's two self-tests in real browsers through Playwright:
  *   test/test.html                       engine: TIFF decoding, deskew, crop, lanes, ladders, rendering
  *   index.html?demo=1&uitest=1&draft=1    interface: editing, rotation, lane removal, exports, projects, drafts…
+ *   tests/mobile.mjs                      phone layout and touch (emulated phone per engine), desktop unchanged
  * The app is served from a throw-away local HTTP server (no network access is needed).
  * Usage: node tests/run.mjs [--browser=chromium,firefox,webkit] [--channel=msedge] */
 import http from 'node:http';
@@ -11,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { startupChecks } from './startup.mjs';
+import { mobileChecks } from './mobile.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -90,6 +92,9 @@ async function runIn(name, base) {
     const startup = await startupChecks(browser, base, ROOT);
     out.results.push(...startup);
     if (startup.some(r => r[0] === 'FAIL')) out.ok = false;
+    const mobile = await mobileChecks(browser, base, name);
+    out.results.push(...mobile);
+    if (mobile.some(r => r[0] === 'FAIL')) out.ok = false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];

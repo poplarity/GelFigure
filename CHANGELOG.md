@@ -4,6 +4,22 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- **手机端完整可用**：底部导航切换原图 / 成图 / 设置，右下角「导出」提供 PNG、TIFF、SVG、未裁切图、原始数据、处理日志和保存项目，可选 300 / 600 / 1200 dpi 并提示像素尺寸。顶部恢复撤销 / 重做，⋯ 里有打开、样式、说明和语言。
+- **导出后长按保存**：手机上导出的 PNG 直接显示成图片，长按即可存到相册或发给朋友（微信内也可用）；支持系统分享时可存到「文件」。
+- **原图手势**：双指缩放、拖动；点泳道线或泳道号选中后，底部按钮可微调（按住连续移动）、剪除、删除；双击或「＋ 泳道」加泳道。
+- **成图**：泳道名输入框固定在顶部，键盘「下一项」跳到下一条；「放大」看清小字；分组横线改为依次点首尾泳道名。
+- 横屏、刘海屏安全区、键盘遮挡都做了适配；桌面版不变。
+
+### Added
+- **Phone layout, reworked.** A bottom bar switches between Image, Figure and Settings, with **Export** at the bottom right; a one-line coach under the top bar names the next step; undo / redo are back on the top bar and a **⋯** sheet holds open image / project, save project, styles, help, language and reset. Landscape phones get compact bars; safe-area insets are respected.
+- **Export sheet on phones** with every format (PNG, TIFF, SVG, uncropped image, original data, processing log, project), the resolution, the resulting pixel size and a warning when a phone browser could not draw the canvas.
+- **Exported files on phones** open in a sheet instead of a silent download: a PNG is shown as a picture that can be long-pressed into Photos (a `data:` URL, so it also works inside WeChat, where downloads do not), plus the system share sheet where available and a plain download. Inside WeChat the sheet explains how to open the page in a browser for other formats.
+- **Touch editing on the image**: pinch to zoom and pan; finger-sized hit areas; the lane number chips select (and drag) their lane; a selection bar nudges (hold to repeat), cuts / restores or deletes a lane, or edits / deletes a target-band arrow — what Delete, `H` and the arrow keys do on a computer. Double-tap or **+ Lane** adds a lane. One-tap tools act on a clean tap, so the image can still be panned and zoomed first.
+- **Touch editing on the figure**: the lane-name editor is docked at the top with a **Next** key on the on-screen keyboard; popovers sit above the bottom bar and the keyboard and no longer pop the keyboard up by themselves; **Zoom in** enlarges the figure for small labels; group lines are made by tapping the first and the last lane name.
+- **Phone wording** for the start screen, coach line, hints and help (no "drag here", "on the left" or keyboard shortcuts on a phone), and photo / camera input on the file picker.
+- `tests/mobile.mjs`: phone checks in every engine (emulated Pixel / iPhone), a WeChat check, and a desktop check that exports still download directly.
+
 ### Documentation
 - Put the single-file HTML download first in both READMEs, add illustrated English/Chinese opening guides, and explain how to save and reopen a project. The start screen, help dialog and future release notes also explain the one-file workflow. ZIP/source instructions are reserved for source users.
 

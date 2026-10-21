@@ -9,15 +9,24 @@
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   const fed = $('floatEd'), pop = $('popover'), prev = $('preview');
   const composing = e => e.isComposing || e.keyCode === 229;
+  const coarse = matchMedia('(pointer: coarse)');
+  const phone = () => !!(G.UI && G.UI.isPhone());
+  let groupStart = null;   // touch: first lane name tapped for a group line
 
   /* ---------- modes ---------- */
   function setMode(m) {
     App.mode = m;
+    groupStart = null;
     $('modeBanner').classList.toggle('hidden', !m);
+    // on a phone the image is a tab of its own, not "on the left"
     $('modeText').textContent = m === 'arrow' ? L('点击目标条带（原图或成图上都行），自动吸附并估算大小', 'Click the target band (on either image); it snaps to the band and estimates the size')
-      : m === 'group' ? L('在成图上从第一个泳道名拖到最后一个，松开即生成分组横线', 'Drag from the first to the last lane name on the figure; release to create the group line')
-      : m === 'box' ? L('在左侧原图上按住拖出一个矩形，框住要强调的条带', 'On the image on the left, drag a rectangle around the bands to highlight')
-      : m === 'bracket' ? L('在左侧原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'On the image on the left, drag from top to bottom over the region the bracket covers (smear, oligomers …)') : '';
+      : m === 'group' ? (coarse.matches ? L('依次点第一个和最后一个泳道名，生成分组横线', 'Tap the first lane name, then the last, to make the group line')
+        : L('在成图上从第一个泳道名拖到最后一个，松开即生成分组横线', 'Drag from the first to the last lane name on the figure; release to create the group line'))
+      : m === 'box' ? (phone() ? L('在原图上按住拖出一个矩形，框住要强调的条带', 'Drag a rectangle on the image around the bands to highlight')
+        : L('在左侧原图上按住拖出一个矩形，框住要强调的条带', 'On the image on the left, drag a rectangle around the bands to highlight'))
+      : m === 'bracket' ? (phone() ? L('在原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'Drag from top to bottom on the image over the region the bracket covers (smear, oligomers …)')
+        : L('在左侧原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'On the image on the left, drag from top to bottom over the region the bracket covers (smear, oligomers …)'))
+      : m === 'lane' ? L('点一下要加泳道的位置（红框内）', 'Tap where the new lane goes (inside the red box)') : '';
     $('btnAddArrow').classList.toggle('on', m === 'arrow');
     $('btnAddGroup').classList.toggle('on', m === 'group');
     $('btnAddBox').classList.toggle('on', m === 'box');
@@ -86,6 +95,8 @@
     edit = { kind, id, orig: getVal(kind, id) || '' };
     fed.value = edit.orig;
     fed.placeholder = kind === 'lane' ? L(`孔 ${id + 1} 名称`, `Well ${id + 1} name`) : kind === 'group' ? L('分组文字', 'Group label') : L('条件名', 'Condition name');
+    // the on-screen keyboard labels Enter "Next" while lane names are filled in one after another
+    fed.setAttribute('enterkeyhint', kind === 'lane' ? 'next' : 'done');
     const w = Math.max(120, Math.min(240, r.width + 50));
     fed.style.width = w + 'px';
     fed.style.left = clamp(r.left + r.width / 2 - w / 2, 4, innerWidth - w - 4) + 'px';
@@ -171,7 +182,8 @@
     q('qOk').onclick = closePop;
     // by identity: other items may have been deleted while the popover was open
     q('qDel').onclick = () => { const i = list.indexOf(a); if (i >= 0) list.splice(i, 1); App.selAnno = null; popAnno = null; pop.classList.add('hidden'); App.commit(); };
-    setTimeout(() => q('qText').focus(), 0);
+    // a touch keyboard would cover the options: let the user tap the text field when wanted
+    if (!coarse.matches) setTimeout(() => q('qText').focus(), 0);
   }
   function arrowPopover(k, anchor) {
     const a = S().arrows[k];
@@ -216,7 +228,7 @@
     pop.querySelector('#pSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
     pop.querySelector('#pOk').onclick = closePop;
     pop.querySelector('#pDel').onclick = () => { const i = S().arrows.indexOf(a); if (i >= 0) S().arrows.splice(i, 1); App.selArrow = -1; popK = -1; pop.classList.add('hidden'); App.commit(); };
-    setTimeout(() => pop.querySelector('#pName').focus(), 0);
+    if (!coarse.matches) setTimeout(() => pop.querySelector('#pName').focus(), 0);
   }
   document.addEventListener('mousedown', e => {
     if (!e.target.closest) { if (popK >= 0 || popAnno) closePop(); return; }
@@ -237,8 +249,15 @@
     if (!S()) return;
     const g = e.target.closest('[data-edit]');
     if (!g) return;
-    if (g.dataset.edit === 'lane') { press = { src: +g.dataset.src, x: e.clientX, y: e.clientY, moved: false, end: +g.dataset.src }; e.preventDefault(); }
+    if (g.dataset.edit === 'lane') { press = { src: +g.dataset.src, x: e.clientX, y: e.clientY, moved: false, end: +g.dataset.src, touch: e.pointerType === 'touch' }; e.preventDefault(); }
   });
+  function makeGroup(a, b) {
+    S().groups.push({ from: Math.min(a, b), to: Math.max(a, b), text: '' });
+    const k = S().groups.length - 1;
+    setMode(null);
+    App.commit();
+    requestAnimationFrame(() => openEd('group', k));
+  }
   window.addEventListener('pointermove', e => {
     if (!press) return;
     if (e.cancelable) e.preventDefault();
@@ -248,16 +267,24 @@
   window.addEventListener('pointerup', e => {
     if (!press) return;
     const p = press; press = null;
+    if (App.mode === 'group' && p.touch && !p.moved) {
+      // a finger scrolls the figure instead of dragging across names: tap the first, then the last
+      if (groupStart == null) {
+        groupStart = p.src; highlight(p.src, p.src);
+        $('modeText').textContent = L('再点最后一个泳道名', 'Now tap the last lane name');
+        return;
+      }
+      const a = groupStart; groupStart = null; highlight(null);
+      makeGroup(a, p.src);
+      return;
+    }
     highlight(null);
-    if ((p.moved && p.end !== p.src) || App.mode === 'group') {
-      // drag across lane names (or a click in group mode) = new group
-      S().groups.push({ from: Math.min(p.src, p.end), to: Math.max(p.src, p.end), text: '' });
-      const k = S().groups.length - 1;
-      setMode(null);
-      App.commit();
-      requestAnimationFrame(() => openEd('group', k));
-    } else if (!p.moved) openEd('lane', p.src);
+    // drag across lane names (or a click in group mode) = new group
+    if ((p.moved && p.end !== p.src) || App.mode === 'group') makeGroup(p.src, p.end);
+    else if (!p.moved) openEd('lane', p.src);
   });
+  // the browser took the touch for scrolling the figure
+  window.addEventListener('pointercancel', () => { if (press) { press = null; if (groupStart == null) highlight(null); } });
   prev.addEventListener('click', e => {
     if (!S()) return;
     const g = e.target.closest('[data-edit]');

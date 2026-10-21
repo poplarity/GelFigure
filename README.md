@@ -26,7 +26,7 @@ That one HTML file is the complete tool, including its layout and image-processi
 
 **Get the right file:** choose the release attachment named **GelFigure-v0.6.3.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
 
-**Keep your work:** use **File → Save project** before closing. On a phone this is in **Settings**. Your **.gelfig** file contains the original image and annotations; reopen it in GelFigure to continue.
+**Keep your work:** use **File → Save project** before closing. On a phone it is under **⋯** (or **Export → Save project**). Your **.gelfig** file contains the original image and annotations; reopen it in GelFigure to continue.
 
 **Prefer the website?** [Open GelFigure online](https://poplarity.github.io/GelFigure/). On phones and tablets, use this link in your browser; an HTML attachment preview in a messaging app may not run the tool.
 
@@ -68,6 +68,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Lane lines in two clicks**: if detection is off, drag the leftmost and rightmost lane lines onto their lanes and enter the lane count — the lanes in between are spaced evenly.
 - **Pre-flight check before export**: camera saturation, contrast clipping, effective resolution below 300 dpi, tiny fonts, extrapolated sizes, with one-click fixes.
 - **Reproducible**: project files (`.gelfig`) contain the original image and every setting; reusable style templates; an autosaved draft survives a page reload.
+- **Works on a phone**: a bottom bar switches between Image, Figure and Settings; **Export** offers every format and resolution. Pinch to zoom the image, tap a lane to nudge, cut or delete it, double-tap to add one. An exported PNG opens as a picture you long-press to save to Photos (this also works inside WeChat, which cannot download files) or send through the share sheet.
 - **Bilingual interface**: English and Chinese, switchable at any time. Figures are always in English.
 
 ## Versions

@@ -274,82 +274,178 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .muted { color: var(--muted); } .small { font-size: 11.5px; }
 @media (max-width: 1250px) { #panel { width: 280px; } .coach { display: none; } .col-sub { display: none; } }
 
-/* ---------- phone (≤ 900 px): single column, tabbed views, settings drawer ---------- */
+/* ---------- phone and touch ---------- */
 
-/* dynamic viewport height guards (safe on desktop: 100% is valid for both) */
+/* the visible height on phones (the browser bars come and go); on a desktop the same as 100% */
 html, body { height: 100dvh; }
-body { overflow: hidden; touch-action: manipulation; }
+.m-coach, #mNav { display: none; }
 
-/* bigger, finger-friendly targets appear as soon as touch is used */
-@media (hover: none) and (pointer: coarse) {
-  #editorBox { touch-action: none; }           /* pan/zoom are drawn by hand; no scroll fighting */
-  #previewBox { touch-action: pan-x pan-y; }   /* scrollable figure area; lane drags handled as pointers */
-  #preview svg { touch-action: none; }         /* figure edits don't scroll while dragging */
+/* desktop = everything outside the phone query below (ui.js phoneMq uses the same query) */
+@media (min-width: 901px) and (min-height: 521px), (min-width: 901px) and (pointer: fine), (min-width: 901px) and (pointer: none) {
+  .m-only { display: none !important; }
+}
+
+/* any touch screen (phones, tablets): finger-sized targets; no page zoom fighting the editors */
+@media (pointer: coarse) {
+  body { touch-action: pan-x pan-y; }
+  #editorBox { touch-action: none; }            /* pinch, pan and drags on the image are handled by hand */
+  #editor, #preview svg { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #preview svg { touch-action: pan-x pan-y; }   /* taps edit; a swipe scrolls a zoomed figure */
   #preview svg .ed, #preview svg g[data-edit="cond"], #preview svg g[data-edit="arrow"] { cursor: pointer; }
-  .btn, .seg button { min-height: 36px; }
-  input[type=number], input[type=text], select, textarea { font-size: 16px; }  /* iOS: no zoom on focus */
-  input[type=range]::-webkit-slider-thumb { width: 24px; height: 24px; }
-  .item { padding: 6px 6px; }
-  .dialog-full .dlg-body { margin: 12px; max-width: none; width: calc(100vw - 24px); }
+  .btn, .seg button { min-height: 38px; }
+  .btn.sm { min-height: 34px; padding: 5px 11px; }
+  input[type=number], input[type=text], select, textarea { font-size: 16px; min-height: 36px; }  /* iOS: no zoom on focus */
+  input[type=range] { height: 6px; }
+  input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; }
+  input[type=range]::-moz-range-thumb { width: 24px; height: 24px; }
+  .switch { font-size: 13px; min-height: 30px; }
+  .switch input, .fav-row input { width: 20px; height: 20px; }
+  .item { padding: 6px; min-height: 40px; }
+  .item .x { font-size: 20px; padding: 6px 10px; }
+  .item .star, .mk-card .star { font-size: 20px; padding: 4px 8px; }
+  .adv > summary { padding: 8px 0; }
+  .tool { padding: 11px 6px; }
+  #laneList .idx { min-width: 30px; padding: 6px 0; }
 }
 
-#panelClose, #btnPanel { display: none; }
+/* phone layout: one view at a time (Image / Figure / Settings) chosen in a bottom bar */
+@media (max-width: 900px), (max-height: 520px) and (pointer: coarse) {
+  :root { --top: 48px; --nav: 58px; --kb: 0px; --sb: env(safe-area-inset-bottom, 0px); }
+  .d-only { display: none !important; }
 
-@media (max-width: 900px) {
-  .topbar { height: 46px; gap: 8px; padding: 0 10px; }
-  .brand { font-size: 15px; }
-  .coach, .divider, #dpiTop { display: none; }  /* no room for the hint bar / export menu on the bar */
-  .topbar-right { gap: 5px; flex: none; margin-left: auto; flex-wrap: nowrap; overflow: visible; }
-  /* phone: only the essentials stay on the bar */
-  #btnUndo, #btnRedo, .menu-wrap, #btnHelp { display: none !important; }
-  #btnPanel { display: inline-block; }
-  #imgChipName { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .split .caret { padding: 6px 6px; }
+  /* top bar: image name, undo / redo, more */
+  .topbar { height: var(--top); gap: 8px; padding: 0 max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left)); }
+  .brand { font-size: 15px; flex: none; }
+  .chip { flex: 0 1 auto; min-width: 0; max-width: none; padding: 6px 12px; }
+  .coach, .divider, #dpiTop, .menu-wrap, #btnHelp, #btnLang { display: none !important; }
+  .topbar-right { margin-left: auto; gap: 6px; flex: none; }
+  .icon-btn { width: 38px; height: 36px; font-size: 18px; }
+  body:not(.has-image) #btnUndo, body:not(.has-image) #btnRedo { display: none; }
 
+  /* the next useful step */
+  body.has-image .m-coach { display: flex; }
+  .m-coach { flex: none; align-items: flex-start; gap: 9px; padding: 7px max(14px, env(safe-area-inset-left)); background: #1b2635; color: #c8d3e0; font-size: 12.5px; line-height: 1.45; }
+  .m-coach .coach-dot { margin-top: 5px; }
+  .m-coach.done .coach-dot { background: #37d67a; box-shadow: 0 0 0 4px rgba(55,214,122,.18); }
+  .m-coach b { color: #fff; }
+
+  /* views: the hidden ones keep their size (the image editor stays fitted) but are out of sight */
   #app { position: relative; overflow: hidden; }
-  /* settings panel becomes an overlay drawer over the work area */
-  #panel {
-    position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 40;
-    width: 100% !important; border-right: none; overflow-y: auto;
-    box-shadow: none; transition: transform .22s ease;
-  }
-  body.pnl-closed #panel { transform: translateX(-100%); pointer-events: none; }
-
-  /* the two work columns share the whole work area under the tab row; the body class picks one */
+  #panel { position: absolute; inset: 0; z-index: 20; width: 100% !important; border-right: none; overscroll-behavior: contain; }
+  body.has-image:not(.view-panel) #panel { display: none; }
   #stage { flex-direction: column; background: transparent; position: relative; }
-  .pane-col { position: absolute; top: 0; left: 0; right: 0; bottom: 0; flex-direction: column; }
-  #rawCol .col-head, #figCol .col-head { flex: none; }
-  /* tab bar sits inside the work area, above the panes, not over the topbar */
-  #viewTabs { position: absolute; top: 0; left: 0; right: 0; z-index: 30; padding: 6px 10px; background: #fff; border-bottom: 1px solid var(--line); display: none; }
-  body.has-image:not(.tabs-hidden) .pane-col { top: 48px; }   /* leaves room for the tab row */
-  body.view-raw #figCol, body.view-fig #rawCol { display: none; }
-  body.view-raw #rawCol, body.view-fig #figCol { display: flex; }
+  .pane-col { position: absolute; inset: 0; }
+  body:not(.view-raw) #rawCol, body:not(.view-fig) #figCol { visibility: hidden; pointer-events: none; }
+  .col-head { height: 42px; padding: 0 8px; gap: 6px; }
+  .col-sub { display: none; }
+  .col-head #btnAddLaneM.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #preview { padding: 12px; }
 
-  body.pnl-closed.has-image:not(.tabs-hidden) #viewTabs { display: block !important; }
-  #viewTabs .seg button { padding: 8px 10px; font-size: 14px; }
+  /* bottom bar */
+  body.has-image #mNav { display: flex; }
+  #mNav { flex: none; height: calc(var(--nav) + var(--sb)); padding: 0 env(safe-area-inset-right, 0px) var(--sb) env(safe-area-inset-left, 0px);
+    background: #fff; border-top: 1px solid var(--line); }
+  #mNav button { flex: 1; border: none; background: none; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    color: var(--muted); font-size: 11px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  #mNav svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  #mNav button.on { color: var(--accent); font-weight: 600; }
+  #mNav .m-exp-pill { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 16px 4px; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 600; }
+  #mNav .m-exp-pill svg { width: 21px; height: 21px; }
+  #mNav .m-export.ready .m-exp-pill { box-shadow: 0 0 0 4px rgba(47,111,235,.2); }
 
-  .col-head { height: 36px; padding: 0 8px; }
-  #preview { padding: 10px; }
-  #preview svg { max-width: calc(100vw - 20px); height: auto; }
-  .mode-banner { top: 8px; font-size: 12px; max-width: calc(100vw - 16px); white-space: normal; text-align: center; }
+  /* tool instructions (moved to <body> by mobile.js so the Image tab shows them too) */
+  body > #modeBanner { position: fixed; top: calc(var(--top) + 90px); left: 10px; right: 10px; transform: none; z-index: 45; white-space: normal;
+    justify-content: space-between; border-radius: 12px; padding: 8px 8px 8px 14px; font-size: 13px; line-height: 1.4; }
+  body > #modeBanner button { flex: none; padding: 7px 12px; }
 
-  /* floating editor / popover usable on a small screen */
-  #popover { position: fixed !important; left: 8px !important; right: 8px !important; width: auto !important; max-width: none; bottom: 8px !important; top: auto !important; }
-  #floatEd { font-size: 16px; }
+  /* lane-name editor docked at the top (clear of the keyboard); popovers above the bottom bar or keyboard */
+  #floatEd { left: 10px !important; right: 10px !important; width: auto !important; top: calc(var(--top) + 8px) !important; padding: 10px 12px !important; border-radius: 10px; font-size: 16px; }
+  #popover { left: 8px !important; right: 8px !important; width: auto !important; top: auto !important; bottom: calc(max(var(--nav) + var(--sb), var(--kb)) + 8px) !important;
+    max-height: calc(100dvh - var(--top) - 24px - max(var(--nav) + var(--sb), var(--kb))); overflow-y: auto; border-radius: 14px; padding: 14px; z-index: 75; }
+  #popover h4 { font-size: 14px; }
 
-  /* toasts and warnings must not fight the bottom bar */
-  #toasts { bottom: 64px; }
-  #warnings { right: 10px; bottom: 60px; max-width: calc(100vw - 20px); }
-  .dlg-body { margin: 10px; max-width: calc(100vw - 20px); max-height: calc(100dvh - 20px); padding: 18px 18px; }
+  /* messages: toasts above the bottom bar (clear of a warning or the selection bar), one warning on the Figure tab */
+  #toasts { bottom: calc(var(--nav) + var(--sb) + 76px); width: calc(100vw - 32px); }
+  .toast { border-radius: 12px; text-align: center; font-size: 13px; }
+  #warnings { left: 8px; right: 8px; bottom: calc(var(--nav) + var(--sb) + 8px); max-width: none; align-items: stretch; }
+  body:not(.view-fig) #warnings { display: none; }
+  #warnings div { font-size: 12.5px; }
+  #warnings div:not(:first-child) { display: none; }
+  #warnings div span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #warnings div.open span { display: block; }
+  #warnings div button { font-size: 18px; padding: 0 2px; }
 
-  /* panel content: a bit roomier list rows */
-  .sec { padding: 10px 10px 12px; }
+  /* dialogs slide up from the bottom */
+  .dlg { align-items: flex-end; }
+  .dlg-body { margin: 0; width: 100%; max-width: none; max-height: 90dvh; border-radius: 16px 16px 0 0; padding: 20px 18px calc(18px + var(--sb)); }
+  .pf { width: 100%; }
+  .pf-item { flex-wrap: wrap; }
+  .pf-actions { flex-wrap: wrap; }
+  .pf-actions .flex { display: none; }
+  .pf-actions .btn { flex: 1; }
+
+  /* settings and start screen */
+  .sec { padding: 12px 14px; }
   .list { max-height: none; }
+  .empty { padding: 30px 22px calc(30px + var(--sb)); }
+  .empty .btn { min-height: 46px; font-size: 15px; }
+  .expo-item { width: 84px; }
 }
 
-@media (min-width: 901px) {
-  body.pnl-closed #panel { transform: none; }
-  #viewTabs { display: none !important; }
-  #secMobile { display: none !important; }
+/* phone held sideways: shorter bars, no coach line */
+@media (max-height: 520px) and (pointer: coarse) {
+  :root { --top: 42px; --nav: 46px; }
+  body.has-image .m-coach { display: none; }
+  #mNav button { flex-direction: row; gap: 6px; font-size: 12.5px; }
+  #mNav .m-exp-pill { flex-direction: row; gap: 6px; padding: 4px 14px; }
+  body > #modeBanner { top: calc(var(--top) + 6px); }
+  #toasts { bottom: calc(var(--nav) + var(--sb) + 64px); }
 }
 
+/* bottom sheets (export, more, exported file) */
+.sheet-wrap { position: fixed; inset: 0; z-index: 88; display: flex; align-items: flex-end; justify-content: center; background: rgba(14,20,28,.45); animation: sheetFade .15s ease; }
+.sheet { width: 100%; max-width: 560px; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; background: #fff; border-radius: 18px 18px 0 0;
+  padding: 4px 14px calc(16px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgba(16,24,40,.25); animation: sheetIn .22s cubic-bezier(.2,.8,.2,1); }
+@keyframes sheetIn { from { transform: translateY(48px); opacity: .5; } to { transform: none; opacity: 1; } }
+@keyframes sheetFade { from { opacity: 0; } }
+.sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: #d6dbe1; margin: 8px auto 8px; }
+.sheet-head { display: flex; align-items: center; padding: 0 4px 6px; }
+.sheet-head h3 { flex: 1; margin: 0; font-size: 17px; }
+.sheet-x { width: 32px; height: 32px; border: none; border-radius: 50%; background: #f1f3f6; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+.sheet-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px 2px; }
+.sheet-row-label { font-size: 14px; font-weight: 600; }
+.sheet-row .seg button { min-width: 58px; font-size: 14px; }
+.sheet-info { margin: 4px 4px 6px; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.sheet-info .bad { color: var(--warn); font-weight: 600; }
+.sheet-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 6px; border: none; border-radius: 12px; background: none; color: var(--text);
+  font-size: 15px; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.sheet-item:hover, .sheet-item:active { background: #f3f5f8; }
+.sheet-item .si-ic { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; background: #eef2f8; color: var(--accent-dk); font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+.sheet-item .si-tx { flex: 1; min-width: 0; }
+.sheet-item small { display: block; margin-top: 2px; color: var(--faint); font-size: 12px; line-height: 1.4; }
+.sheet-item.primary .si-ic { background: var(--accent); color: #fff; }
+.sheet-item.primary .si-tx > span { font-weight: 700; }
+.sheet-item.danger { color: var(--danger); }
+.sheet-item.danger .si-ic { background: #fdecee; color: var(--danger); }
+.sheet-label { padding: 10px 6px 2px; font-size: 12px; font-weight: 600; color: var(--faint); }
+.sheet-sep { height: 1px; margin: 6px; background: var(--line); }
+.sheet-check { padding: 12px 6px 4px; font-size: 13.5px; }
+.sheet-note { margin: 10px 4px 0; padding: 10px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 12.5px; line-height: 1.55; }
+.sheet-foot { margin: 12px 6px 4px; font-size: 11.5px; line-height: 1.6; color: var(--faint); }
+.sheet-foot a { color: var(--accent); }
+.rs-file { padding: 0 4px 8px; font-size: 13px; word-break: break-all; }
+.rs-preview { display: flex; justify-content: center; margin: 0 0 8px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #f6f7f9; }
+/* long-press on the picture saves it (also inside WeChat, which cannot download files) */
+.rs-preview img { display: block; max-width: 100%; max-height: 44dvh; object-fit: contain; -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+.rs-actions { display: flex; gap: 8px; margin-top: 4px; }
+.rs-actions .btn { flex: 1; }
+.rs-done { width: 100%; margin-top: 10px; background: #f1f3f6; border-color: transparent; }
+
+/* touch selection bar on the image: nudge, cut, delete — what keys do on a computer */
+.sel-bar { position: absolute; left: 8px; right: 8px; bottom: 10px; z-index: 6; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px;
+  border-radius: 14px; background: #16202c; color: #fff; box-shadow: 0 8px 26px rgba(16,24,40,.3); }
+.sel-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.sel-btns { display: flex; gap: 4px; flex: none; }
+.sel-bar button { min-width: 40px; height: 38px; padding: 0 10px; border: none; border-radius: 10px; background: rgba(255,255,255,.13); color: #fff; font-size: 13px; cursor: pointer; touch-action: manipulation; }
+.sel-bar button.danger { background: rgba(255,90,90,.22); color: #ffc2c2; }
+.sel-bar button.x { min-width: 34px; padding: 0 6px; background: none; font-size: 18px; }

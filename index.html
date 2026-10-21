@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#131c29">
+<meta name="format-detection" content="telephone=no">
 <!-- Everything runs locally. This policy forbids the page from contacting any server other than its own origin (its own files), so images can never leave the computer. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="description" content="GelFigure: turn a raw DNA or protein gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
@@ -18,11 +20,11 @@
   <div class="topbar-right">
     <button class="icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)" data-en-title="Undo (Ctrl+Z)">↺</button>
     <button class="icon-btn" id="btnRedo" title="重做 (Ctrl+Shift+Z)" data-en-title="Redo (Ctrl+Shift+Z)">↻</button>
-    <button class="icon-btn" id="btnPanel" title="设置" data-en-title="Settings">☰</button>
+    <button class="icon-btn m-only" id="btnMore" title="更多" data-en-title="More" aria-label="更多">⋯</button>
     <div class="menu-wrap">
       <button class="btn ghost" id="btnTplMenu" data-en="File ▾">文件 ▾</button>
       <div class="menu hidden" id="tplMenu">
-        <label><span data-en="Open image…">打开图片…</span><small data-en="Select several exposures of one gel to pick the best automatically">可一次选多张同一块胶的不同曝光，自动挑最佳</small><input type="file" id="fileInput3" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp" multiple hidden></label>
+        <label><span data-en="Open image…">打开图片…</span><small data-en="Select several exposures of one gel to pick the best automatically">可一次选多张同一块胶的不同曝光，自动挑最佳</small><input type="file" id="fileInput3" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,image/*" multiple hidden></label>
         <label><span data-en="Open project…">打开项目…</span><small data-en=".gelfig project file (original image and all annotations)">.gelfig 项目文件（含原图和全部标注）</small><input type="file" id="projInput" accept=".gelfig,.json" hidden></label>
         <button id="btnSaveProj"><span data-en="Save project…">保存项目…</span><small data-en="Original image + every setting and annotation; continue on any computer">原图 + 全部参数和标注，可在任何电脑接着做</small></button>
         <div class="menu-sep"></div>
@@ -51,25 +53,29 @@
         <label class="menu-check"><input type="checkbox" id="preflightOn" checked> <span data-en="Check before export">导出前检查</span></label>
       </div>
     </div>
-    <input type="file" id="fileInput" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig" multiple hidden>
+    <input type="file" id="fileInput" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig,image/*" multiple hidden>
   </div>
 </header>
+<!-- phone: the next useful step, under the top bar -->
+<div id="mCoach" class="m-coach"><span class="coach-dot"></span><span id="mCoachText"></span></div>
 
 <div id="app">
   <aside id="panel">
-    <button class="btn sm ghost" id="panelClose" title="返回" data-en-title="Back">✕</button>
     <div class="empty" id="emptyState">
       <div class="empty-icon">▣</div>
-      <h2 data-en="Drop a gel image here">把胶图拖进来</h2>
-      <p data-en-html="<b>DNA / agarose gels and protein gels (SDS-PAGE, Coomassie or ECL)</b> — the type is recognised on import.<br>TIFF (16 / 8-bit), PNG or JPG from any imager or scanner.<br>Straightening, cropping, lanes and marker sizes are automatic — you only type the lane names and export."><b>DNA / 琼脂糖胶和蛋白胶（SDS-PAGE，考马斯亮蓝或 ECL）</b>都可以，导入时自动判断是哪种。<br>任意成像仪或扫描仪导出的 TIFF（16 / 8 位）、PNG、JPG 都能读。<br>转正、裁切、泳道、Marker 全部自动完成，你只需要填泳道名然后导出。</p>
-      <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig" multiple hidden></label>
+      <h2 class="d-only" data-en="Drop a gel image here">把胶图拖进来</h2>
+      <h2 class="m-only" data-en="Choose a gel image">选择一张胶图</h2>
+      <p class="d-only" data-en-html="<b>DNA / agarose gels and protein gels (SDS-PAGE, Coomassie or ECL)</b> — the type is recognised on import.<br>TIFF (16 / 8-bit), PNG or JPG from any imager or scanner.<br>Straightening, cropping, lanes and marker sizes are automatic — you only type the lane names and export."><b>DNA / 琼脂糖胶和蛋白胶（SDS-PAGE，考马斯亮蓝或 ECL）</b>都可以，导入时自动判断是哪种。<br>任意成像仪或扫描仪导出的 TIFF（16 / 8 位）、PNG、JPG 都能读。<br>转正、裁切、泳道、Marker 全部自动完成，你只需要填泳道名然后导出。</p>
+      <p class="m-only" data-en-html="<b>DNA gels and protein gels (SDS-PAGE)</b> — the type is recognised on import.<br>Pick a file or a photo, or take one; TIFF, PNG and JPG all work.<br>Straightening, lanes and markers are automatic — type the lane names and export."><b>DNA 胶和蛋白胶（SDS-PAGE）</b>都可以，导入时自动判断。<br>可从文件、相册选择，也可以直接拍照；TIFF、PNG、JPG 都能读。<br>转正、泳道、Marker 全自动，填好泳道名就能导出。</p>
+      <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig,image/*" multiple hidden></label>
       <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
-      <p class="hint" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
+      <p class="hint d-only" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
       <div id="draftBox" class="draft hidden">
         <div><span data-en="Unfinished figure from last time:">上次有未完成的图：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
         <div class="inline"><button class="btn sm primary" id="btnDraftRestore" data-en="Restore">恢复</button><button class="btn sm ghost" id="btnDraftDrop" data-en="Discard">丢弃</button></div>
       </div>
-      <p class="hint" data-en="You can drop several exposures of the same gel at once; the best one is picked automatically.">可以一次拖入同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
+      <p class="hint d-only" data-en="You can drop several exposures of the same gel at once; the best one is picked automatically.">可以一次拖入同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
+      <p class="hint m-only" data-en="You can pick several exposures of the same gel at once; the best one is chosen automatically.">可以一次选择同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
       <p class="privacy" data-en="Images are processed only in this browser and never uploaded.">图片只在本机浏览器处理，不会上传。</p>
       <p class="hint storage-note hidden" data-en="Browser storage is unavailable. You can still edit and export; preferences and custom ladders stay in this tab only. Save a project before closing.">浏览器存储不可用，仍可编辑和导出；偏好与自定义 Marker 仅在本页暂存，关闭前请保存项目。</p>
     </div>
@@ -163,7 +169,8 @@
         <details class="adv" id="laneAdv">
           <summary><span data-en="Each lane: remove / rename / adjust">逐条泳道：剪除 / 改名 / 微调</span><span class="h3-note" id="laneCountNote"></span></summary>
           <div id="laneList" class="list"></div>
-          <p class="hint" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the image: drag a lane line sideways, double-click to add a lane, select one and press <code>Delete</code> / <code>⌫</code> to delete it, <code>H</code> to cut / restore it.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。原图上：左右拖动泳道线；双击空白处加泳道；选中后按 <code>Delete</code> 或 <code>⌫</code> 删除；按 <code>H</code> 剪除/恢复。</p>
+          <p class="hint d-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the image: drag a lane line sideways, double-click to add a lane, select one and press <code>Delete</code> / <code>⌫</code> to delete it, <code>H</code> to cut / restore it.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。原图上：左右拖动泳道线；双击空白处加泳道；选中后按 <code>Delete</code> 或 <code>⌫</code> 删除；按 <code>H</code> 剪除/恢复。</p>
+          <p class="hint m-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the Image tab: tap a lane line or its number to select it — the bar below nudges, cuts or deletes it; drag it sideways; double-tap inside the red box (or “+ Lane”) to add one.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。在「原图」页：点泳道线或上方的泳道号选中，底部按钮可微调、剪除、删除；也可以直接左右拖；在红框内双击（或点“＋ 泳道”）加泳道。</p>
           <div class="splice-box" id="spliceBox">
             <div class="step-row"><b data-en="Where lanes were cut">剪掉泳道后的拼接处</b></div>
             <p class="hint" data-en="Journals require a visible mark where lanes from the same gel were cut out and the rest joined. Choose how it looks:">期刊规定：同一块胶剪掉中间泳道后再拼合，拼接处必须能看出来。选择标记方式：</p>
@@ -183,7 +190,8 @@
       <!-- names -->
       <section class="sec">
         <div class="sec-head"><span class="sec-n">3</span><span data-en="Lane names">泳道名称</span><span class="sec-status" id="stNames"></span></div>
-        <p class="lead" data-en-html="<b>Click a lane name</b> on the figure to type it; Enter jumps to the next. Or paste a whole row of names here:">直接在右侧成图上<b>点击泳道名</b>输入，回车跳到下一条。也可以把一整行名称粘贴到这里：</p>
+        <p class="lead d-only" data-en-html="<b>Click a lane name</b> on the figure to type it; Enter jumps to the next. Or paste a whole row of names here:">直接在右侧成图上<b>点击泳道名</b>输入，回车跳到下一条。也可以把一整行名称粘贴到这里：</p>
+        <p class="lead m-only" data-en-html="On the Figure tab, <b>tap a lane number</b> and type; the keyboard’s Next key moves on. Or paste a whole row of names here:">在「成图」页<b>点泳道号</b>输入，键盘上的“下一项”跳到下一条。也可以把一整行名称粘贴到这里：</p>
         <textarea id="laneBulk" rows="2" placeholder="M, WT, KO-1, NTC …（逗号、Tab、换行都行，可直接从 Excel 复制一行）" data-en-placeholder="M, WT, KO-1, NTC … (commas, tabs or new lines; a row copied from Excel works)"></textarea>
         <p class="hint" data-en-html="Filled into the lanes in the figure from left to right. <code>*lacZ*</code> becomes italic.">按从左到右的顺序填入出图范围内的泳道。<code>*lacZ*</code> 写成斜体。</p>
       </section>
@@ -215,7 +223,7 @@
       <section class="sec">
         <div class="sec-head"><span class="sec-n">5</span><span data-en="Annotations">标注</span> <span class="h3-note" data-en="optional">可选</span></div>
         <div class="tools">
-          <button class="tool" id="btnAddGroup"><span class="ti">⎴</span><span data-en="Group line">分组横线</span><small data-en="Drag across lane names on the figure">在成图上拖过几个泳道名</small></button>
+          <button class="tool" id="btnAddGroup"><span class="ti">⎴</span><span data-en="Group line">分组横线</span><small class="d-only" data-en="Drag across lane names on the figure">在成图上拖过几个泳道名</small><small class="m-only" data-en="Tap the first and last lane names">依次点首尾两个泳道名</small></button>
           <button class="tool" id="btnAddArrow"><span class="ti">◀</span><span data-en="Target band">目标条带</span><small data-en="Click a band; its size is estimated">点一下条带，自动标大小</small></button>
           <button class="tool" id="btnAddCond"><span class="ti">±</span><span data-en="Condition row">条件行</span><small data-en="+ / − matrix">+ / − 矩阵</small></button>
           <button class="tool" id="btnAddBox"><span class="ti">⬚</span><span data-en="Region box">区域框</span><small data-en="Frame bands; optional zoom inset">框出条带，可放大展示</small></button>
@@ -261,32 +269,10 @@
       </section>
 
       <div id="legendHints" class="legend"></div>
-
-      <section class="sec" id="secMobile">
-        <div class="field inline">
-          <button class="btn sm ghost" id="btnMobileFull" data-en="Show whole image">原图：全图</button>
-          <button class="btn sm ghost" id="btnMobileCrop" data-en="Zoom to figure area">原图：出图范围</button>
-          <button class="btn sm ghost" id="btnResetAllMobile" data-en="Start over">重新开始</button>
-        </div>
-        <div class="field inline">
-          <button class="btn sm ghost" id="btnUndoM" data-en="Undo">撤销</button>
-          <button class="btn sm ghost" id="btnRedoM" data-en="Redo">重做</button>
-          <button class="btn sm ghost" id="btnPNGm" data-en="Export PNG">导出 PNG</button>
-          <button class="btn sm ghost" id="btnSaveProjM" data-en="Save project">保存项目</button>
-          <button class="btn sm ghost" id="btnOpenProjM"><span data-en="Open project…">打开项目…</span><input type="file" id="projInputM" accept=".gelfig,.json" hidden></button>
-        </div>
-      </section>
     </div>
   </aside>
 
   <main id="stage">
-    <div id="viewTabs" class="hidden">
-      <div class="seg full">
-        <button data-view="raw">📷 原图</button>
-        <button data-view="fig">🖼 成图</button>
-        <button data-view="panel">⚙ 设置</button>
-      </div>
-    </div>
     <section class="pane-col" id="rawCol">
       <div class="col-head">
         <span class="col-title" data-en="Raw image">原图</span>
@@ -294,6 +280,7 @@
         <span class="flex"></span>
         <button class="btn sm ghost" id="fitFull" title="显示整张图" data-en-title="Show the whole image" data-en="Full">全图</button>
         <button class="btn sm ghost" id="fitCrop" title="放大到出图范围" data-en-title="Zoom to the figure area" data-en="Crop">范围</button>
+        <button class="btn sm ghost m-only" id="btnAddLaneM" title="在原图上点一下加一条泳道" data-en-title="Tap the image to add a lane" data-en="+ Lane">＋ 泳道</button>
         <span class="zoomlabel" id="zoomLabel"></span>
       </div>
       <div id="expoStrip" class="expo hidden"></div>
@@ -305,20 +292,90 @@
           <div class="dh-sub" data-en="A .tif straight from the imager works">成像仪导出的 .tif 直接拖进来</div>
         </div>
       </div>
+      <!-- touch: what a keyboard shortcut does on a computer, for the selected lane / arrow -->
+      <div id="selBar" class="sel-bar hidden" role="toolbar"><span class="sel-name" id="selName"></span><span class="sel-btns" id="selBtns"></span></div>
     </section>
     <section class="pane-col" id="figCol">
       <div class="col-head">
         <span class="col-title" data-en="Figure">成图</span>
         <span class="col-sub" id="figSub" data-en="Click any text to edit it">点文字可直接编辑</span>
         <span class="flex"></span>
+        <button class="btn sm ghost m-only" id="btnFigZoom">放大</button>
         <span class="zoomlabel" id="figSize"></span>
       </div>
       <div id="previewBox">
         <div id="preview"></div>
-        <div id="modeBanner" class="mode-banner hidden"><span id="modeText"></span><button id="modeCancel" data-en="Cancel (Esc)">取消 (Esc)</button></div>
+        <div id="modeBanner" class="mode-banner hidden"><span id="modeText"></span><button id="modeCancel"><span class="d-only" data-en="Cancel (Esc)">取消 (Esc)</span><span class="m-only" data-en="Cancel">取消</span></button></div>
       </div>
     </section>
   </main>
+</div>
+
+<!-- phone: bottom navigation (style.css shows it only in the phone layout) -->
+<nav id="mNav" aria-label="视图" data-en-title="Views">
+  <button data-view="raw"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M7.5 9h3M7.5 12.5h3M7.5 16h3M14 11h3M14 14.5h3"/></svg><span data-en="Image">原图</span></button>
+  <button data-view="fig"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5v15M4 8h2M4 12h2M4 16h2"/><rect x="8.5" y="4.5" width="12" height="15" rx="1.8"/><path d="M11.5 12h6"/></svg><span data-en="Figure">成图</span></button>
+  <button data-view="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span data-en="Settings">设置</span></button>
+  <button id="mExport" class="m-export"><span class="m-exp-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10.5M7.5 10l4.5 4.5 4.5-4.5M5 19.5h14"/></svg><span data-en="Export">导出</span></span></button>
+</nav>
+
+<!-- phone sheets: export, more, and the exported file itself -->
+<div id="exportSheet" class="sheet-wrap hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 data-en="Export">导出</h3><button class="sheet-x" data-close aria-label="关闭" data-en-title="Close">×</button></div>
+    <div class="sheet-row">
+      <span class="sheet-row-label" data-en="Resolution">分辨率</span>
+      <div class="seg" id="mDpiSeg"><button data-dpi="300">300</button><button data-dpi="600">600</button><button data-dpi="1200">1200</button></div>
+      <span class="muted small">dpi</span>
+    </div>
+    <p class="sheet-info" id="mDpiInfo"></p>
+    <button class="sheet-item primary" data-x="png"><span class="si-ic">PNG</span><span class="si-tx"><span data-en="PNG image">PNG 图片</span><small data-en="For the manuscript and slides; save it to Photos on a phone">投稿、做 PPT 用；手机上可直接存到相册</small></span></button>
+    <button class="sheet-item" data-x="tiff"><span class="si-ic">TIF</span><span class="si-tx"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></span></button>
+    <button class="sheet-item" data-x="svg"><span class="si-ic">SVG</span><span class="si-tx"><span data-en="SVG (vector)">SVG 矢量图</span><small data-en="Text stays editable in Illustrator or Inkscape">文字可在 Illustrator / Inkscape 中编辑</small></span></button>
+    <div class="sheet-label" data-en="For the supplement">补充材料</div>
+    <button class="sheet-item" data-x="uncropped"><span class="si-ic">▣</span><span class="si-tx"><span data-en="Uncropped image (same processing)">未裁切图（与成图同处理）</span><small data-en="Crop box and well numbers marked">标出裁切框与孔号</small></span></button>
+    <button class="sheet-item" data-x="original"><span class="si-ic">RAW</span><span class="si-tx"><span data-en="Original data (file + SHA-256)">原始数据（原文件 + SHA-256）</span><small data-en="The untouched source file">未经任何处理的原始文件</small></span></button>
+    <button class="sheet-item" data-x="log"><span class="si-ic">{ }</span><span class="si-tx"><span data-en="Processing log (JSON)">处理日志 JSON</span><small data-en="All parameters, clipping, effective resolution">全部参数、削顶统计、有效分辨率</small></span></button>
+    <div class="sheet-label" data-en="Continue later">接着做</div>
+    <button class="sheet-item" data-x="project"><span class="si-ic">⧉</span><span class="si-tx"><span data-en="Save project (.gelfig)">保存项目（.gelfig）</span><small data-en="Original image + every annotation; open it on any device">原图 + 全部标注，换设备也能接着改</small></span></button>
+    <label class="switch sheet-check"><input type="checkbox" id="mPreflight"><span data-en="Check before export">导出前检查</span></label>
+    <p class="sheet-note hidden" id="mWechatNote" data-en="Inside WeChat files cannot be downloaded: a PNG opens as a picture you can long-press to save; for other formats tap ··· at the top right and open the page in your browser.">在微信里打开时无法直接下载文件：PNG 会显示成图片，长按即可保存或发送；其他格式请点右上角 ··· 选择“在浏览器打开”后再导出。</p>
+  </div>
+</div>
+
+<div id="moreSheet" class="sheet-wrap hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 data-en="More">更多</h3><button class="sheet-x" data-close aria-label="关闭" data-en-title="Close">×</button></div>
+    <button class="sheet-item" data-m="open"><span class="si-ic">＋</span><span class="si-tx"><span data-en="Open image…">打开图片…</span><small data-en="File, photo or camera; several exposures of one gel at once">文件、相册或拍照；可一次选同一块胶的多张曝光</small></span></button>
+    <button class="sheet-item" data-m="openProj"><span class="si-ic">⧉</span><span class="si-tx"><span data-en="Open project…">打开项目…</span><small data-en=".gelfig file with the original image and all annotations">.gelfig 文件，含原图和全部标注</small></span></button>
+    <button class="sheet-item" data-m="saveProj"><span class="si-ic">↓</span><span class="si-tx"><span data-en="Save project">保存项目</span><small data-en="Continue on any device">换设备也能接着做</small></span></button>
+    <div class="sheet-sep"></div>
+    <button class="sheet-item" data-m="saveTpl"><span class="si-ic">✎</span><span class="si-tx"><span data-en="Save style">保存样式</span><small data-en="Lane names, markers, groups, layout — reuse for similar gels">泳道名、Marker、分组、版式，下次同类胶一键套用</small></span></button>
+    <button class="sheet-item" data-m="loadTpl"><span class="si-ic">⤓</span><span class="si-tx"><span data-en="Apply style…">载入样式…</span></span></button>
+    <div class="sheet-sep"></div>
+    <button class="sheet-item" data-m="help"><span class="si-ic">?</span><span class="si-tx"><span data-en="How to use">使用说明</span></span></button>
+    <button class="sheet-item" data-m="lang"><span class="si-ic">文</span><span class="si-tx"><span>English / 中文</span></span></button>
+    <button class="sheet-item danger" data-m="reset"><span class="si-ic">↺</span><span class="si-tx"><span data-en="Reset everything (back to import)">重置整图（回到刚导入时）</span></span></button>
+    <p class="sheet-foot" data-en-html="GelFigure · open source (MIT) · images never leave this device<br><a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a>">GelFigure · 开源（MIT）· 图片只在本机处理<br><a href="https://github.com/poplarity/GelFigure" target="_blank" rel="noopener">github.com/poplarity/GelFigure</a></p>
+  </div>
+</div>
+
+<div id="resultSheet" class="sheet-wrap hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 data-en="Ready">已生成</h3><button class="sheet-x" data-close aria-label="关闭" data-en-title="Close">×</button></div>
+    <div class="rs-file"><b id="rsName"></b> <span class="muted small" id="rsSize"></span></div>
+    <div class="rs-preview hidden" id="rsPreview"><img id="rsImg" alt=""></div>
+    <p class="sheet-info" id="rsTip"></p>
+    <div class="rs-actions">
+      <button class="btn big primary" id="rsShare" data-en="Share / Save…">分享 / 存储…</button>
+      <button class="btn big" id="rsSave" data-en="Download file">下载文件</button>
+    </div>
+    <p class="sheet-note hidden" id="rsWechat" data-en="WeChat cannot download files. Long-press the picture to save it, or tap ··· at the top right and open the page in your browser.">微信里无法下载文件。图片可长按保存；其他文件请点右上角 ··· 选择“在浏览器打开”后再导出。</p>
+    <button class="btn big rs-done" data-close data-en="Done">完成</button>
+  </div>
 </div>
 
 <div id="popover" class="popover hidden" role="dialog"></div>
@@ -328,6 +385,24 @@
 
 <div id="helpDlg" class="dlg hidden"><div class="dlg-body">
   <button class="dlg-x" id="btnHelpClose" title="关闭" data-en-title="Close">×</button>
+  <div class="m-only" data-en-html="
+  <h3>On a phone</h3>
+  <ul>
+    <li>The bar at the bottom switches between <b>Image / Figure / Settings</b>; <b>Export</b> is at the bottom right. Undo and redo are ↺ ↻ at the top; ⋯ has open, save project and language.</li>
+    <li><b>Image</b>: pinch to zoom, drag to move. Tap a lane line or its number to select it — the bar that appears nudges, cuts or deletes it. Double-tap inside the red box (or “+ Lane”) to add a lane. Drag the red box edges for the range, a yellow line to correct a marker band.</li>
+    <li><b>Figure</b>: tap a grey lane number and type; the keyboard’s Next key moves on. “Zoom in” makes small labels easier to hit. Group line: tap the first lane name, then the last.</li>
+    <li><b>Export</b>: after a PNG is made, long-press the picture to save it to Photos or send it; “Share / Save” puts any file in Files or another app.</li>
+    <li>Opened inside WeChat? Files cannot be downloaded there — tap ··· at the top right and open the page in your browser.</li>
+  </ul>">
+  <h3>在手机上</h3>
+  <ul>
+    <li>底部切换<b>原图 / 成图 / 设置</b>，右下角是<b>导出</b>；顶部 ↺ ↻ 撤销 / 重做，⋯ 里有打开、保存项目和语言。</li>
+    <li><b>原图</b>：双指缩放、拖动。点泳道线或上方的泳道号选中，底部会出现微调、剪除、删除按钮；在红框内双击（或点“＋ 泳道”）加泳道；拖红框的边改出图范围，拖黄线修正 Marker 条带。</li>
+    <li><b>成图</b>：点灰色泳道号输入名称，键盘上的“下一项”跳到下一条；小字看不清点“放大”。分组横线：依次点首尾两个泳道名。</li>
+    <li><b>导出</b>：PNG 生成后长按图片即可存到相册或发给朋友；“分享 / 存储”可以把任何文件存到“文件”或发到其他 App。</li>
+    <li>在微信里打开时无法下载文件：点右上角 ··· 选择“在浏览器打开”。</li>
+  </ul>
+  </div>
   <div data-en-html="
   <h3>Offline use: download just one file</h3>
   <p>Download <a href='https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html'>GelFigure-v0.6.3.html</a>, save it to your computer, then double-click to open in your browser. No installation or ZIP extraction. The repository's index.html alone is not the complete tool.</p>
@@ -358,7 +433,7 @@
     <li>Removed lanes get a splice mark; never splice different gels into one panel.</li>
     <li>Also export the uncropped image and the original file for the supplement.</li>
   </ul>
-  <p class='muted small'>Shortcuts: Ctrl+Z undo · Ctrl+Shift+Z redo · Space+drag pan · wheel zoom · H remove/restore lane · Esc cancel</p>
+  <p class='muted small d-only'>Shortcuts: Ctrl+Z undo · Ctrl+Shift+Z redo · Space+drag pan · wheel zoom · H remove/restore lane · Esc cancel</p>
   <p class='muted small'>Open source (MIT): <a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a> — bug reports and ladder additions welcome.</p>">
   <h3>离线使用：只下载一个文件</h3>
   <p>下载 <a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.3/GelFigure-v0.6.3.html">GelFigure-v0.6.3.html</a>，保存到电脑，双击用浏览器打开即可。不用安装、不用解压。仓库里的 index.html 单独下载不包含完整工具。</p>
@@ -389,7 +464,7 @@
     <li>剪除泳道会自动加拼接分隔；不同凝胶不可拼进同一面板。</li>
     <li>建议同时导出"未裁切图"和"原始数据"放补充材料。</li>
   </ul>
-  <p class="muted small">快捷键：Ctrl+Z 撤销 · Ctrl+Shift+Z 重做 · 空格+拖动 平移 · 滚轮 缩放 · H 剪除/恢复泳道 · Esc 取消当前操作</p>
+  <p class="muted small d-only">快捷键：Ctrl+Z 撤销 · Ctrl+Shift+Z 重做 · 空格+拖动 平移 · 滚轮 缩放 · H 剪除/恢复泳道 · Esc 取消当前操作</p>
   <p class="muted small">开源（MIT）：<a href="https://github.com/poplarity/GelFigure" target="_blank" rel="noopener">github.com/poplarity/GelFigure</a> —— 欢迎反馈问题、补充 Ladder 型号。</p>
   </div>
 </div></div>
@@ -419,5 +494,6 @@
 <script src="js/editor.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/figedit.js"></script>
+<script src="js/mobile.js"></script>
 </body>
 </html>
