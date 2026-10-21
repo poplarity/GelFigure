@@ -8,7 +8,7 @@
 
 ## 1. 下载
 
-**[点击下载 GelFigure-v0.6.4.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.4/GelFigure-v0.6.4.html)**，保存到桌面或“下载”文件夹。
+**[点击下载 GelFigure-v0.6.5.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.5/GelFigure-v0.6.5.html)**，保存到桌面或“下载”文件夹。
 
 这是完整的工具，约 380 KB。网页界面、样式和图像处理代码都已经装在这个文件里。
 

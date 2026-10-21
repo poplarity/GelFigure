@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-10-22
+
+Labels that never collide: wrapping, line breaks and a font size per item.
+
 **中文摘要**
 - **分组文字不再重叠**：排布分组横线时按文字的实际宽度计算，放不下会自动错开到上一行。
 - **放不下时可选处理方式**（版式 → 分组文字放不下时）：自动换行（默认，保持字号，各行长度均衡）、缩小字号（不低于设定的最小字号）、保持一行。
@@ -177,7 +181,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/poplarity/GelFigure/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/poplarity/GelFigure/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/poplarity/GelFigure/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/poplarity/GelFigure/compare/v0.6.1...v0.6.2
