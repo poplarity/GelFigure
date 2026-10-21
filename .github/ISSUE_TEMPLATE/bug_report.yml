@@ -39,7 +39,9 @@ body:
       label: How did you open GelFigure? / 打开方式
       options:
         - Online (poplarity.github.io)
-        - Local index.html (double-click) / 本地双击
+        - Single-file GelFigure-vVERSION.html / 单文件离线版
+        - index.html from an extracted ZIP / ZIP 完整解压后的 index.html
+        - index.html inside a ZIP, or downloaded on its own / 压缩包内直接打开或单独下载的 index.html
         - Other / 其他
   - type: input
     id: version

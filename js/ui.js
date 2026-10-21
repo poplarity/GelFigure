@@ -12,6 +12,13 @@
   const done = fn => e => { if (!S()) return; if (fn) fn(e); App.commit(); };
   const list = a => a.join(L('、', ', '));
 
+  function storageNotice() {
+    document.querySelectorAll('.storage-note').forEach(el => el.classList.toggle('hidden', G.PrefStorage.persistent));
+  }
+  window.addEventListener('gelfigure-storage-unavailable', storageNotice);
+  storageNotice();
+  if (location.protocol === 'file:') $('offlineDownload').hidden = true;
+
   /* ---------- toasts / warnings ---------- */
   function toast(msg, ms) {
     const el = document.createElement('div');
