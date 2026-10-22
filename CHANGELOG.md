@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-22
+
+Palette TIFFs load.
+
 **中文摘要**
 - **支持调色板（索引色）TIFF**：以前会提示"暂不支持调色板 TIFF"。现在灰度颜色表、反相颜色表、伪彩色颜色表（按序号还原原始信号）和彩色扫描（如考马斯亮蓝）都能读，1 / 2 / 4 位的压缩存储也支持；导入时会提示做了什么转换。
 
@@ -189,7 +193,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.5...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.6...HEAD
+[0.6.6]: https://github.com/poplarity/GelFigure/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/poplarity/GelFigure/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/poplarity/GelFigure/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/poplarity/GelFigure/compare/v0.6.2...v0.6.3
