@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- **支持调色板（索引色）TIFF**：以前会提示"暂不支持调色板 TIFF"。现在灰度颜色表、反相颜色表、伪彩色颜色表（按序号还原原始信号）和彩色扫描（如考马斯亮蓝）都能读，1 / 2 / 4 位的压缩存储也支持；导入时会提示做了什么转换。
+
+### Fixed
+- **Palette (indexed) TIFFs load** instead of failing with "Palette TIFFs are not supported yet". The colour map decides the intensity: a grey map (also inverted) gives its own values; a false-colour map whose brightness rises or falls steadily with the index is read back as the index, i.e. the original signal; any other map is a colour picture (e.g. a scanned Coomassie gel) and gives its brightness plus the colour statistics used to recognise protein gels. 1-, 2- and 4-bit packed data are read too. A note on import says which conversion was used.
+- TIFF load notes now reach the screen (they were dropped for TIFF files).
+- Engine self-test: palette TIFFs (grey + LZW, inverted, false-colour, true-colour, 4-bit) and 1-bit data decoded pixel-exact.
+
 ## [0.6.5] - 2026-10-22
 
 Labels that never collide: wrapping, line breaks and a font size per item.

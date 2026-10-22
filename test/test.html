@@ -41,10 +41,52 @@ function lzwTiff8(w, h, px) {
   return buf;
 }
 
+// little-endian TIFF with palette (photometric 3) or packed grey data; bits 1/4/8, optional LZW
+function paletteTiff(w, h, bits, idx, cmap, opt) {
+  const o = opt || {}, rowB = Math.ceil(w * bits / 8), raw = new Uint8Array(rowB * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const bit = x * bits; raw[y * rowB + (bit >> 3)] |= idx[y * w + x] << (8 - bits - (bit & 7)); }
+  const data = o.lzw ? lzwEncode(raw) : raw;
+  const tags = [[256, 4, 1, w], [257, 4, 1, h], [258, 3, 1, bits], [259, 3, 1, o.lzw ? 5 : 1], [262, 3, 1, o.photometric != null ? o.photometric : 3],
+    [273, 4, 1, 'DATA'], [277, 3, 1, 1], [278, 4, 1, h], [279, 4, 1, data.length]];
+  if (cmap) tags.push([320, 3, cmap.length, 'CMAP']);
+  const ifd = 8, dataOff = ifd + 2 + tags.length * 12 + 4, cmapOff = dataOff + data.length + ((dataOff + data.length) % 2);
+  const buf = new ArrayBuffer(cmapOff + (cmap ? cmap.length * 2 : 0)), dv = new DataView(buf);
+  dv.setUint16(0, 0x4949); dv.setUint16(2, 42, true); dv.setUint32(4, ifd, true);
+  let p = ifd; dv.setUint16(p, tags.length, true); p += 2;
+  for (const [t, ty, cnt, v] of tags) {
+    const val = v === 'DATA' ? dataOff : v === 'CMAP' ? cmapOff : v;
+    dv.setUint16(p, t, true); dv.setUint16(p + 2, ty, true); dv.setUint32(p + 4, cnt, true);
+    if (ty === 3 && cnt === 1) dv.setUint16(p + 8, val, true); else dv.setUint32(p + 8, val, true);
+    p += 12;
+  }
+  new Uint8Array(buf).set(data, dataOff);
+  if (cmap) cmap.forEach((c, i) => dv.setUint16(cmapOff + i * 2, c, true));
+  return buf;
+}
+
 (async () => {
   const R = {};
   try {
     const E = Engine;
+    // 1b. palette (indexed) TIFFs — grey, inverted, false-colour and true-colour maps — and packed 4/1-bit data
+    {
+      const w = 333, h = 41, n = w * h, idx8 = new Uint8Array(n), idx4 = new Uint8Array(n), idx1 = new Uint8Array(n);
+      for (let i = 0; i < n; i++) { idx8[i] = (i * 37 + ((i / w) | 0)) & 255; idx4[i] = idx8[i] >> 4; idx1[i] = (i % w) % 3 === 0 ? 1 : 0; }
+      const ramp = f => Array.from({ length: 256 }, (_, i) => f(i));
+      const inv = ramp(i => (255 - i) * 257);
+      const heat = [...ramp(i => Math.min(255, i * 3) * 257), ...ramp(i => Math.min(255, Math.max(0, i * 3 - 255)) * 257), ...ramp(i => Math.min(255, Math.max(0, i * 3 - 510)) * 257)];
+      const rnd = [...ramp(i => ((i * 7919) % 256) * 257), ...ramp(i => ((i * 104729) % 256) * 257), ...ramp(i => ((i * 31) % 256) * 257)];
+      const g16 = Array.from({ length: 16 }, (_, i) => i * 17 * 257);
+      const err = (img, f) => { let m = 0; for (let i = 0; i < n; i++) m = Math.max(m, Math.abs(img.data[i] - f(i))); return m; };
+      const a = await TIFF.decodeBuffer(paletteTiff(w, h, 8, idx8, [...inv, ...inv, ...inv], { lzw: true }), 'a.tif');
+      const b = await TIFF.decodeBuffer(paletteTiff(w, h, 8, idx8, heat), 'b.tif');
+      const c = await TIFF.decodeBuffer(paletteTiff(w, h, 8, idx8, rnd), 'c.tif');
+      const d4 = await TIFF.decodeBuffer(paletteTiff(w, h, 4, idx4, [...g16, ...g16, ...g16]), 'd.tif');
+      const e1 = await TIFF.decodeBuffer(paletteTiff(w, h, 1, idx1, null, { photometric: 1 }), 'e.tif');
+      const lum = i => { const k = idx8[i]; return (0.299 * rnd[k] + 0.587 * rnd[256 + k] + 0.114 * rnd[512 + k]) / 65535; };
+      const errs = { greyInvLzw: err(a, i => 1 - idx8[i] / 255), falseColour: err(b, i => idx8[i] / 255), colour: err(c, lum), grey4: err(d4, i => idx4[i] * 17 / 255), bilevel: err(e1, i => idx1[i]) };
+      R.palette = { ok: Object.values(errs).every(v => v < 1e-6) && !b.colorStats && !!c.colorStats && a.warnings.length === 1 && /false-colour|伪彩色/.test(b.warnings[0]), errs };
+    }
     // 1. LZW roundtrip on noisy-ish data
     const w = 333, h = 211, px = new Uint8Array(w * h);
     for (let i = 0; i < px.length; i++) px[i] = ((i % w) * 3 + ((i / w) | 0) + (i * 7919 % 13)) & 255;
@@ -167,7 +209,7 @@ function lzwTiff8(w, h, px) {
     const out = Render.build(S, gel, 'data:,');
     R.render = { ok: out.svg.startsWith('<svg') && out.angle > 0 && gel.segs.length === 2, angle: out.angle, segs: gel.segs.length, warnings: out.warnings, wMm: (out.w / Render.MM).toFixed(1), hMm: (out.h / Render.MM).toFixed(1) };
   } catch (e) { R.error = e.stack || String(e); }
-  R.allOk = !R.error && ['lzw', 'tiff16', 'deskew', 'crop', 'lanes', 'ladder', 'render'].every(k => R[k] && R[k].ok) && R.deskewRange.every(d => d.ok);
+  R.allOk = !R.error && ['lzw', 'palette', 'tiff16', 'deskew', 'crop', 'lanes', 'ladder', 'render'].every(k => R[k] && R[k].ok) && R.deskewRange.every(d => d.ok);
   document.getElementById('out').textContent = JSON.stringify(R, null, 1);
 })();
 </script></body></html>

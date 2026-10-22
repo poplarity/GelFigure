@@ -86,7 +86,7 @@ The page carries a [Content Security Policy](index.html) that **forbids it from 
 
 | Format | Notes |
 |---|---|
-| TIFF (8 / 16 / 32-bit grayscale) | Recommended. Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Works with the TIFFs gel imagers and flatbed scanners export. |
+| TIFF (8 / 16 / 32-bit grayscale, RGB, palette) | Recommended. Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Works with the TIFFs gel imagers and flatbed scanners export. Palette (indexed) TIFFs are converted through their colour map — a false-colour map is read back as the original signal. |
 | PNG / JPG / BMP | Read as 8-bit by the browser; a warning suggests using the raw 16-bit TIFF instead. |
 | `.gelfig` | GelFigure project file. |
 
@@ -151,7 +151,7 @@ If browser storage is blocked or full, the app can still edit and export. Prefer
 
 - Automatic detection has been validated on DNA agarose gels, Coomassie-stained SDS-PAGE gels and synthetic gels. On a crowded protein gel whose lanes touch, lane detection can merge neighbours — set the lane count under **Lanes in figure** and the rest follows. If detection fails on your images, please [open an issue](https://github.com/poplarity/GelFigure/issues/new/choose).
 - Band quantification (densitometry) is not supported.
-- Bio-Rad `.scn` / `.1sc` and other proprietary formats must be exported to TIFF first. BigTIFF and palette TIFFs are not supported.
+- Bio-Rad `.scn` / `.1sc` and other proprietary formats must be exported to TIFF first. BigTIFF is not supported.
 - 16-bit PNGs are read as 8-bit by browsers.
 
 ## Development

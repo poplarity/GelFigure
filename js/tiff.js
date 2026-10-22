@@ -1,7 +1,7 @@
 /* Minimal TIFF decoder (no dependencies).
- * Supports: 8/16/32-bit integer and 32-bit float, 1-4 samples per pixel,
+ * Supports: 8/16/32-bit integer and 32-bit float, 1-4 samples per pixel, 1/2/4-bit single-sample data,
  * strips or tiles, compression none / LZW / PackBits / Deflate, predictor 2,
- * PhotometricInterpretation WhiteIsZero/BlackIsZero/RGB.
+ * PhotometricInterpretation WhiteIsZero/BlackIsZero/RGB/Palette.
  * Output: grayscale Float32Array normalized to 0..1 (1 = sensor max for integer data).
  */
 (function (G) {
@@ -148,6 +148,45 @@
     }
   }
 
+  /* Palette (indexed) TIFF: pixel values are indices into a colour map (tag 320: all reds, then greens,
+   * then blues, 0..65535). What the intensity is depends on the map:
+   *  - grey map (R = G = B for every colour used): the map value itself;
+   *  - false-colour map (a heat map: brightness rises or falls steadily with the index): the index is
+   *    the measured signal, so it is used directly — taking the colour's brightness would bend it;
+   *  - anything else is a real colour picture stored with a palette (a scanned Coomassie gel): its
+   *    brightness, with colour statistics for telling a protein gel from a DNA gel. */
+  function paletteLut(cmap, bits, vals) {
+    const N = 1 << bits, R = cmap.slice(0, N), Gn = cmap.slice(N, 2 * N), B = cmap.slice(2 * N, 3 * N);
+    const used = new Uint32Array(N);
+    for (let i = 0; i < vals.length; i++) used[vals[i]]++;
+    const ids = [];
+    for (let i = 0; i < N; i++) if (used[i]) ids.push(i);
+    const lut = new Float32Array(N);
+    if (ids.every(i => R[i] === Gn[i] && R[i] === B[i])) {
+      for (let i = 0; i < N; i++) lut[i] = R[i] / 65535;
+      return { lut, colorStats: null, kind: 'grey' };
+    }
+    const Y = i => (0.299 * R[i] + 0.587 * Gn[i] + 0.114 * B[i]) / 65535;
+    let up = 0, down = 0;
+    for (let k = 1; k < ids.length; k++) { const d = Y(ids[k]) - Y(ids[k - 1]); if (d > 1e-3) up++; else if (d < -1e-3) down++; }
+    const steps = up + down;
+    if (ids.length >= 16 && steps && Math.min(up, down) <= steps * 0.03) {
+      const rising = up >= down;
+      for (let i = 0; i < N; i++) lut[i] = rising ? i / (N - 1) : 1 - i / (N - 1);
+      return { lut, colorStats: null, kind: 'false-colour' };
+    }
+    for (let i = 0; i < N; i++) lut[i] = Y(i);
+    let chroma = 0, blue = 0, cnt = 0;
+    const step = Math.max(1, Math.floor(vals.length / 200000));
+    for (let p = 0; p < vals.length; p += step) {
+      const i = vals[p], r = R[i], g = Gn[i], b = B[i], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx > 0) chroma += (mx - mn) / mx;
+      if (b > r * 1.15 && b > g * 1.08) blue++;
+      cnt++;
+    }
+    return { lut, colorStats: cnt ? { chroma: chroma / cnt, blueFrac: blue / cnt } : null, kind: 'colour' };
+  }
+
   async function decode(buffer) {
     const dv = new DataView(buffer);
     const { ifds, le } = readIFDs(dv);
@@ -167,11 +206,15 @@
     const planar = (t[284] || [1])[0];
     const predictor = (t[317] || [1])[0];
     const fmt = (t[339] || [1])[0]; // 1 uint, 2 int, 3 float
-    if (![8, 16, 32].includes(bits)) throw new Error(G.L('不支持的位深: ', 'Unsupported bit depth: ') + bits + ' bit');
-    if (photo === 3) throw new Error(G.L('暂不支持调色板 TIFF', 'Palette TIFFs are not supported yet'));
+    // 1/2/4-bit data (two-colour or 16-colour palettes, mostly) is packed several samples per byte
+    const packed = bits < 8;
+    if (![1, 2, 4, 8, 16, 32].includes(bits) || (packed && spp !== 1)) throw new Error(G.L('不支持的位深: ', 'Unsupported bit depth: ') + bits + ' bit');
+    if (photo === 3 && (spp !== 1 || bits > 16 || !t[320] || t[320].length < 3 * (1 << bits)))
+      throw new Error(G.L('这个调色板 TIFF 缺少颜色表，或格式不受支持；请从成像软件导出灰度 TIFF', 'This palette TIFF has no colour map or an unsupported layout; export a grey-scale TIFF from the imaging software'));
     const bps = bits / 8;
+    const rowB = Math.ceil(w * bits / 8);   // bytes per image row of packed data
     const tiled = !!t[322];
-    const total = new Uint8Array(w * h * spp * bps);
+    const total = new Uint8Array(packed ? rowB * h : w * h * spp * bps);
     const planes = planar === 2 ? spp : 1;
     const sppBlock = planar === 2 ? 1 : spp;
 
@@ -184,13 +227,13 @@
         if (plane >= planes) break;
         const sy = (s % stripsPerPlane) * rps;
         const rows = Math.min(rps, h - sy);
-        const expected = rows * w * sppBlock * bps;
+        const expected = packed ? rows * rowB : rows * w * sppBlock * bps;
         const cnt = counts ? counts[s] : expected;
         let block = await decompress(comp, new Uint8Array(buffer, offs[s], Math.min(cnt, buffer.byteLength - offs[s])), expected);
         if (block === undefined) continue;
         block = new Uint8Array(block.buffer.slice(block.byteOffset, block.byteOffset + Math.min(block.byteLength, expected)));
-        if (predictor === 2) undoPredictor(block, w, rows, sppBlock, bits, le);
-        const dst = plane * w * h * bps + sy * w * sppBlock * bps;
+        if (predictor === 2 && !packed) undoPredictor(block, w, rows, sppBlock, bits, le);
+        const dst = packed ? sy * rowB : plane * w * h * bps + sy * w * sppBlock * bps;
         total.set(block.subarray(0, Math.min(block.length, total.length - dst)), dst);
       }
     } else {
@@ -203,14 +246,15 @@
         if (plane >= planes) break;
         const idx = k % perPlane;
         const tx = (idx % across) * tw, ty = Math.floor(idx / across) * th;
-        const expected = tw * th * sppBlock * bps;
+        const rowBytes = packed ? Math.ceil(tw * bits / 8) : tw * sppBlock * bps;
+        const expected = th * rowBytes;
         let block = await decompress(comp, new Uint8Array(buffer, offs[k], counts[k]), expected);
         block = new Uint8Array(block.buffer.slice(block.byteOffset, block.byteOffset + Math.min(block.byteLength, expected)));
-        if (predictor === 2) undoPredictor(block, tw, th, sppBlock, bits, le);
-        const rowBytes = tw * sppBlock * bps;
-        const copyW = Math.min(tw, w - tx) * sppBlock * bps;
+        if (predictor === 2 && !packed) undoPredictor(block, tw, th, sppBlock, bits, le);
+        // tile widths are multiples of 16, so a packed tile starts on a byte boundary
+        const copyW = packed ? Math.ceil(Math.min(tw, w - tx) * bits / 8) : Math.min(tw, w - tx) * sppBlock * bps;
         for (let r = 0; r < th && ty + r < h; r++) {
-          const dst = plane * w * h * bps + ((ty + r) * w + tx) * sppBlock * bps;
+          const dst = packed ? (ty + r) * rowB + tx * bits / 8 : plane * w * h * bps + ((ty + r) * w + tx) * sppBlock * bps;
           total.set(block.subarray(r * rowBytes, r * rowBytes + copyW), dst);
         }
       }
@@ -220,6 +264,38 @@
     const n = w * h;
     const gray = new Float32Array(n);
     const tdv = new DataView(total.buffer);
+    const xres = t[282] ? t[282][0] : 0;
+    const unit = (t[296] || [2])[0];
+    const dpi = unit === 3 ? xres * 2.54 : xres;
+
+    // palette indices and packed 1/2/4-bit grey levels: integer sample values first, then intensities
+    if (photo === 3 || packed) {
+      const vals = new Uint16Array(n);
+      if (packed) {
+        const mask = (1 << bits) - 1;
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const bit = x * bits;
+          vals[y * w + x] = (total[y * rowB + (bit >> 3)] >> (8 - bits - (bit & 7))) & mask;
+        }
+      } else if (bits === 8) vals.set(total.subarray(0, n));
+      else for (let i = 0; i < n; i++) vals[i] = tdv.getUint16(i * 2, le);
+      const warnings = [];
+      let colorStats = null;
+      if (photo === 3) {
+        const pal = paletteLut(t[320], bits, vals);
+        for (let i = 0; i < n; i++) gray[i] = pal.lut[vals[i]];
+        colorStats = pal.colorStats;
+        warnings.push(pal.kind === 'false-colour'
+          ? G.L('这是伪彩色调色板 TIFF：已按颜色表的序号还原为灰度信号。如有成像仪导出的原始灰度 TIFF，建议用原图。', 'This is a false-colour palette TIFF: the signal was recovered from the palette index. Use the original grey-scale TIFF from the imager if you have it.')
+          : G.L(`这是调色板 TIFF（${bits} 位）：已按颜色表转为灰度。如有原始 16 位 TIFF，动态范围更大。`, `This is a palette TIFF (${bits}-bit), converted to grey through its colour map. The raw 16-bit TIFF, if you have it, has more dynamic range.`));
+      } else {
+        const mx = (1 << bits) - 1;
+        for (let i = 0; i < n; i++) gray[i] = photo === 0 ? 1 - vals[i] / mx : vals[i] / mx;
+      }
+      let actualMax = 0;
+      for (let i = 0; i < n; i++) if (gray[i] > actualMax) actualMax = gray[i];
+      return { width: w, height: h, data: gray, bits: photo === 3 ? Math.max(8, bits) : bits, spp, compression: comp, actualMax, colorStats, dpi, warnings };
+    }
     const get = (byteIdx) => {
       if (bits === 8) return fmt === 2 ? tdv.getInt8(byteIdx) : total[byteIdx];
       if (bits === 16) return fmt === 2 ? tdv.getInt16(byteIdx, le) : tdv.getUint16(byteIdx, le);
@@ -265,10 +341,7 @@
       gray[i] = v;
       if (v > actualMax) actualMax = v;
     }
-    const xres = t[282] ? t[282][0] : 0;
-    const unit = (t[296] || [2])[0];
-    return { width: w, height: h, data: gray, bits, spp, compression: comp, actualMax, colorStats,
-      dpi: unit === 3 ? xres * 2.54 : xres };
+    return { width: w, height: h, data: gray, bits, spp, compression: comp, actualMax, colorStats, dpi };
   }
 
   // Decode PNG/JPG etc. via the browser
@@ -318,7 +391,7 @@
   async function decodeBuffer(buffer, name) {
     const b = new Uint8Array(buffer, 0, Math.min(32, buffer.byteLength));
     const isTiff = (b[0] === 0x49 && b[1] === 0x49 && b[2] === 42) || (b[0] === 0x4d && b[1] === 0x4d && b[3] === 42);
-    if (isTiff) { const r = await decode(buffer); r.warnings = []; return r; }
+    if (isTiff) { const r = await decode(buffer); r.warnings = r.warnings || []; return r; }
     const r = await decodeBrowserImage(new File([buffer], name || 'image'));
     r.warnings = [];
     const isPng = b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
