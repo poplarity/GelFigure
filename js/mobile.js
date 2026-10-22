@@ -120,6 +120,7 @@
   const MORE = {
     open: () => $('fileInput').click(),
     openProj: () => $('projInput').click(),
+    history: () => G.HistoryUI.open(),
     saveProj: () => $('btnSaveProj').click(),
     saveTpl: () => $('btnSaveTpl').click(),
     loadTpl: () => $('tplInput').click(),

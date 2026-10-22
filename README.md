@@ -56,6 +56,8 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Features
 
+**Dev branch preview: recent projects.** Open locally cached work from the top bar, File menu, or **⋯ → Recent projects** on a phone. Importing another gel keeps the previous project. Rename, delete or restore its crop, annotations, fonts, colours and all exposures without re-detection. The old single draft migrates automatically; storage failures are reported. History belongs to this browser and can disappear when site data is cleared. Save a `.gelfig` backup for the selected exposure and its annotations, and keep the other original exposure files separately. Cached images are not embedded in the downloaded HTML.
+
 - **Fully automatic first draft**: straightening (±15°), crop, lane detection, ladder identification and size labels, linear contrast.
 - **DNA and protein gels**: the gel type is recognised on import (colour, band width, band count, migration curve) and the matching mode opens — ladder library, tolerances and units (bp / kDa). A switch at the top of the Image panel overrides the guess without losing names, groups or arrows.
 - **Edit on the figure itself**: click a lane name and type, Enter jumps to the next lane; drag across lane names to draw a group line; click cells to cycle `+` / `−`. IME-safe for Chinese, Japanese and Korean input.
@@ -83,7 +85,7 @@ The current version is **0.6.8** (original colour, system fonts and compact mark
 
 GelFigure is a static web page with no backend. Images are decoded and processed by JavaScript in your browser, and results are saved by your browser's own download mechanism.
 
-The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any other server** (it may only load its own files), so this is enforced by the browser, not just promised. The only data kept on your computer are preferences, custom ladders and the autosaved draft in the browser's local storage.
+The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any other server** (it may only load its own files), so this is enforced by the browser, not just promised. Preferences, custom ladders and autosaved projects (including images and annotations; the dev branch keeps history and all exposures) stay in browser-local storage. Delete individual projects from Recent projects or clear the browser's site data. Cached data is not written into the downloaded HTML.
 
 ## Supported input
 

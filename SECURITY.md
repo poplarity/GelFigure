@@ -6,7 +6,7 @@ Data kept on your computer, in the browser's local storage for this page only:
 
 - preferences (language, layout defaults, last ladder, pre-flight setting);
 - custom ladders and favourites;
-- the autosaved draft (the current image and its annotations), which you can discard from the start screen.
+- autosaved projects (original images and annotations). The dev branch includes a local project history and all exposures; entries can be deleted from Recent projects. Clearing browser site data also removes the cache. Cached data is not embedded in the downloaded HTML.
 
 ## Reporting a vulnerability
 

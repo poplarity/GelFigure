@@ -465,7 +465,7 @@
       await App.restoreDraft();
       R.draft = { listed: !!d && d.name, restored: App.snapshot() === ref };
       await App.dropDraft();
-      R.draftDropped = !(await App.peekDraft());
+      R.draftDropped = !(await App.listHistory()).some(p => p.projectId === d.projectId);
     }
   } catch (e) { R.error = String(e) + '\n' + (e.stack || ''); }
   document.title = 'UITEST ' + JSON.stringify(R);

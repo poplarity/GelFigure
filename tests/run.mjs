@@ -17,6 +17,7 @@ import { pptxChecks } from './pptx.mjs';
 import { fontChecks } from './fonts.mjs';
 import { unitHeaderChecks } from './unit-header.mjs';
 import { colourChecks } from './colour.mjs';
+import { historyChecks } from './history.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -116,6 +117,9 @@ async function runIn(name, base) {
     const colour = await colourChecks(browser, base, ROOT, name);
     out.results.push(...colour);
     if (colour.some(r => r[0] === 'FAIL')) out.ok = false;
+    const history = await historyChecks(browser, base, ROOT, name);
+    out.results.push(...history);
+    if (history.some(r => r[0] === 'FAIL')) out.ok = false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];

@@ -139,6 +139,8 @@
     await new Promise(r => setTimeout(r, 30));
     try {
       const input = await App.readInput(file);
+      await App.saveDraft();
+      App.newCachedProject();
       App.exposures = null;
       startFrom(input);
       App.emit('loaded');
@@ -170,6 +172,8 @@
       }
       const order = list.map((e, i) => i).sort((a, b) => list[b].score - list[a].score);
       list.forEach((e, i) => { e.rank = order.indexOf(i) + 1; });
+      await App.saveDraft();
+      App.newCachedProject();
       App.exposures = list;
       App.expIdx = bestInput.k;
       startFrom(bestInput);
@@ -1274,17 +1278,19 @@
     const text = u[0] === 0x1f && u[1] === 0x8b ? await gz(new Blob([buffer]), true) : new TextDecoder().decode(buffer);
     const P = JSON.parse(text);
     if (!P.gelfigProject) throw new Error(L('不是 GelFigure 项目文件', 'Not a GelFigure project file'));
-    (P.ladders || []).forEach(d => G.Ladders.importDef(d));
     const raw = unb64(P.source.bytes);
     const input = { name: P.source.name, buffer: raw, img: await G.TIFF.decodeBuffer(raw, P.source.name), sha256: await App.sha256(raw) };
     if (P.source.sha256 && input.sha256 !== P.source.sha256) throw new Error(L('项目里的原始图像校验失败（SHA-256 不一致），文件可能已损坏', 'The original image inside the project fails its SHA-256 check; the file may be damaged'));
+    await App.saveDraft();
+    (P.ladders || []).forEach(d => G.Ladders.importDef(d));
+    App.newCachedProject();
     restore(input, P.state, P.initial, P.autoRotation);
   };
-  function restore(input, state, initial, autoRotation) {
+  function restore(input, state, initial, autoRotation, exposures = null, expIdx = null) {
     sourcePixels(input.img);
     App.srcBuffer = input.buffer;
     App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null; App._emptyKey = null;
-    App.exposures = null;
+    App.exposures = exposures; App.expIdx = expIdx;
     // notices and detection inputs of the previous image do not belong to this project
     App.laneNotice = null; App.ladderNotice = null; App._gelVoteInput = null; App.cropMeta = null;
     App.S = state;
@@ -1310,53 +1316,8 @@
     App.emit('change');
   }
 
-  // ---------- autosave draft (IndexedDB): survives refresh / crash ----------
-  const DB = 'gelfigure', STORE = 'drafts';
-  // some browsers never answer indexedDB.open for file:// pages; give up instead of hanging
-  let dbP = null;
-  function idb() {
-    if (!dbP) dbP = new Promise((res, rej) => {
-      if (!window.indexedDB) return rej(new Error('no indexedDB'));
-      const t = setTimeout(() => rej(new Error('indexedDB timeout')), 3000);
-      let rq;
-      try { rq = indexedDB.open(DB, 1); } catch (e) { clearTimeout(t); return rej(e); }
-      rq.onupgradeneeded = () => rq.result.createObjectStore(STORE);
-      rq.onsuccess = () => { clearTimeout(t); res(rq.result); };
-      rq.onerror = () => { clearTimeout(t); rej(rq.error); };
-      rq.onblocked = () => { clearTimeout(t); rej(new Error('indexedDB blocked')); };
-    });
-    dbP.catch(() => { dbP = null; });
-    return dbP;
-  }
-  async function idbDo(mode, fn) {
-    const db = await idb();
-    return new Promise((res, rej) => { const tx = db.transaction(STORE, mode), st = tx.objectStore(STORE), r = fn(st); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); });
-  }
-  let draftTimer = 0, draftSha = null;
-  App.saveDraftSoon = function () {
-    clearTimeout(draftTimer);
-    draftTimer = setTimeout(App.saveDraft, 800);
-  };
-  App.saveDraft = async function () {
-    if (!App.S || !App.srcBuffer) return;
-    try {
-      await idbDo('readwrite', st => {
-        // the source bytes are written once per image, the state on every change
-        if (draftSha !== App.S.file.sha256) { st.put(App.srcBuffer, 'src'); draftSha = App.S.file.sha256; }
-        st.put({ state: App.snapshot(), initial: App.initial, autoRotation: App.autoRotation, name: App.S.file.name, sha256: App.S.file.sha256, savedAt: Date.now(), ladders: G.Ladders.defsFor(App.S.markers.map(m => m.ladderId)) }, 'meta');
-      });
-    } catch (e) { /* private mode etc.: drafts are best-effort */ }
-  };
-  App.peekDraft = async function () { try { return await idbDo('readonly', st => st.get('meta')); } catch (e) { return null; } };
-  App.dropDraft = async function () { draftSha = null; try { await idbDo('readwrite', st => { st.delete('meta'); st.delete('src'); }); } catch (e) { /* ignore */ } };
-  App.restoreDraft = async function () {
-    const meta = await App.peekDraft(), buf = await idbDo('readonly', st => st.get('src'));
-    if (!meta || !buf) throw new Error(L('没有可恢复的草稿', 'No draft to restore'));
-    (meta.ladders || []).forEach(d => G.Ladders.importDef(d));
-    const input = { name: meta.name, buffer: buf, img: await G.TIFF.decodeBuffer(buf, meta.name), sha256: meta.sha256 };
-    draftSha = meta.sha256;
-    restore(input, JSON.parse(meta.state), meta.initial, meta.autoRotation);
-  };
+  // History and project files share the same restoration path.
+  App.restoreSnapshot = restore;
   function predictY(bp, bands) {
     const B = bands.slice().sort((a, b) => b.bp - a.bp);
     for (let i = 0; i < B.length - 1; i++) if (bp <= B[i].bp && bp >= B[i + 1].bp) {

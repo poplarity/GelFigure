@@ -394,6 +394,7 @@
 
   G.FigEdit = {
     setMode, arrowPopover, annoPopover, openEd, closePop, reset,
+    flush() { closeEd(false); closePop(); },
     afterRender() {
       if (edit && edit.kind === 'lane') {
         const el = prev.querySelector(`g[data-edit="lane"][data-src="${edit.id}"]`);

@@ -36,6 +36,8 @@ Click **Try the example** to explore the tool. For future sessions, open the sam
 
 ## Save, update and share
 
+**Dev branch addition: recent projects.** Use the top bar or **File → Recent projects**; on a phone, use **⋯ → Recent projects**. Images and edits are cached automatically without replacing the previous project when you import another gel. Rename, delete or restore a project, including its other exposures. This is browser-local storage, not a permanent backup: clearing site data removes it. If caching fails, save a project file. A `.gelfig` contains the selected exposure and annotations; keep other exposure files separately.
+
 **Save progress:** before closing, choose **File → Save project**. The `.gelfig` file contains your original image and annotations. Next time choose **File → Open project**. Your browser's “Save page” command does not save your figure-editing session.
 
 **Update:** download the new HTML from Releases. Save your project in the old version first, then open it in the new version. Offline HTML files do not update themselves.

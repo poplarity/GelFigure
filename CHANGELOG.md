@@ -4,6 +4,17 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- 参考 BlotFigure 增加本机历史项目：自动缓存原图、全部标注和多张曝光，切换胶图时保留上一个项目；支持列表恢复、改名、删除和缓存状态提示。
+- 旧版单份草稿自动迁移，相同原图按 SHA-256 去重；缓存失败会提示保存项目文件，取消切换可继续编辑。桌面、手机和单文件离线版共用同一套实现。
+
+### Added
+- Local project history, adapted from BlotFigure, with autosave status, rename/delete, desktop/start-screen/phone entry points, and restoration without re-detection. The cache preserves all exposures, source bytes, custom ladders, annotations, colours, fonts and reset state.
+- Atomic migration of the previous single draft, content-addressed source deduplication and reference-aware deletion. Failed writes keep the previous saved copy; switching with unsaved work asks before discarding it. No runtime dependencies or network requests.
+
+### Validation
+- Browser tests cover reload/restore, migration before a new import, shared-source deletion, exposure switching, queued writes, rename/IME, storage failure, responsive layout and the offline single HTML.
+
 ## [0.6.8] - 2026-10-22
 
 Original-colour gels, system fonts and compact marker-unit headings.

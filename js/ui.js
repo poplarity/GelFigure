@@ -55,6 +55,19 @@
     if (!vis.length) App.autoMarkers(); else App.matchMarkers(false);
   };
 
+  // Finish inline/side-panel edits before capturing a project or switching pictures.
+  function flushPending() {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (G.FigEdit) G.FigEdit.flush();
+  }
+  async function archiveCurrent() {
+    if (!S()) return true;
+    flushPending();
+    if (await App.saveDraft()) return true;
+    return confirm(L('当前进度未能缓存（浏览器存储不可用或空间不足）。建议先用“保存项目”留一份。仍要切换并放弃未保存的更改吗？',
+      'The current work could not be cached (storage is unavailable or full). Save a project file first. Switch anyway and discard unsaved changes?'));
+  }
+
   /* ---------- loading ---------- */
   // files: FileList / array. A .gelfig opens a project; several images = several exposures
   async function load(files) {
@@ -62,6 +75,7 @@
     if (!files.length) return;
     const proj = files.find(f => /\.gelfig$/i.test(f.name));
     if (proj) return openProject(proj);
+    if (!await archiveCurrent()) return;
     // phones: very large camera photos are scaled to what a phone browser can draw (mobile.js)
     if (G.Mobile && G.Mobile.fitPhotos) files = await G.Mobile.fitPhotos(files);
     await App.load(files.length > 1 ? files : files[0]);
@@ -79,6 +93,7 @@
     if (Math.abs(S().rotation) >= App.AUTO_ROT_LIMIT - 0.3) toast(L(`自动转正达到上限 ±${App.AUTO_ROT_LIMIT}°，请人工确认角度`, `Auto-straightening reached its ±${App.AUTO_ROT_LIMIT}° limit; please check the angle`), 5200);
   }
   async function openProject(f) {
+    if (!await archiveCurrent()) return;
     try { App.busy(true, L('正在打开项目…', 'Opening project…')); await App.openProject(await f.arrayBuffer()); toast(L('项目已打开', 'Project opened')); }
     catch (e) { alert(L('打开项目失败：', 'Could not open the project: ') + e.message); } finally { App.busy(false); }
   }
@@ -103,8 +118,8 @@
   /* ---------- draft restore (offered on the start screen) ---------- */
   async function offerDraft() {
     const d = await App.peekDraft();
-    if (!d || S()) return;
-    $('draftName').textContent = d.name;
+    if (!d || S()) { $('draftBox').classList.add('hidden'); return; }
+    $('draftName').textContent = d.projectName || d.name;
     $('draftTime').textContent = L('保存于 ', 'Saved ') + new Date(d.savedAt).toLocaleString(G.I18N.lang === 'en' ? 'en' : 'zh-CN');
     $('draftBox').classList.remove('hidden');
   }
@@ -112,7 +127,11 @@
     try { App.busy(true, L('正在恢复…', 'Restoring…')); await App.restoreDraft(); toast(L('已恢复上次的进度', 'Restored your last session')); }
     catch (e) { alert(L('恢复失败：', 'Could not restore: ') + e.message); } finally { App.busy(false); }
   };
-  $('btnDraftDrop').onclick = async () => { await App.dropDraft(); $('draftBox').classList.add('hidden'); };
+  $('btnDraftDrop').onclick = async () => {
+    if (!confirm(L('删除这份本地缓存？已下载的项目文件不会删除。', 'Delete this local cache? Downloaded project files are kept.'))) return;
+    try { await App.dropDraft(); $('draftBox').classList.add('hidden'); await offerDraft(); }
+    catch (e) { toast(L('删除失败：', 'Could not delete: ') + e.message); }
+  };
 
   /* ---------- exposures strip ---------- */
   function renderExposures() {
@@ -807,7 +826,7 @@
   window.addEventListener('resize', () => { if (S()) { updatePreview(); drawHisto(); } });
 
   G.UI = {
-    toast, updatePreview, figLanes, range, esc, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
+    toast, updatePreview, figLanes, range, esc, flushPending, archiveCurrent, offerDraft, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
     figZoom: () => figZoom,
     setFigZoom(z) { figZoom = z; if (S()) updatePreview(); }
   };

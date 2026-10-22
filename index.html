@@ -16,6 +16,7 @@
 <header class="topbar">
   <div class="brand">GelFigure</div>
   <button class="chip" id="imgChip" title="打开 / 更换图片" data-en-title="Open / replace image"><span class="chip-dot"></span><span id="imgChipName" data-en="Open image">打开图片</span></button>
+  <button class="cache-status d-only" id="cacheStatus" data-en="Recent projects">历史项目</button>
   <div class="coach" id="coach"><span class="coach-dot"></span><span id="coachText" data-en="Drop a gel image into the window to start">把胶图拖进窗口即可开始</span></div>
   <div class="topbar-right">
     <button class="icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)" data-en-title="Undo (Ctrl+Z)">↺</button>
@@ -26,6 +27,7 @@
       <div class="menu hidden" id="tplMenu">
         <label><span data-en="Open image…">打开图片…</span><small data-en="Select several exposures of one gel to pick the best automatically">可一次选多张同一块胶的不同曝光，自动挑最佳</small><input type="file" id="fileInput3" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,image/*" multiple hidden></label>
         <label><span data-en="Open project…">打开项目…</span><small data-en=".gelfig project file (original image and all annotations)">.gelfig 项目文件（含原图和全部标注）</small><input type="file" id="projInput" accept=".gelfig,.json" hidden></label>
+        <button id="btnHistory" data-en="Recent projects…">历史项目…</button>
         <button id="btnSaveProj"><span data-en="Save project…">保存项目…</span><small data-en="Original image + every setting and annotation; continue on any computer">原图 + 全部参数和标注，可在任何电脑接着做</small></button>
         <div class="menu-sep"></div>
         <button id="btnSaveTpl"><span data-en="Save style…">保存样式…</span><small data-en="Lane names, markers, groups, layout — reuse for similar gels">泳道名、Marker、分组、版式，下次同类胶一键套用</small></button>
@@ -70,10 +72,11 @@
       <p class="m-only" data-en-html="<b>DNA gels and protein gels (SDS-PAGE)</b> — the type is recognised on import.<br>Pick a file or a photo, or take one; TIFF, PNG and JPG all work.<br>Straightening, lanes and markers are automatic — type the lane names and export."><b>DNA 胶和蛋白胶（SDS-PAGE）</b>都可以，导入时自动判断。<br>可从文件、相册选择，也可以直接拍照；TIFF、PNG、JPG 都能读。<br>转正、泳道、Marker 全自动，填好泳道名就能导出。</p>
       <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig,image/*" multiple hidden></label>
       <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
+      <button class="btn big" id="btnHistoryStart" data-en="Open a recent project">打开历史项目</button>
       <p class="hint d-only" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
       <div id="draftBox" class="draft hidden">
-        <div><span data-en="Unfinished figure from last time:">上次有未完成的图：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
-        <div class="inline"><button class="btn sm primary" id="btnDraftRestore" data-en="Restore">恢复</button><button class="btn sm ghost" id="btnDraftDrop" data-en="Discard">丢弃</button></div>
+        <div><span data-en="Your most recent project:">最近一次的项目：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
+        <div class="inline"><button class="btn sm primary" id="btnDraftRestore" data-en="Restore">恢复</button><button class="btn sm ghost" id="btnDraftDrop" data-en="Delete cache">删除缓存</button></div>
       </div>
       <p class="hint d-only" data-en="You can drop several exposures of the same gel at once; the best one is picked automatically.">可以一次拖入同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
       <p class="hint m-only" data-en="You can pick several exposures of the same gel at once; the best one is chosen automatically.">可以一次选择同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
@@ -379,6 +382,7 @@
     <div class="sheet-grip"></div>
     <div class="sheet-head"><h3 data-en="More">更多</h3><button class="sheet-x" data-close aria-label="关闭" data-en-title="Close">×</button></div>
     <button class="sheet-item" data-m="open"><span class="si-ic">＋</span><span class="si-tx"><span data-en="Open image…">打开图片…</span><small data-en="File, photo or camera; several exposures of one gel at once">文件、相册或拍照；可一次选同一块胶的多张曝光</small></span></button>
+    <button class="sheet-item" data-m="history"><span class="si-ic">◷</span><span class="si-tx"><span data-en="Recent projects">历史项目</span><small id="mCacheStatus" data-en="Continue from saved browser history">从本浏览器保存的历史继续</small></span></button>
     <button class="sheet-item" data-m="openProj"><span class="si-ic">⧉</span><span class="si-tx"><span data-en="Open project…">打开项目…</span><small data-en=".gelfig file with the original image and all annotations">.gelfig 文件，含原图和全部标注</small></span></button>
     <button class="sheet-item" data-m="saveProj"><span class="si-ic">↓</span><span class="si-tx"><span data-en="Save project">保存项目</span><small data-en="Continue on any device">换设备也能接着做</small></span></button>
     <div class="sheet-sep"></div>
@@ -444,7 +448,8 @@
   <div data-en-html="
   <h3>Offline use: download just one file</h3>
   <p>Download <a href='https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html'>GelFigure-v0.6.8.html</a>, save it to your computer, then double-click to open in your browser. No installation or ZIP extraction. The repository's index.html alone is not the complete tool.</p>
-  <p>Before closing, use File → Save project (Settings on a phone) to keep the original image and annotations in a .gelfig file. Open that project to continue next time.</p>
+  <p>Recent projects in the top bar or File menu (⋯ on a phone) keeps images and edits in this browser, including all exposures. You can rename, delete and reopen them without re-detection. Importing another image keeps the previous project. Clearing browser data removes the cache.</p>
+  <p>For a backup or another computer, use File → Save project (⋯ on a phone). A .gelfig file contains the selected exposure and its annotations; keep other exposure files separately. If caching fails, save a project file before switching images.</p>
   <h3>Fastest way to a figure</h3>
   <ol>
     <li>Drop the gel image — straightening, cropping, lanes, markers and contrast are automatic. Several exposures of one gel can be dropped together; the best is chosen.</li>
@@ -475,7 +480,8 @@
   <p class='muted small'>Open source (MIT): <a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a> — bug reports and ladder additions welcome.</p>">
   <h3>离线使用：只下载一个文件</h3>
   <p>下载 <a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html">GelFigure-v0.6.8.html</a>，保存到电脑，双击用浏览器打开即可。不用安装、不用解压。仓库里的 index.html 单独下载不包含完整工具。</p>
-  <p>关闭前点“文件 → 保存项目”（手机在“设置”中），将原图和标注存为 .gelfig 文件；下次打开项目即可继续。</p>
+  <p>顶栏或“文件 → 历史项目”（手机在右上角 ⋯）可打开本浏览器缓存的图片和编辑进度，包括全部曝光。支持改名、删除，恢复时不会重新识别；导入下一张图会保留上一张的进度。清理浏览器数据会清除缓存。</p>
+  <p>备份或换电脑时，请用“文件 → 保存项目”（手机在 ⋯）。.gelfig 保存当前曝光的原图和标注，其他曝光的原文件请另行保留。缓存失败时，建议先保存项目文件再切换图片。</p>
   <h3>最快的出图方式</h3>
   <ol>
     <li>拖入胶图 —— 转正、裁切、泳道、Marker、对比度全部自动完成。同一块胶的多张曝光可以一起拖进来，自动挑最好的一张。</li>
@@ -531,9 +537,11 @@
 <script src="js/pptx.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/app.js"></script>
+<script src="js/library.js"></script>
 <script src="js/editor.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/figedit.js"></script>
 <script src="js/mobile.js"></script>
+<script src="js/history-ui.js"></script>
 </body>
 </html>
