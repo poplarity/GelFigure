@@ -4,8 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-10-22
+
+Editable PowerPoint figures with adjustable native image crops.
+
+**中文摘要**
+- **可编辑 PPTX 导出。** 电脑和手机导出菜单新增 PowerPoint。打开即保持成图排版；泳道名、分组、Marker、箭头、框和括号等均为可编辑文字或图形；图片保存原生裁切范围，可在 PPT 中调整。拼接和放大图使用独立可裁切片段。文件内部包含完整的已处理图像，字体未嵌入，PPT 内调整裁切不会自动移动标注。
+
 ### Added
-- **中文摘要：可编辑 PPTX 导出。** 电脑和手机导出菜单新增 PowerPoint。打开即保持成图排版；泳道名、分组、Marker、箭头、框和括号等均为可编辑文字或图形；图片保存原生裁切范围，可在 PPT 中调整。拼接和放大图使用独立可裁切片段。文件内部包含完整的已处理图像，字体未嵌入，PPT 内调整裁切不会自动移动标注。
 - A dependency-free DrawingML/ZIP exporter reuses the SVG layout, keeps multiline group labels in one editable text box, embeds one full processed PNG shared by native crop objects, and works in the offline single HTML. Detection code is unchanged.
 - PPTX checks inspect ZIP checksums, XML relationships, lossless full-image storage, editable objects, multiline/italic/rotated text, crop coordinates, spliced insets, desktop/phone delivery and offline exports. Optional native PowerPoint validation: `scripts/check-pptx.ps1`.
 
@@ -201,7 +207,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.6...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.7...HEAD
+[0.6.7]: https://github.com/poplarity/GelFigure/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/poplarity/GelFigure/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/poplarity/GelFigure/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/poplarity/GelFigure/compare/v0.6.3...v0.6.4

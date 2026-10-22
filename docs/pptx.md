@@ -1,6 +1,8 @@
 # Editable PowerPoint export / 可编辑 PPTX 导出
 
-Available on `dev` for review; not yet in the published v0.6.6 HTML or website.
+Available since **v0.6.7**, online and in the single-file offline HTML.
+
+**v0.6.7 起可用**，网页版和单文件离线版都支持。
 
 ## 中文
 
