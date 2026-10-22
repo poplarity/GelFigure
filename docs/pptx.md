@@ -4,11 +4,11 @@ Available since **v0.6.7**, online and in the single-file offline HTML.
 
 **v0.6.7 起可用**，网页版和单文件离线版都支持。
 
-**dev 字体选择预览：**「版式 → 成图字体」可选 Arial、新罗马、Helvetica、Calibri、Cambria，PPTX 文本及主题会记录所选字体名称。系统未提供该字体时，浏览器和 PowerPoint 可能各自使用替代字体；不嵌入字体文件。
+**字体选择（v0.6.8 起）：**「版式 → 成图字体」可选 Arial、新罗马、Helvetica、Calibri、Cambria，PPTX 文本及主题会记录所选字体名称。系统未提供该字体时，浏览器和 PowerPoint 可能各自使用替代字体；不嵌入字体文件。
 
-**Font selection on dev:** Layout → Figure font selects Arial, Times New Roman, Helvetica, Calibri or Cambria. PPTX text and its theme reference the chosen face. A missing font may be substituted differently by the browser and PowerPoint; no font files are embedded.
+**Font selection (v0.6.8+):** Layout → Figure font selects Arial, Times New Roman, Helvetica, Calibri or Cambria. PPTX text and its theme reference the chosen face. A missing font may be substituted differently by the browser and PowerPoint; no font files are embedded.
 
-**dev 原色显示 / original colour:** PPTX 内的图片跟随「保留原色／灰度」选择。原色模式保留颜色，不使用灰度对比度、反色和 Gamma；仍可在 PPT 中调整裁切。Pictures follow the selected appearance. Original-colour mode retains source colours without grayscale levels/inversion/gamma, and still supports native recropping.
+**原色显示 / original colour (v0.6.8+):** PPTX 内的图片跟随「保留原色／灰度」选择。原色模式保留颜色，不使用灰度对比度、反色和 Gamma；仍可在 PPT 中调整裁切。Pictures follow the selected appearance. Original-colour mode retains source colours without grayscale levels/inversion/gamma, and still supports native recropping.
 
 ## 中文
 
@@ -21,7 +21,7 @@ Available since **v0.6.7**, online and in the single-file offline HTML.
 - **调整裁切**：选中胶图 → **图片格式 → 裁剪**，拖边界或在裁剪模式下拖动图片。完成后只显示新的选定区域。拼接后的各片段、局部放大图分别可裁切。
 - **移动整张成图**：全选对象后组合，方便复制到自己的幻灯片或继续拼版。需要修改某项时再取消组合。
 
-**文件内部保留什么：** 为了让裁切可调整，PPTX 内部保存一份未裁切、与成图使用相同显示模式和旋转参数的 PNG。灰度模式应用色阶和反色；dev 的原色模式保留 RGB，不应用这些灰度调整。它不是原始 TIFF；收件人可以通过调整裁切看到被隐藏的区域。导出不会上传图像，也不会把原始文件的 EXIF、文件路径或本机用户名带入 PPTX。
+**文件内部保留什么：** 为了让裁切可调整，PPTX 内部保存一份未裁切、与成图使用相同显示模式和旋转参数的 PNG。灰度模式应用色阶和反色；原色模式保留 RGB，不应用这些灰度调整。它不是原始 TIFF；收件人可以通过调整裁切看到被隐藏的区域。导出不会上传图像，也不会把原始文件的 EXIF、文件路径或本机用户名带入 PPTX。
 
 **边界：** 在 PPT 中调整裁切后，Marker 和文字不会自动重新对齐。字体名称和样式会保留，但字体文件不嵌入；另一台电脑缺少相应字体时可能替换。PPTX 的图片像素来自当前处理图像，选择 600/1200 dpi 不会增加它的原始细节；文字和图形保持矢量。页面按成图实际物理尺寸生成，短边小于 25.4 mm 时补白到 PowerPoint 的最小页面尺寸。
 
@@ -33,7 +33,7 @@ The slide opens as the finished figure with the current crop and layout. Lane na
 
 Select a picture and choose **Picture Format → Crop** to move its crop boundaries or pan the image within them. Spliced segments and enlarged insets are separate editable pictures. Select all and group to move or copy the whole figure together.
 
-To support recropping, the PPTX embeds **one uncropped PNG with the figure's display mode and rotation**. Grayscale mode applies levels and inversion; original-colour mode on dev keeps RGB without those grayscale adjustments. It is not the raw TIFF. All picture objects reference that one image; recipients can reveal the hidden areas. Export stays offline, with no source EXIF, local paths or OS author identity added by GelFigure.
+To support recropping, the PPTX embeds **one uncropped PNG with the figure's display mode and rotation**. Grayscale mode applies levels and inversion; original-colour mode keeps RGB without those grayscale adjustments. It is not the raw TIFF. All picture objects reference that one image; recipients can reveal the hidden areas. Export stays offline, with no source EXIF, local paths or OS author identity added by GelFigure.
 
 Changing the crop in PowerPoint does not reposition annotations automatically. Font names/styles are preserved, but font files are not embedded; another computer may substitute fonts. The gel keeps its processed source pixels; the raster-export DPI selector does not upsample the PPTX image. Text and shapes are vector objects. Slide dimensions match the figure, with blank padding if a dimension falls below PowerPoint's 1-inch minimum.
 

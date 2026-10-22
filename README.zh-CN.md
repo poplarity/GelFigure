@@ -4,7 +4,7 @@
 
 **把原始 DNA 胶或蛋白胶图一键做成可投稿的成图 —— 在浏览器里完成，离线可用。**
 
-[**下载单文件 HTML**](https://github.com/poplarity/GelFigure/releases/download/v0.6.7/GelFigure-v0.6.7.html) · [在线使用](https://poplarity.github.io/GelFigure/) · [English](README.md)
+[**下载单文件 HTML**](https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html) · [在线使用](https://poplarity.github.io/GelFigure/) · [English](README.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -18,13 +18,13 @@
 
 **只需下载一个文件，用浏览器打开就能做图。不用安装、不用解压，也不用注册 GitHub。**
 
-1. **[点击下载 GelFigure-v0.6.7.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.7/GelFigure-v0.6.7.html)**，不到 1 MB，保存到桌面或“下载”文件夹。
+1. **[点击下载 GelFigure-v0.6.8.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html)**，不到 1 MB，保存到桌面或“下载”文件夹。
 2. **双击刚下载的文件。** 它会在浏览器中打开；如果打开的是记事本等软件，右键文件 → **打开方式** → 选择 Firefox、Chrome、Edge 或 Safari。
 3. **点“选择文件”，导入你的胶图。** 核对识别出的胶种、泳道和 Marker，点泳道名填写名称，再点 **导出 PNG**。
 
 这一个 HTML 文件已经包含完整界面和处理功能。保存后可以断网使用，也可以把同一个文件直接发给同事。
 
-**认准文件名：** 下载的是 **GelFigure-v0.6.7.html**，不是仓库里的 **index.html**，也不是 **Source code (zip)** 或 **Source code (tar.gz)**。不需要点 **Code → Download ZIP**。如果进入了[版本下载页](https://github.com/poplarity/GelFigure/releases/latest)，展开 **Assets（附件）**，只点结尾为 **.html** 的文件即可。
+**认准文件名：** 下载的是 **GelFigure-v0.6.8.html**，不是仓库里的 **index.html**，也不是 **Source code (zip)** 或 **Source code (tar.gz)**。不需要点 **Code → Download ZIP**。如果进入了[版本下载页](https://github.com/poplarity/GelFigure/releases/latest)，展开 **Assets（附件）**，只点结尾为 **.html** 的文件即可。
 
 **下次接着做：** 关闭前点 **文件 → 保存项目**；手机端在右上角 **⋯** 里（或 **导出 → 保存项目**）。得到的 **.gelfig** 项目文件会保存原图和标注，下次用 GelFigure 打开即可继续。
 
@@ -62,9 +62,9 @@
 - **泳道按加样孔编号**：裁切只是选择显示哪几孔，改裁切不会丢名称、Marker 和分组。
 - **论文常用的标注**：分组横线、`+`/`−` 条件行、区域框（可在成图旁放大展示）、侧边括号（拖尾、(Ub)n）、侧边文字（染色方法、抗体），以及非特异条带等的 `*` / `#` / `†` 标记。
 - **标注文字不再相撞**：分组文字比横线宽时自动换行（也可选缩小字号或保持一行），仍放不下就错开到上一行；Shift+Enter 手动换行；每条标注、箭头、框都能单独设字号。
-- **系统字体选择（dev 测试版）**：在「版式 → 成图字体」选择 Arial、新罗马（Times New Roman）、Helvetica、Calibri 或 Cambria；文字测量、换行、PNG/TIFF/SVG/PPTX 导出及项目、样式存档同步使用所选字体。不下载或内嵌字体文件；设备缺少所选字体时会使用替代字体，SVG/PPTX 在其他电脑打开时也一样。
-- **紧凑的 Marker 单位标题（dev 测试版）**：bp/kb/kDa 位于胶图侧边上沿稍下方，不再随着条件行增多而上移；条件表保持原来的间距，只在文字会相撞时补充必要空间。
-- **保留原色／灰度（dev 测试版）**：彩色图默认保留原色，支持染色蛋白胶和彩色 Marker。在「图像」中切换，仅改变显示，不重新识别或移动标注。原色模式保留旋转、裁切，不套用灰度的对比度、反色或 Gamma；PNG、SVG、PPTX、未裁切图和彩色 TIFF 均保留颜色。旧项目打开后仍保持原先的灰度效果。
+- **系统字体选择**：在「版式 → 成图字体」选择 Arial、新罗马（Times New Roman）、Helvetica、Calibri 或 Cambria；文字测量、换行、PNG/TIFF/SVG/PPTX 导出及项目、样式存档同步使用所选字体。不下载或内嵌字体文件；设备缺少所选字体时会使用替代字体，SVG/PPTX 在其他电脑打开时也一样。
+- **紧凑的 Marker 单位标题**：bp/kb/kDa 位于胶图侧边上沿稍下方，不再随着条件行增多而上移；条件表保持原来的间距，只在文字会相撞时补充必要空间。
+- **保留原色／灰度**：彩色图默认保留原色，支持染色蛋白胶和彩色 Marker。在「图像」中切换，仅改变显示，不重新识别或移动标注。原色模式保留旋转、裁切，不套用灰度的对比度、反色或 Gamma；PNG、SVG、PPTX、未裁切图和彩色 TIFF 均保留颜色。旧项目打开后仍保持原先的灰度效果。
 - **目标条带箭头自动标大小**：点一下条带，箭头吸附过去并按 Marker 估算大小。超出 Marker 范围或两个 Marker 估算相差超过 10% 时标 `≈`。
 - **多张曝光一起拖入**：自动挑过曝最少、信噪比最好的一张；可随时切换，标注全部保留。
 - **旋转时标注跟着转**：泳道、条带、箭头、裁切框随图一起转动，不会错位。
@@ -77,7 +77,7 @@
 
 ## 版本
 
-当前版本 **0.6.7**（支持可编辑 PowerPoint 导出，保留可调整的图片裁切）。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.3 在每个 Release 附上单文件离线版（`GelFigure-<version>.html`，双击即用），0.6.4 重做手机端（底部导航、全格式导出、长按存图、触屏编辑），0.6.5 让分组文字不再重叠（自动换行 / 缩小字号 / 保持一行），并支持手动换行和逐项设置字号。需要回到旧版本时：`v0.6.6`（分支 [`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)）、`v0.6.5`（分支 [`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)）、`v0.6.4`、`v0.6.3`、`v0.6.2`、`v0.6.1`、`v0.6.0` 和 `v0.5.0`。
+当前版本 **0.6.8**（保留原色、系统字体选择和紧凑的 Marker 单位标题）。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.3 在每个 Release 附上单文件离线版（`GelFigure-<version>.html`，双击即用），0.6.4 重做手机端（底部导航、全格式导出、长按存图、触屏编辑），0.6.5 让分组文字不再重叠（自动换行 / 缩小字号 / 保持一行），并支持手动换行和逐项设置字号。0.6.7 新增可编辑 PowerPoint 导出，并保留可调整的图片裁切。需要回到旧版本时：`v0.6.7`（分支 [`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)）、`v0.6.6`（分支 [`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)）、`v0.6.5`（分支 [`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)）、`v0.6.4`、`v0.6.3`、`v0.6.2`、`v0.6.1`、`v0.6.0` 和 `v0.5.0`。
 
 ## 隐私
 
@@ -89,7 +89,7 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 
 | 格式 | 说明 |
 |---|---|
-| TIFF（8 / 16 / 32 位灰度、RGB、调色板） | 支持未压缩、LZW、Deflate、PackBits，大小端均可。识别使用灰度；dev 版另保留 8 位 RGB 显示，支持 RGB 和调色板原色。TIFF 的 RGB 数值按 sRGB 显示，未应用内嵌 ICC 配置（检测到时会提示）。原始文件字节保持不变。 |
+| TIFF（8 / 16 / 32 位灰度、RGB、调色板） | 支持未压缩、LZW、Deflate、PackBits，大小端均可。识别使用灰度；另保留 8 位 RGB 显示，支持 RGB 和调色板原色。TIFF 的 RGB 数值按 sRGB 显示，未应用内嵌 ICC 配置（检测到时会提示）。原始文件字节保持不变。 |
 | PNG / JPG / BMP | 浏览器按 8 位读取，会提示改用 16 位原始 TIFF。 |
 | `.gelfig` | GelFigure 项目文件。 |
 
@@ -111,7 +111,7 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 | 导出 | 内容 |
 |---|---|
 | PNG | 按所选 dpi（300 / 600 / 1200）渲染，带 `pHYs`（分辨率）、`sRGB` 和嵌入的处理摘要（`iTXt`，UTF-8）。 |
-| TIFF | LZW，带分辨率标签和处理摘要。dev 版：原色模式导出 8 位 RGB，灰度模式导出 8 位灰度。 |
+| TIFF | LZW，带分辨率标签和处理摘要。原色模式导出 8 位 RGB，灰度模式导出 8 位灰度。 |
 | SVG | 矢量文字和线条，可在 Illustrator / Inkscape 中修改。 |
 | PPTX | 打开即为完整成图，文字和图形可编辑，图片可重新裁切。文件内部保留未裁切的已处理图像，详见 [PowerPoint 导出说明](docs/pptx.md)。 |
 | 未裁切图 | 与成图相同的旋转和对比度，标出裁切框、孔号和剪除的泳道，放补充材料。 |

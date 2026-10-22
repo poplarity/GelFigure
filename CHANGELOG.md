@@ -4,21 +4,26 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-### Added — original colour
-- **中文摘要：保留原色／灰度显示。** 彩色图默认保留原色，染色胶和彩色 Marker 不再强制转为黑白；切换显示不重跑识别，泳道、裁切和标注保留。原色模式只做几何处理，不应用灰度的色阶、反色或 Gamma；可切回灰度继续使用这些调整。PNG、SVG、PPTX、未裁切图和 RGB TIFF 支持彩色；项目、样式和撤销保存显示模式，旧项目保持旧的灰度外观。
-- RGB/palette input retains a separate 8-bit colour buffer, including 16/32-bit RGB TIFF, planar/endian variants and alpha composited on white. Existing grayscale data and detection algorithms are unchanged. TIFF ICC profiles are not applied; such input gets an explicit notice. Raw file bytes remain intact.
-- Shared geometric mapping keeps colour pixels aligned with lanes, crops, splices and zoom insets. TIFF exports use lossless LZW RGB in colour mode; grayscale export remains available. Logs distinguish active display settings from saved grayscale settings; grayscale saturation is not presented as RGB-channel saturation.
-- Colour tests cover independent TIFF fixtures, rotation, display switching, PNG/TIFF pixel agreement, editable/croppable colour PPTX, original-file bytes, persistence, exposure switches and offline phones. Independent Pillow/libtiff and Windows PowerPoint validation use synthetic images only.
+## [0.6.8] - 2026-10-22
 
-### Fixed
-- Marker/condition clearance now uses font metrics and a small size-dependent gap, covering Firefox font substitution and mixed 4–14 pt labels without adding an empty row to the normal layout. Tests cover 120 layouts per engine.
-- **中文摘要：Marker 单位标题不再跟随泳道名称上移。** bp、kb、kDa 放在胶图侧边上沿稍下方，条件表维持紧贴胶图的间距；不为标题预留整行空白。只有大字号或裁切边缘的条带数值发生冲突时，才留出必要间隔。左右 Marker 共用标题基线，SVG、PNG、TIFF 和 PPTX 使用同一排版。
-- Marker units are anchored beside the gel instead of above the condition matrix. No extra blank row in the normal layout; crop-edge values and large labels receive only the clearance they need. Regression checks cover bp/kb/kDa, 0–4 conditions, two marker columns, rotated lane labels, well numbers, five fonts and mixed font sizes, plus SVG/PPTX position agreement.
+Original-colour gels, system fonts and compact marker-unit headings.
+
+**中文摘要**
+- **保留原色／灰度**：彩色胶图默认保留原色，蓝色染色胶和红绿 Marker 不再强制转为黑白。切换不重跑识别、不移动泳道或标注；原色模式不套用灰度的对比度、反色或 Gamma。PNG、彩色 TIFF、SVG、PPTX、未裁切图均保留颜色；旧项目维持原先外观。
+- **五种系统字体**：Arial、新罗马（Times New Roman）、Helvetica、Calibri、Cambria。排版、换行和导出同步使用所选字体，项目和样式保存选择；不下载或内嵌字体文件，缺少字体时由系统替代。
+- **Marker 单位标题更紧凑**：bp／kb／kDa 放在胶图侧边上沿稍下方，不再跟着条件行上移，也不预留整行空白。按字体边界处理大小字号和浏览器差异，左右单位保持同一基线。
+- 保持零运行依赖、单文件离线使用。原色显示和导出使用 8 位 RGB，原始文件字节不变；TIFF 内嵌 ICC 配置暂不处理，检测到会提示。
 
 ### Added
-- **中文摘要：轻量系统字体选择。**「版式 → 成图字体」新增 Arial、新罗马（Times New Roman）、Helvetica、Calibri、Cambria；默认仍为 Arial。全图排版、自动换行、PNG/TIFF/SVG/PPTX、未裁切图标注和处理日志统一使用所选字体，项目、样式和偏好会保存选择。缺少字体时使用系统替代字体，不下载、不内嵌字体文件，不新增依赖。
-- One shared system-font allowlist for canvas metrics, SVG text, native PowerPoint runs/themes and imported styles. Legacy/malformed font settings fall back to Arial. Detection and image-processing algorithms are unchanged.
-- Font regression coverage: real SVG group bounds across all fit modes, editable text/font declarations, distinct serif/sans-serif raster glyphs, TIFF pixels, project/style/undo persistence, offline mobile selection and no font requests. The native PowerPoint helper accepts `-Names` for checking the five font examples.
+- Original-colour/grayscale display choice. A separate 8-bit RGB display buffer keeps the existing high-precision grayscale detection data unchanged. RGB/palette TIFF input supports planar/endian variants and white-composited alpha; RGB TIFF values assume sRGB, with a notice for unapplied ICC profiles.
+- Colour rotation, crop, splices, zoom insets, exposure thumbnails and native-crop PPTX share the same geometry. PNG, SVG, uncropped images and lossless LZW RGB TIFF retain colour. Projects, templates and undo preserve display mode; legacy projects remain grayscale. Logs distinguish active display processing from saved grayscale settings.
+- Arial, Times New Roman, Helvetica, Calibri and Cambria use one shared system-font allowlist for canvas measurement, SVG, PowerPoint text/themes and imported styles. Font files are neither downloaded nor embedded; old or invalid selections fall back to Arial.
+
+### Fixed
+- Unit headings stay beside the gel rather than above the condition matrix. Font metrics and a small size-dependent gap handle Firefox font substitution and mixed 4–14 pt labels while retaining compact normal spacing.
+
+### Validation
+- Browser coverage includes colour TIFF fixtures, pixel/geometry agreement, colour exports, mode persistence, offline phone usage, five-font layout/export checks and 120 unit-heading layouts per engine. Independent Pillow/libtiff and Windows PowerPoint checks use synthetic data only.
 
 ## [0.6.7] - 2026-10-22
 
@@ -223,7 +228,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.7...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.8...HEAD
+[0.6.8]: https://github.com/poplarity/GelFigure/compare/v0.6.7...v0.6.8
 [0.6.7]: https://github.com/poplarity/GelFigure/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/poplarity/GelFigure/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/poplarity/GelFigure/compare/v0.6.4...v0.6.5

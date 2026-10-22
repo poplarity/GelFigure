@@ -4,7 +4,7 @@
 
 **Turn a raw DNA or protein gel image into a publication-ready figure — in your browser, offline.**
 
-[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.7/GelFigure-v0.6.7.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
+[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -18,13 +18,13 @@
 
 **Download one file, open it in your browser, and start making your figure. No installation, ZIP extraction or GitHub account is needed.**
 
-1. **[Download GelFigure-v0.6.7.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.7/GelFigure-v0.6.7.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
+1. **[Download GelFigure-v0.6.8.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
 2. **Double-click the downloaded file.** It opens in your browser. If a text editor opens instead, right-click → **Open with** → Firefox, Chrome, Edge or Safari.
 3. **Click “Choose file” and select your gel image.** Check the detected gel type, lanes and marker, click the lane names to edit them, then choose **Export PNG**.
 
 That one HTML file is the complete tool, including its layout and image-processing code. Keep it on your computer or send the same file to a colleague. Once downloaded, it works without an internet connection.
 
-**Get the right file:** choose the release attachment named **GelFigure-v0.6.7.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
+**Get the right file:** choose the release attachment named **GelFigure-v0.6.8.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
 
 **Keep your work:** use **File → Save project** before closing. On a phone it is under **⋯** (or **Export → Save project**). Your **.gelfig** file contains the original image and annotations; reopen it in GelFigure to continue.
 
@@ -62,9 +62,9 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Lanes numbered by well**: cropping only selects which wells are shown, so names, markers and groups are never lost when you change the crop.
 - **Annotations papers use**: group lines, `+`/`−` rows, region boxes (optionally enlarged beside the figure), side brackets for smears or (Ub)n, side text for the stain or antibody, and `*` / `#` / `†` marks for non-specific bands or other products.
 - **Labels that never collide**: group labels too wide for their line wrap (or shrink, or stay on one line — your choice) and otherwise move up a row; Shift+Enter breaks a label by hand; any label, arrow or box can have its own font size.
-- **System-font choices (dev preview)**: Layout → Figure font offers Arial, Times New Roman, Helvetica, Calibri and Cambria. Measurement, wrapping, raster/SVG/PPTX exports and saved projects/styles follow the selection. No font files are downloaded or embedded; devices without the chosen font use a substitute, including when opening editable SVG/PPTX files elsewhere.
-- **Compact marker-unit headings (dev preview)**: bp/kb/kDa stay beside the gel's upper edge instead of moving above the condition matrix. Condition rows keep their normal spacing; extra clearance is added only when a label would collide.
-- **Original colour or grayscale (dev preview)**: colour sources open in their original colours, including stained protein gels and coloured markers. Image → Original colour / Grayscale changes display only; detection and annotations are unchanged. Original-colour mode keeps rotation/crop but does not apply grayscale contrast, inversion or gamma. PNG, SVG, PPTX, uncropped images and RGB TIFF retain colour. Older projects reopen in their saved grayscale appearance.
+- **System-font choices**: Layout → Figure font offers Arial, Times New Roman, Helvetica, Calibri and Cambria. Measurement, wrapping, raster/SVG/PPTX exports and saved projects/styles follow the selection. No font files are downloaded or embedded; devices without the chosen font use a substitute, including when opening editable SVG/PPTX files elsewhere.
+- **Compact marker-unit headings**: bp/kb/kDa stay beside the gel's upper edge instead of moving above the condition matrix. Condition rows keep their normal spacing; extra clearance is added only when a label would collide.
+- **Original colour or grayscale**: colour sources open in their original colours, including stained protein gels and coloured markers. Image → Original colour / Grayscale changes display only; detection and annotations are unchanged. Original-colour mode keeps rotation/crop but does not apply grayscale contrast, inversion or gamma. PNG, SVG, PPTX, uncropped images and RGB TIFF retain colour. Older projects reopen in their saved grayscale appearance.
 - **Target-band arrows with sizes**: click a band; the arrow snaps to it and its size is estimated from the marker(s). Sizes outside the ladder, or where two markers disagree by more than 10 %, are marked `≈`.
 - **Several exposures at once**: drop all exposures of one gel; the best one (least saturation, best signal-to-noise) is chosen, and you can switch with all annotations kept.
 - **Rotation keeps annotations in place**: lanes, bands, arrows and the crop box rotate with the image.
@@ -77,7 +77,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Versions
 
-The current version is **0.6.7** (editable PowerPoint export with adjustable image crops). The 0.6 series adds protein gels, annotations, and mobile support. 0.6.3 ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use; 0.6.4 reworks the phone layout (bottom bar, export sheet with every format, long-press to save, touch editing); 0.6.5 keeps group labels from overlapping (wrap / shrink / one line), adds typed line breaks and a font size per label. Earlier versions are kept as tags and branches if you need to go back: `v0.6.6` ([`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)), `v0.6.5` ([`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)), `v0.6.4`, `v0.6.3`, `v0.6.2`, `v0.6.1`, `v0.6.0` and `v0.5.0`.
+The current version is **0.6.8** (original colour, system fonts and compact marker-unit headings). The 0.6 series adds protein gels, annotations, and mobile support. 0.6.3 ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use; 0.6.4 reworks the phone layout (bottom bar, export sheet with every format, long-press to save, touch editing); 0.6.5 keeps group labels from overlapping (wrap / shrink / one line), adds typed line breaks and a font size per label. 0.6.7 added editable PowerPoint export with adjustable image crops. Earlier versions are kept as tags and branches if you need to go back: `v0.6.7` ([`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)), `v0.6.6` ([`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)), `v0.6.5` ([`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)), `v0.6.4`, `v0.6.3`, `v0.6.2`, `v0.6.1`, `v0.6.0` and `v0.5.0`.
 
 ## Privacy
 
@@ -89,7 +89,7 @@ The page carries a [Content Security Policy](index.html) that **forbids it from 
 
 | Format | Notes |
 |---|---|
-| TIFF (8 / 16 / 32-bit grayscale, RGB, palette) | Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Detection uses grayscale. On dev, a separate 8-bit RGB display retains RGB/palette colours; TIFF RGB values are treated as sRGB (embedded ICC profiles are not applied, and trigger a notice). Original file bytes are kept intact. |
+| TIFF (8 / 16 / 32-bit grayscale, RGB, palette) | Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Detection uses grayscale. A separate 8-bit RGB display retains RGB/palette colours; TIFF RGB values are treated as sRGB (embedded ICC profiles are not applied, and trigger a notice). Original file bytes are kept intact. |
 | PNG / JPG / BMP | Read as 8-bit by the browser; a warning suggests using the raw 16-bit TIFF instead. |
 | `.gelfig` | GelFigure project file. |
 
@@ -111,7 +111,7 @@ Both bright-bands-on-dark (EtBr, SYBR, fluorescence) and dark-bands-on-light (Co
 | Export | Content |
 |---|---|
 | PNG | Rendered at the chosen dpi (300 / 600 / 1200). Includes `pHYs` (resolution), `sRGB` and an embedded processing summary (`iTXt`, UTF-8). |
-| TIFF | LZW with resolution tags and a processing summary. On dev: 8-bit RGB in original-colour mode, or 8-bit grayscale in grayscale mode. |
+| TIFF | LZW with resolution tags and a processing summary. 8-bit RGB in original-colour mode, or 8-bit grayscale in grayscale mode. |
 | SVG | Vector text and lines; edit in Illustrator or Inkscape. |
 | PPTX | Finished figure with native editable text/shapes and recroppable pictures. Retains uncropped, processed pixels inside the file. See [PowerPoint export](docs/pptx.md). |
 | Uncropped image | Same rotation and contrast as the figure, with the crop box, well numbers and removed lanes marked. For the supplementary information. |
