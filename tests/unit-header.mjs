@@ -34,7 +34,7 @@ export async function unitHeaderChecks(browser,base,root,engine){
             // Condition names/cells and marker values are horizontal. Lane labels may rotate; the
             // stress fixtures keep outer lanes named M, so these can be checked with real bounds too.
             const collision=others.find(t=>intersects(a,t.getBoundingClientRect()));
-            if(collision)failures.push({unit,count,family,pt,mp,cp,numbers,angle,collision:collision.textContent});
+            if(collision){const b=collision.getBoundingClientRect();failures.push({unit,count,family,pt,mp,cp,numbers,angle,collision:collision.textContent,unitY:u.getAttribute('y'),otherY:collision.getAttribute('y'),unitBox:[a.top,a.bottom],otherBox:[b.top,b.bottom]});}
           }
           const y=units.map(t=>+t.getAttribute('y'));
           if(count && mp===7 && cp===7){
@@ -56,11 +56,11 @@ export async function unitHeaderChecks(browser,base,root,engine){
               if(y!==y0)failures.push({error:'heading moved with annotation rows',unit,family,n,y0,y});
             }
           }
-          for(const [mp,cp] of [[4,14],[14,4],[14,14]])for(const numbers of [false,true])inspect('kDa',3,7,mp,cp,numbers,'45','Times New Roman');
+          for(const family of Render.fontNames)for(const [mp,cp] of [[4,14],[14,4],[14,14]])for(const numbers of [false,true])inspect('kDa',3,7,mp,cp,numbers,'45',family);
           return {cases,failures};
         }finally{host.remove();}
       });
-      assert.equal(r.cases,96);assert.deepEqual(r.failures,[]);
+      assert.equal(r.cases,120);assert.deepEqual(r.failures,[]);
     });
     await check('unit headers: crop-edge bands have room; hidden/auto units leave no blank row',async()=>{
       const r=await p.evaluate(()=>{

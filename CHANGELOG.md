@@ -11,6 +11,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Colour tests cover independent TIFF fixtures, rotation, display switching, PNG/TIFF pixel agreement, editable/croppable colour PPTX, original-file bytes, persistence, exposure switches and offline phones. Independent Pillow/libtiff and Windows PowerPoint validation use synthetic images only.
 
 ### Fixed
+- Marker/condition clearance now uses font metrics and a small size-dependent gap, covering Firefox font substitution and mixed 4–14 pt labels without adding an empty row to the normal layout. Tests cover 120 layouts per engine.
 - **中文摘要：Marker 单位标题不再跟随泳道名称上移。** bp、kb、kDa 放在胶图侧边上沿稍下方，条件表维持紧贴胶图的间距；不为标题预留整行空白。只有大字号或裁切边缘的条带数值发生冲突时，才留出必要间隔。左右 Marker 共用标题基线，SVG、PNG、TIFF 和 PPTX 使用同一排版。
 - Marker units are anchored beside the gel instead of above the condition matrix. No extra blank row in the normal layout; crop-edge values and large labels receive only the clearance they need. Regression checks cover bp/kb/kDa, 0–4 conditions, two marker columns, rotated lane labels, well numbers, five fonts and mixed font sizes, plus SVG/PPTX position agreement.
 

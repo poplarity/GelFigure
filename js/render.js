@@ -167,6 +167,16 @@
     const st = S.style, pt = st.fontPt, lw = st.lineWidthPt;
     const family = fontName(st.fontFamily), FONT = fontStack(family);
     const measure = (text, size, bold) => measureText(text, size, bold, family);
+    const vertical = (text, size) => {
+      let ascent = 0, descent = 0;
+      for (const r of parseRuns(text)) {
+        mctx.font = `${r.it ? 'italic ' : ''}${size * 4}px ${FONT}`;
+        const m = mctx.measureText(r.t);
+        ascent = Math.max(ascent, Number.isFinite(m.fontBoundingBoxAscent) ? m.fontBoundingBoxAscent / 4 : Math.max((m.actualBoundingBoxAscent || 0) / 4, size * 0.85));
+        descent = Math.max(descent, Number.isFinite(m.fontBoundingBoxDescent) ? m.fontBoundingBoxDescent / 4 : Math.max((m.actualBoundingBoxDescent || 0) / 4, size * 0.45));
+      }
+      return { ascent, descent };
+    };
     const lp = st.lanePt || pt, mp = st.markerPt || pt;
     const warnings = [], overlaps = [];
     const overlap = msg => { warnings.push(msg); overlaps.push(msg); };
@@ -198,6 +208,11 @@
     // the gel's top edge, in the side margin. This keeps the condition table close to the image
     // without spending an empty row on the heading. Crop-edge values may limit the space available.
     const markers = (S.markers || []).filter(mk => mk.bands && mk.bands.length && S.lanes[mk.lane]);
+    const sides = markers.map(mk => mk.side !== 'auto' ? mk.side : (S.lanes[mk.lane].x < S.crop.w / 2 ? 'left' : 'right'));
+    if (markers.length === 2 && sides[0] === sides[1]) {
+      if (markers[0].side === 'auto') sides[0] = 'left';
+      if (markers[1].side === 'auto') sides[1] = 'right';
+    }
     const shownBands = mk => mk.bands.filter(b => b.show && b.y != null && b.y >= 0 && b.y <= Hpx);
     const unitMarkers = st.unitHeader ? markers.filter(mk => mk.unit !== 'auto' && shownBands(mk).length) : [];
     const hasUnits = unitMarkers.length > 0;
@@ -219,11 +234,19 @@
     const ed = (attrs, inner) => P ? `<g ${attrs} class="ed">${inner}</g>` : inner;
     const phStyle = ` fill="${PH_FILL}"`;
     const conds = (S.conditions || []).map((c, r) => Object.assign({ r }, c)).filter(c => P || c.name || c.values.some(v => v));
-    if (hasUnits && conds.length) {
-      // Only reserve the minimum clearance if a large font / a band at the crop edge would put the
-      // heading into a condition name. Normally this leaves the existing condition baseline alone.
-      const upperPt = conds[conds.length - 1].pt || pt;
-      yTop = Math.min(yTop, unitRowY - mp - upperPt * 0.3 - 0.6);
+    const leftUnits = unitMarkers.filter(mk => sides[markers.indexOf(mk)] === 'left');
+    if (leftUnits.length && conds.length) {
+      // Font substitutions have different descenders (notably Firefox/Linux). Measure them rather
+      // than assuming a fixed fraction of the point size; shift only named rows that would collide.
+      const headerTop = unitRowY - Math.max(...leftUnits.map(mk => vertical(`(${mk.unit === 'kDa' ? 'kDa' : mk.unit === 'kb' ? 'kb' : 'bp'})`, mp).ascent));
+      let cy = yTop, shift = 0;
+      for (let k = conds.length - 1; k >= 0; k--) {
+        const c = conds[k], cp = c.pt || pt, name = c.name || (P ? G.L('条件', 'Condition') : '');
+        // A small optical gap scales with the larger label, also covering native-scale SVG hinting.
+        if (name) shift = Math.max(shift, cy + vertical(name, cp).descent + 0.5 + Math.max(mp, cp) / 8 - headerTop);
+        cy -= cp * 1.3;
+      }
+      yTop -= shift;
     }
     const rowNameX = -st.labelGapPt * 2;
     for (let k = conds.length - 1; k >= 0; k--) {
@@ -326,12 +349,6 @@
 
     // ---- marker size labels (one column per marker; left/right of the gel) ----
     const tick = st.tickLenPt;
-    const sides = markers.map(mk => mk.side !== 'auto' ? mk.side : (S.lanes[mk.lane].x < S.crop.w / 2 ? 'left' : 'right'));
-    // two auto markers on the same side: send the outer one to the other side
-    if (markers.length === 2 && sides[0] === sides[1]) {
-      if (markers[0].side === 'auto') sides[0] = 'left';
-      if (markers[1].side === 'auto') sides[1] = 'right';
-    }
     const extent = { left: 0, right: 0 };   // how far labels already reach beyond the gel edge
     markers.forEach((mk, mi) => {
       const side = sides[mi];
