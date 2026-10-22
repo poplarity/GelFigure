@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Documentation
+- `AGENTS.md` (also loaded through `CLAUDE.md`): architecture, data flow, rules, pitfalls, tests, release steps and open issues for developers and coding agents.
+
 ## [0.6.6] - 2026-10-22
 
 Palette TIFFs load.
