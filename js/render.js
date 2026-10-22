@@ -194,6 +194,16 @@
     for (let k = 1; k < vis.length; k++) pitch = Math.min(pitch, X(vis[k].i) - X(vis[k - 1].i));
     if (!isFinite(pitch)) pitch = W;
 
+    // Units belong to the marker scale, not to the lane-name/condition table. Place them just below
+    // the gel's top edge, in the side margin. This keeps the condition table close to the image
+    // without spending an empty row on the heading. Crop-edge values may limit the space available.
+    const markers = (S.markers || []).filter(mk => mk.bands && mk.bands.length && S.lanes[mk.lane]);
+    const shownBands = mk => mk.bands.filter(b => b.show && b.y != null && b.y >= 0 && b.y <= Hpx);
+    const unitMarkers = st.unitHeader ? markers.filter(mk => mk.unit !== 'auto' && shownBands(mk).length) : [];
+    const hasUnits = unitMarkers.length > 0;
+    const firstBandY = hasUnits ? Math.min(...unitMarkers.flatMap(mk => shownBands(mk).map(b => b.y * sc))) : Infinity;
+    const unitRowY = Math.min(mp + 1, firstBandY - mp * 1.2);
+
     // ---- top stack (y grows negative) ----
     let yTop = -st.labelGapPt;
     // lane numbers
@@ -203,12 +213,18 @@
       vis.forEach(o => { n++; const num = st.laneNumberMode === 'seq' ? n : (o.l.src != null ? o.l.src : o.i) + 1; els.push(textEl(String(num), X(o.i), yTop, pt, 'middle')); });
       yTop -= pt * 1.25;
     }
-    // condition rows (+/- matrix), bottom row closest to gel
+    // condition rows (+/- matrix), bottom row closest to the gel
     // preview mode: editable elements carry data-edit, empty slots show grey placeholders
     const P = !!S.preview;
     const ed = (attrs, inner) => P ? `<g ${attrs} class="ed">${inner}</g>` : inner;
     const phStyle = ` fill="${PH_FILL}"`;
     const conds = (S.conditions || []).map((c, r) => Object.assign({ r }, c)).filter(c => P || c.name || c.values.some(v => v));
+    if (hasUnits && conds.length) {
+      // Only reserve the minimum clearance if a large font / a band at the crop edge would put the
+      // heading into a condition name. Normally this leaves the existing condition baseline alone.
+      const upperPt = conds[conds.length - 1].pt || pt;
+      yTop = Math.min(yTop, unitRowY - mp - upperPt * 0.3 - 0.6);
+    }
     const rowNameX = -st.labelGapPt * 2;
     for (let k = conds.length - 1; k >= 0; k--) {
       const c = conds[k], cp = c.pt || pt;
@@ -230,8 +246,6 @@
     const names = vis.map(o => o.l.name || (P ? String((o.l.src != null ? o.l.src : o.i) + 1) : ''));
     const hasNames = names.some(t => t.trim());
     let angle = 0;
-    // baseline of the lane-name row: the (bp) unit header is aligned to this, not to the marker labels
-    const unitRowY = yTop;
     if (hasNames) {
       angle = st.labelAngle === 'auto' ? autoAngle(names, pitch, lp, family) : +st.labelAngle;
       const rad = angle * Math.PI / 180, sn = Math.sin(rad), cs = Math.cos(rad);
@@ -312,7 +326,6 @@
 
     // ---- marker size labels (one column per marker; left/right of the gel) ----
     const tick = st.tickLenPt;
-    const markers = (S.markers || []).filter(mk => mk.bands && mk.bands.length && S.lanes[mk.lane]);
     const sides = markers.map(mk => mk.side !== 'auto' ? mk.side : (S.lanes[mk.lane].x < S.crop.w / 2 ? 'left' : 'right'));
     // two auto markers on the same side: send the outer one to the other side
     if (markers.length === 2 && sides[0] === sides[1]) {
@@ -323,7 +336,7 @@
     markers.forEach((mk, mi) => {
       const side = sides[mi];
       const off = extent[side] ? extent[side] + 3 : 0;  // a second column on the same side sits further out
-      const shown = mk.bands.filter(b => b.show && b.y != null && b.y >= 0 && b.y <= Hpx);
+      const shown = shownBands(mk);
       let maxTw = 0;
       shown.forEach(b => {
         const y = b.y * sc, label = G.Ladders.fmt(b.bp, mk.unit);

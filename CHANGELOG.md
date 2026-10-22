@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+- **中文摘要：Marker 单位标题不再跟随泳道名称上移。** bp、kb、kDa 放在胶图侧边上沿稍下方，条件表维持紧贴胶图的间距；不为标题预留整行空白。只有大字号或裁切边缘的条带数值发生冲突时，才留出必要间隔。左右 Marker 共用标题基线，SVG、PNG、TIFF 和 PPTX 使用同一排版。
+- Marker units are anchored beside the gel instead of above the condition matrix. No extra blank row in the normal layout; crop-edge values and large labels receive only the clearance they need. Regression checks cover bp/kb/kDa, 0–4 conditions, two marker columns, rotated lane labels, well numbers, five fonts and mixed font sizes, plus SVG/PPTX position agreement.
+
 ### Added
 - **中文摘要：轻量系统字体选择。**「版式 → 成图字体」新增 Arial、新罗马（Times New Roman）、Helvetica、Calibri、Cambria；默认仍为 Arial。全图排版、自动换行、PNG/TIFF/SVG/PPTX、未裁切图标注和处理日志统一使用所选字体，项目、样式和偏好会保存选择。缺少字体时使用系统替代字体，不下载、不内嵌字体文件，不新增依赖。
 - One shared system-font allowlist for canvas metrics, SVG text, native PowerPoint runs/themes and imported styles. Legacy/malformed font settings fall back to Arial. Detection and image-processing algorithms are unchanged.

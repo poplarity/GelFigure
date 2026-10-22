@@ -41,6 +41,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 - **Lanes are numbered by well across the whole gel**; the crop only selects which wells appear. Names are never lost when the range changes.
 - Font sizes: `style.fontPt`, optional `style.lanePt` / `style.markerPt`, and an optional `pt` on each group, condition row, arrow, box, bracket and side text (`null`/absent = follow `fontPt`).
 - Figure font: `style.fontFamily` (default `Arial`), restricted to `Render.fontNames`. `Render.fontName()` validates names; `Render.fontStack()` supplies the system fallback chain. `Render.measure(text, pt, bold, family)` / `wrapText(text, pt, width, family)` take an optional font argument, defaulting to Arial. `Render.build` binds every measurement to the figure font, and returns `fontFamily` for PPTX runs/themes. No fonts are downloaded or embedded; never claim that a missing local font renders identically on another device.
+- Marker-unit headings are anchored beside the gel's top edge, independently of lane names, groups and conditions. Do not reserve a whole blank header row above the gel: keep the usual condition baseline and add clearance only for actual crop-edge/large-font conflicts. Left/right units share a baseline; `style.unitHeader` still toggles them.
 - Persistence: project files (`.gelfig` = gzip JSON + original bytes), style templates (relative to the first figure lane; carry custom ladder definitions), autosaved drafts (IndexedDB), preferences (`PrefStorage`).
 
 **Phone layout.** The phone query `(max-width: 900px), (max-height: 520px) and (pointer: coarse)` exists twice — in `css/style.css` and as `phoneMq` in `ui.js`; keep them identical. `mobile.js` only adds a layer on top of the desktop code (it forwards to the desktop buttons); phone work must not change desktop behaviour or the engine.
@@ -70,6 +71,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 - `tests/mobile.mjs` — emulated phones per engine, WeChat user agent, desktop downloads unchanged.
 - `tests/pptx.mjs` — ZIP/XML, editable text/shapes, crop geometry, splices/insets, lossless source image, single-file offline export and phone/desktop delivery. Synthetic exports go in ignored `test-results/pptx/`. On Windows with PowerPoint installed, `powershell -File scripts/check-pptx.ps1 -Folder test-results/pptx/chromium` opens, renders, edits and re-saves them without visible presentation windows; generated files may acquire Office's local author metadata and must not be published.
 - `tests/fonts.mjs` — font-dependent SVG bounds, raster glyphs/TIFF pixels, editable PPTX faces, persistence/legacy defaults and offline mobile controls. Synthetic examples live in ignored `test-results/fonts/<engine>/`; native check example: `./scripts/check-pptx.ps1 -Folder test-results/fonts/chromium -Names @('Arial','Times-New-Roman','Helvetica','Calibri','Cambria')` from PowerShell.
+- `tests/unit-header.mjs` — fixed marker-unit positions, compact condition spacing, visible text bounds across fonts/sizes, crop-edge collision handling and SVG/PPTX agreement. Synthetic examples go in ignored `test-results/unit-header/<engine>/`.
 - New behaviour gets a check. CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests; for `dev`, trigger it by hand: `gh workflow run ci.yml --ref dev`.
 - **Real gels are not in the repo** and must never be committed (unpublished data). The maintainer keeps them, with a small regression harness, outside the repository. If they are not available on your machine, say so when you change detection code and ask the maintainer to run them.
 
@@ -95,10 +97,10 @@ Branches: `dev` (work), `main` (= live site), `release/x.y.z` (the previous `mai
 
 ## Open issues
 
+- Original-colour display has been requested for stained protein gels / coloured markers. Original bytes are preserved in `App.srcBuffer` and projects, but decoding/rendering currently produces grayscale plus `colorStats`. A future colour mode must keep a separate colour display buffer while detection stays grayscale, and cover colour TIFF decoding, rotation/crop, levels/inversion, RGB export and PPTX full-image crops. Grayscale input cannot recover real colours. This is not implemented by the unit-header/font changes.
 - `render.js` `parseRuns` drops an unpaired `*` (`WT*` prints `WT`). BlotFigure (sibling project) solved it with Markdown-style flanking rules.
 - "Reset everything" clears the undo history; it could be undoable instead.
 - Desktop `.mode-banner` is `white-space: nowrap`; long English hints clip at ~1366 px wide.
-- Condition-row names and the `(bp)` / `(kDa)` header share the left column, so the header can read like a condition label.
 - No `beforeunload` warning (only autosaved drafts protect unsaved work).
 - Export wording: when the gel's own resolution is below the export dpi (e.g. "600 dpi PNG, gel itself 366 dpi"), users read it as a failed export. Proposed: say "file is 600 dpi, the gel part is 366 dpi" and offer a one-click gel width for a true 600 dpi.
 - The phone layout has only been tested in emulation (Playwright iPhone / Pixel / WeChat user agent), not on real devices.

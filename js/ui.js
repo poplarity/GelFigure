@@ -693,7 +693,7 @@
     $('groupFit').value = y.groupFit || 'wrap'; $('minFontPt').value = y.minFontPt || 5;
     $('minFontRow').classList.toggle('hidden', (y.groupFit || 'wrap') !== 'shrink');
     ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => { $(id).checked = !!y[id]; });
-    $('unitHeaderLbl').textContent = L(`(${App.sizeUnit()}) 标题`, `(${App.sizeUnit()}) header`);
+    $('unitHeaderLbl').textContent = L(`Marker 单位 (${App.sizeUnit()})`, `Marker units (${App.sizeUnit()})`);
     $('panelLetter').value = y.panelLetter || '';
     $('dpiTop').value = String(y.dpi);
     $('stLayout').textContent = `${App.gelWidthMm()} mm · ${y.fontPt} pt`;
