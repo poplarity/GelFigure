@@ -9,13 +9,15 @@
   const PREF_KEY = 'gelfig.prefs';
 
   const defaultStyle = () => ({
-    gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneNumbers: false, frame: false,
+    gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontFamily: 'Arial', fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneNumbers: false, frame: false,
     panelLetter: '', panelPt: 8, spliceStyle: 'gap', spliceGapPt: 1.5, tickLenPt: 2.5, labelGapPt: 2.5,
     unitHeader: true, groupTicks: false, dpi: 600, laneNumberMode: 'well',
     // text that does not fit: lane names / marker labels can have their own size (null = fontPt);
     // a group label wider than its line wraps ('wrap'), shrinks down to minFontPt ('shrink') or stays ('none')
     lanePt: null, markerPt: null, groupFit: 'wrap', minFontPt: 5
   });
+
+  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily) });
 
   const App = {
     S: null,            // serialisable state
@@ -107,7 +109,7 @@
       markers: [],
       groups: [], conditions: [], arrows: [],
       boxes: [], brackets: [], labels: [],
-      style: Object.assign(defaultStyle(), p.style || {}),
+      style: normalStyle(p.style),
       saturatedInCrop: 0
     };
     App.invertInherited = p.invert != null;
@@ -1190,7 +1192,7 @@
     const ptOf = o => (o && +o.pt > 0 ? { pt: +o.pt } : {});   // per-item font size, when the style has one
     S.groups = (t.groups || []).map(g => Object.assign({ from: abs(g.from), to: abs(g.to), text: g.text || '' }, ptOf(g)));
     S.conditions = (t.conditions || []).map(c => Object.assign({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }, ptOf(c)));
-    S.style = Object.assign(defaultStyle(), t.style || {});
+    S.style = normalStyle(t.style);
     App.fixIndices();
     App.matchMarkers(true);
     S.arrows = (t.arrows || []).map(a => {
@@ -1254,7 +1256,7 @@
     // notices and detection inputs of the previous image do not belong to this project
     App.laneNotice = null; App.ladderNotice = null; App._gelVoteInput = null; App.cropMeta = null;
     App.S = state;
-    App.S.style = Object.assign(defaultStyle(), App.S.style || {});
+    App.S.style = normalStyle(App.S.style);
     ['boxes', 'brackets', 'labels'].forEach(k => { if (!Array.isArray(App.S[k])) App.S[k] = []; });   // older projects
     // projects made before protein mode existed carry no gelType: take it from the marker ladder
     if (App.S.gelType !== 'dna' && App.S.gelType !== 'protein') {

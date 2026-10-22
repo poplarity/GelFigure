@@ -62,6 +62,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Lanes numbered by well**: cropping only selects which wells are shown, so names, markers and groups are never lost when you change the crop.
 - **Annotations papers use**: group lines, `+`/`−` rows, region boxes (optionally enlarged beside the figure), side brackets for smears or (Ub)n, side text for the stain or antibody, and `*` / `#` / `†` marks for non-specific bands or other products.
 - **Labels that never collide**: group labels too wide for their line wrap (or shrink, or stay on one line — your choice) and otherwise move up a row; Shift+Enter breaks a label by hand; any label, arrow or box can have its own font size.
+- **System-font choices (dev preview)**: Layout → Figure font offers Arial, Times New Roman, Helvetica, Calibri and Cambria. Measurement, wrapping, raster/SVG/PPTX exports and saved projects/styles follow the selection. No font files are downloaded or embedded; devices without the chosen font use a substitute, including when opening editable SVG/PPTX files elsewhere.
 - **Target-band arrows with sizes**: click a band; the arrow snaps to it and its size is estimated from the marker(s). Sizes outside the ladder, or where two markers disagree by more than 10 %, are marked `≈`.
 - **Several exposures at once**: drop all exposures of one gel; the best one (least saturation, best signal-to-noise) is chosen, and you can switch with all annotations kept.
 - **Rotation keeps annotations in place**: lanes, bands, arrows and the crop box rotate with the image.

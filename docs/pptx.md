@@ -4,6 +4,10 @@ Available since **v0.6.7**, online and in the single-file offline HTML.
 
 **v0.6.7 起可用**，网页版和单文件离线版都支持。
 
+**dev 字体选择预览：**「版式 → 成图字体」可选 Arial、新罗马、Helvetica、Calibri、Cambria，PPTX 文本及主题会记录所选字体名称。系统未提供该字体时，浏览器和 PowerPoint 可能各自使用替代字体；不嵌入字体文件。
+
+**Font selection on dev:** Layout → Figure font selects Arial, Times New Roman, Helvetica, Calibri or Cambria. PPTX text and its theme reference the chosen face. A missing font may be substituted differently by the browser and PowerPoint; no font files are embedded.
+
 ## 中文
 
 电脑点 **导出 ▾ → PowerPoint（可编辑 .pptx）**；手机点底部 **导出 → PowerPoint**，生成后下载文件或使用系统分享保存到“文件”。微信内如果无法下载，请在系统浏览器打开。

@@ -64,8 +64,12 @@
     return `<a:xfrm${rot}${o.flipH ? ' flipH="1"' : ''}${o.flipV ? ' flipV="1"' : ''}><a:off x="${emu(o.x)}" y="${emu(o.y)}"/><a:ext cx="${Math.max(0, emu(o.w))}" cy="${Math.max(0, emu(o.h))}"/></a:xfrm>`;
   }
   const nameXml = (id, name) => `<p:cNvPr id="${id}" name="${esc(name)}"/>`;
+  const fontXml = family => {
+    const name = esc(G.Render.fontName(family));
+    return `<a:latin typeface="${name}"/><a:ea typeface="${name}"/><a:cs typeface="${name}"/>`;
+  };
   function textShape(o, id) {
-    const font = `<a:latin typeface="Arial"/><a:ea typeface="Arial"/><a:cs typeface="Arial"/>`;
+    const font = fontXml(o.fontFamily);
     const props = r => `sz="${Math.round(o.pt * 100)}" b="${r.bold ? 1 : 0}" i="${r.italic ? 1 : 0}"`;
     const lines = o.lines.map(runs => '<a:p>' + `<a:pPr algn="${o.align}" marL="0" marR="0" indent="0"><a:lnSpc><a:spcPts val="${Math.round(o.leading * 100)}"/></a:lnSpc><a:spcBef><a:spcPts val="0"/></a:spcBef><a:spcAft><a:spcPts val="0"/></a:spcAft><a:buNone/></a:pPr>` + runs.map(r => `<a:r><a:rPr ${props(r)} dirty="0">${fill(r.fill)}${font}</a:rPr><a:t xml:space="preserve">${esc(r.text)}</a:t></a:r>`).join('') + `<a:endParaRPr sz="${Math.round(o.pt * 100)}">${font}</a:endParaRPr></a:p>`).join('');
     return `<p:sp><p:nvSpPr>${nameXml(id, o.name)}<p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>${xfrm(o)}${rect}<a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t" rtlCol="0"><a:noAutofit/></a:bodyPr><a:lstStyle/>${lines}</p:txBody></p:sp>`;
@@ -117,7 +121,7 @@
       const x = num(first, 'x') - (anchor === 'middle' ? w / 2 : anchor === 'end' ? w : 0);
       const y = num(first, 'y') - pt * 0.91, h = (nodes.length - 1) * leading + pt * 1.3;
       const lines = nodes.map(getRuns);
-      add(Object.assign({ kind: 'text', name: lines.map(r => r.map(s => s.text).join('')).join(' / ').slice(0, 100), pt, lines, leading, align: { middle: 'ctr', end: 'r', start: 'l' }[anchor] || 'l' }, transformedBox(x, y, w, h, m)));
+      add(Object.assign({ kind: 'text', name: lines.map(r => r.map(s => s.text).join('')).join(' / ').slice(0, 100), fontFamily: fig.fontFamily, pt, lines, leading, align: { middle: 'ctr', end: 'r', start: 'l' }[anchor] || 'l' }, transformedBox(x, y, w, h, m)));
     }
     function image(region, m, inset) {
       // White gaps in a composed inset must remain white even if that inset overlays another object.
@@ -176,11 +180,11 @@
     return objects;
   }
 
-  function theme() {
+  function theme(family) {
     const scheme = [['dk1','000000'],['lt1','FFFFFF'],['dk2','111827'],['lt2','F3F4F6'],['accent1','2563EB'],['accent2','16A34A'],['accent3','DC2626'],['accent4','9333EA'],['accent5','EA580C'],['accent6','0891B2'],['hlink','0563C1'],['folHlink','954F72']];
-    const fonts = '<a:latin typeface="Arial"/><a:ea typeface="Arial"/><a:cs typeface="Arial"/>';
+    const fonts = fontXml(family);
     const sf = '<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>';
-    return XML + `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="GelFigure"><a:themeElements><a:clrScheme name="GelFigure">${scheme.map(([n,c]) => `<a:${n}><a:srgbClr val="${c}"/></a:${n}>`).join('')}</a:clrScheme><a:fontScheme name="Arial"><a:majorFont>${fonts}</a:majorFont><a:minorFont>${fonts}</a:minorFont></a:fontScheme><a:fmtScheme name="GelFigure"><a:fillStyleLst>${sf.repeat(3)}</a:fillStyleLst><a:lnStyleLst>${[6350,12700,19050].map(w => `<a:ln w="${w}">${sf}<a:prstDash val="solid"/></a:ln>`).join('')}</a:lnStyleLst><a:effectStyleLst>${'<a:effectStyle><a:effectLst/></a:effectStyle>'.repeat(3)}</a:effectStyleLst><a:bgFillStyleLst>${sf.repeat(3)}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
+    return XML + `<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="GelFigure"><a:themeElements><a:clrScheme name="GelFigure">${scheme.map(([n,c]) => `<a:${n}><a:srgbClr val="${c}"/></a:${n}>`).join('')}</a:clrScheme><a:fontScheme name="Figure font"><a:majorFont>${fonts}</a:majorFont><a:minorFont>${fonts}</a:minorFont></a:fontScheme><a:fmtScheme name="GelFigure"><a:fillStyleLst>${sf.repeat(3)}</a:fillStyleLst><a:lnStyleLst>${[6350,12700,19050].map(w => `<a:ln w="${w}">${sf}<a:prstDash val="solid"/></a:ln>`).join('')}</a:lnStyleLst><a:effectStyleLst>${'<a:effectStyle><a:effectLst/></a:effectStyle>'.repeat(3)}</a:effectStyleLst><a:bgFillStyleLst>${sf.repeat(3)}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
   }
   function packageFile(fig, objects, png) {
     // PowerPoint's supported slide range is 1–56 inches. Tiny figures get blank margins (never
@@ -203,7 +207,7 @@
       ['ppt/slideMasters/_rels/slideMaster1.xml.rels', rels([['rId1','slideLayout','../slideLayouts/slideLayout1.xml'],['rId2','theme','../theme/theme1.xml']])],
       ['ppt/slideLayouts/slideLayout1.xml', XML + `<p:sldLayout ${NS} type="blank" preserve="1"><p:cSld name="Blank"><p:spTree>${emptyTree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`],
       ['ppt/slideLayouts/_rels/slideLayout1.xml.rels', rels([['rId1','slideMaster','../slideMasters/slideMaster1.xml']])],
-      ['ppt/theme/theme1.xml', theme()],
+      ['ppt/theme/theme1.xml', theme(fig.fontFamily)],
       ['ppt/slides/slide1.xml', XML + `<p:sld ${NS}><p:cSld><p:bg><p:bgPr>${fill('#fff')}<a:effectLst/></p:bgPr></p:bg><p:spTree>${emptyTree}${objects.map((o,i) => shape(o,i+2)).join('')}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`],
       ['ppt/slides/_rels/slide1.xml.rels', rels([['rId1','slideLayout','../slideLayouts/slideLayout1.xml'],['rId2','image','../media/gel.png']])],
       ['ppt/media/gel.png', png]

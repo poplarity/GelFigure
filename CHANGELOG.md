@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- **中文摘要：轻量系统字体选择。**「版式 → 成图字体」新增 Arial、新罗马（Times New Roman）、Helvetica、Calibri、Cambria；默认仍为 Arial。全图排版、自动换行、PNG/TIFF/SVG/PPTX、未裁切图标注和处理日志统一使用所选字体，项目、样式和偏好会保存选择。缺少字体时使用系统替代字体，不下载、不内嵌字体文件，不新增依赖。
+- One shared system-font allowlist for canvas metrics, SVG text, native PowerPoint runs/themes and imported styles. Legacy/malformed font settings fall back to Arial. Detection and image-processing algorithms are unchanged.
+- Font regression coverage: real SVG group bounds across all fit modes, editable text/font declarations, distinct serif/sans-serif raster glyphs, TIFF pixels, project/style/undo persistence, offline mobile selection and no font requests. The native PowerPoint helper accepts `-Names` for checking the five font examples.
+
 ## [0.6.7] - 2026-10-22
 
 Editable PowerPoint figures with adjustable native image crops.

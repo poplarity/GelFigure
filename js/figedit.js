@@ -99,6 +99,7 @@
   }
   function syncBar() {
     if (!edit) return;
+    fed.style.fontFamily = G.Render.fontStack(S().style.fontFamily);
     const own = sizeHost().o[sizeHost().k];
     $('fedSizeLbl').textContent = edit.kind === 'lane' ? L('泳道名字号', 'Lane names') : edit.kind === 'group' ? L('字号', 'Size') : L('本行字号', 'Row size');
     $('fedSize').textContent = curSize() + ' pt';

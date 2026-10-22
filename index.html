@@ -244,8 +244,19 @@
             <select id="widthPreset" style="width:auto" title="期刊栏宽（成图总宽，含标签）" data-en-title="Journal column width (total figure width, labels included)"><option value="" data-en="Column…">栏宽…</option><option value="85" data-en="Single column 85 mm">单栏 85 mm</option><option value="120" data-en="1.5 columns 120 mm">1.5 栏 120 mm</option><option value="180" data-en="Double column 180 mm">双栏 180 mm</option></select>
           </div>
           <div class="dpiline" id="dpiLine"></div>
+          <div class="field">
+            <label for="fontFamily" data-en="Figure font">成图字体</label>
+            <select id="fontFamily" aria-describedby="fontNote">
+              <option value="Arial" data-en="Arial (default)">Arial（默认）</option>
+              <option value="Times New Roman" data-en="Times New Roman">Times New Roman（新罗马）</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Calibri">Calibri</option>
+              <option value="Cambria">Cambria</option>
+            </select>
+            <p class="hint" id="fontNote" data-en="Uses fonts on your device; nothing is downloaded or embedded. Missing fonts use a substitute. SVG/PPTX recipients also need the selected font.">使用设备已有字体，不下载、不内嵌。缺少时会使用替代字体；SVG/PPTX 接收方也需相应字体。</p>
+          </div>
           <div class="field inline">
-            <label class="inline-label"><span data-en="Font">字号</span> <input type="number" id="fontPt" min="4" max="14" step="0.5" class="num"> pt</label>
+            <label class="inline-label"><span data-en="Size">字号</span> <input type="number" id="fontPt" min="4" max="14" step="0.5" class="num"> pt</label>
             <label class="inline-label"><span data-en="Line">线宽</span> <input type="number" id="lineW" min="0.25" max="2" step="0.25" class="num"> pt</label>
           </div>
           <div class="field inline">

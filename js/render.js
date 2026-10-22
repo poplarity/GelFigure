@@ -4,7 +4,17 @@
 (function (G) {
   'use strict';
   const MM = 72 / 25.4;
-  const FONT = 'Arial, Helvetica, sans-serif';
+  // Names only: use installed system fonts, never download or embed font files. Keep this allowlist
+  // shared by canvas measurement, SVG, PPTX and imported styles (which must not inject CSS/XML).
+  const FONTS = Object.freeze({
+    Arial: 'Arial, Helvetica, sans-serif',
+    'Times New Roman': "'Times New Roman', Times, serif",
+    Helvetica: 'Helvetica, Arial, sans-serif',
+    Calibri: 'Calibri, Arial, sans-serif',
+    Cambria: "Cambria, 'Times New Roman', serif"
+  });
+  const fontName = name => typeof name === 'string' && Object.prototype.hasOwnProperty.call(FONTS, name) ? name : 'Arial';
+  const fontStack = name => FONTS[fontName(name)];
 
   const mctx = document.createElement('canvas').getContext('2d');
   // label markup: *italic* segments
@@ -12,10 +22,10 @@
     const parts = String(text).split('*');
     return parts.map((t, i) => ({ t, it: i % 2 === 1 })).filter(r => r.t.length);
   }
-  function measure(text, pt, bold) {
+  function measureText(text, pt, bold, family) {
     let w = 0;
     for (const r of parseRuns(text)) {
-      mctx.font = `${r.it ? 'italic ' : ''}${bold ? 'bold ' : ''}${pt * 4}px Arial`;
+      mctx.font = `${r.it ? 'italic ' : ''}${bold ? 'bold ' : ''}${pt * 4}px ${fontStack(family)}`;
       w += mctx.measureText(r.t).width / 4;
     }
     return w;
@@ -42,7 +52,7 @@
    * closed at the end of a line and reopened on the next, so every line renders on its own. */
   const CJK = '\\u2E80-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF\\u3000-\\u303F';
   const TOKENS = new RegExp(`\\*|[${CJK}]|\\s+|[^\\s*${CJK}]+?[-/]|[^\\s*${CJK}]+`, 'g');
-  function wrapText(text, pt, maxW) {
+  function wrapText(text, pt, maxW, family) {
     const out = [];
     let it = false;
     String(text).split('\n').forEach(par => {
@@ -50,7 +60,7 @@
       const line = (s, endIt) => (startIt ? '*' : '') + s.replace(/\s+$/, '') + (endIt ? '*' : '');
       for (const t of par.match(TOKENS) || []) {
         if (t === '*') { cur += t; it = !it; continue; }
-        if (cur.trim() && measure(line(cur + t, it), pt) > maxW) {
+        if (cur.trim() && measureText(line(cur + t, it), pt, false, family) > maxW) {
           out.push(line(cur, it));
           startIt = it;
           cur = /^\s+$/.test(t) ? '' : t;
@@ -61,12 +71,12 @@
     return out.filter((l, i, a) => l.replace(/\*/g, '').trim() || a.length === 1);
   }
   // as few lines as wrapText needs, but evened out: "仕达酱 / 离开" rather than "仕达酱离 / 开"
-  function balancedWrap(text, pt, maxW) {
-    const first = wrapText(text, pt, maxW);
+  function balancedWrap(text, pt, maxW, family) {
+    const first = wrapText(text, pt, maxW, family);
     if (first.length < 2) return first;
     let lo = maxW * 0.2, hi = maxW, best = first;
     for (let i = 0; i < 14; i++) {
-      const mid = (lo + hi) / 2, l = wrapText(text, pt, mid);
+      const mid = (lo + hi) / 2, l = wrapText(text, pt, mid, family);
       if (l.length <= first.length) { hi = mid; best = l; } else lo = mid;
     }
     return best;
@@ -128,8 +138,8 @@
     return { canvas: c, map, segs, gapPx };
   }
 
-  function autoAngle(labels, pitchPt, pt) {
-    const maxW = Math.max(0, ...labels.map(t => measure(t, pt)));
+  function autoAngle(labels, pitchPt, pt, family) {
+    const maxW = Math.max(0, ...labels.map(t => measureText(t, pt, false, family)));
     if (maxW <= pitchPt * 0.9) return 0;
     if (pitchPt >= pt * 1.6) return 45;
     return 90;
@@ -155,6 +165,8 @@
     usedMin = Infinity;
     // per-item sizes: an item's own pt wins, then the row-wide size (lane names, marker labels), then the figure font
     const st = S.style, pt = st.fontPt, lw = st.lineWidthPt;
+    const family = fontName(st.fontFamily), FONT = fontStack(family);
+    const measure = (text, size, bold) => measureText(text, size, bold, family);
     const lp = st.lanePt || pt, mp = st.markerPt || pt;
     const warnings = [], overlaps = [];
     const overlap = msg => { warnings.push(msg); overlaps.push(msg); };
@@ -221,7 +233,7 @@
     // baseline of the lane-name row: the (bp) unit header is aligned to this, not to the marker labels
     const unitRowY = yTop;
     if (hasNames) {
-      angle = st.labelAngle === 'auto' ? autoAngle(names, pitch, lp) : +st.labelAngle;
+      angle = st.labelAngle === 'auto' ? autoAngle(names, pitch, lp, family) : +st.labelAngle;
       const rad = angle * Math.PI / 180, sn = Math.sin(rad), cs = Math.cos(rad);
       let hMax = lp;
       vis.forEach((o, vi) => {
@@ -267,7 +279,7 @@
         const widest = () => Math.max(0, ...lines.map(t => measure(t, size)));
         const room = Math.max(x1 - x0, gp * 2);
         if (g.text && widest() > room) {
-          if (fit === 'wrap') lines = balancedWrap(g.text, size, room);
+          if (fit === 'wrap') lines = balancedWrap(g.text, size, room, family);
           else if (fit === 'shrink') size = Math.max(Math.min(minPt, gp), gp * room / widest());
         }
         const tw = widest();
@@ -476,11 +488,11 @@
     const vx = box.x0 - m, vy = box.y0 - m, vw = box.x1 - box.x0 + 2 * m, vh = box.y1 - box.y0 + 2 * m;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
       `width="${f(vw / MM)}mm" height="${f(vh / MM)}mm" viewBox="${f(vx)} ${f(vy)} ${f(vw)} ${f(vh)}" ` +
-      `font-family="${FONT}" fill="#000">` +
+      `font-family="${esc(FONT)}" fill="#000">` +
       `<rect x="${f(vx)}" y="${f(vy)}" width="${f(vw)}" height="${f(vh)}" fill="#fff"/>` +
       els.join('') + `</svg>`;
-    return { svg, w: vw, h: vh, angle, warnings, overlaps, scale: sc, vx, vy, gelW: W, gelH: H, minPt: usedMin === Infinity ? pt : usedMin };
+    return { svg, w: vw, h: vh, angle, warnings, overlaps, scale: sc, vx, vy, gelW: W, gelH: H, minPt: usedMin === Infinity ? pt : usedMin, fontFamily: family };
   }
 
-  G.Render = { build, composeGel, measure, wrapText, MM, laneBounds };
+  G.Render = { build, composeGel, measure: measureText, wrapText, MM, laneBounds, fontName, fontStack, fontNames: Object.freeze(Object.keys(FONTS)) };
 })(window);

@@ -81,6 +81,7 @@
     const A = G.App, k = A.clipStats();
     return JSON.stringify({
       tool: 'GelFigure ' + A.VERSION, source: S.file.name, sha256: S.file.sha256,
+      figureFont: G.Render.fontName(S.style.fontFamily),
       rotationDeg: S.rotation, levels: S.levels, effectiveGelDpi: Math.round(A.effectiveDpi()),
       sensorSaturatedFrac: +k.sensorFrac.toFixed(5), levelClippedFrac: +A.bandClipFrac().toFixed(5),
       splicedLanes: S.lanes.map((l, i) => (l.hidden ? i + 1 : null)).filter(v => v != null),
@@ -183,15 +184,16 @@
     ctx.setLineDash([fs * 0.6, fs * 0.4]);
     ctx.strokeRect(r.x, r.y + top, r.w, r.h);
     ctx.setLineDash([]);
-    ctx.font = `${fs}px Arial`; ctx.textAlign = 'center';
+    const family = G.Render.fontStack(S.style.fontFamily);
+    ctx.font = `${fs}px ${family}`; ctx.textAlign = 'center';
     S.lanes.forEach((l, i) => {
       ctx.fillStyle = l.hidden ? '#e53935' : '#000';
       ctx.fillText(l.hidden ? 'X' : String(i + 1), l.x, top - fs * 0.5);   // lane x is already absolute
     });
     ctx.fillStyle = '#000'; ctx.textAlign = 'left';
-    ctx.font = `bold ${fs}px Arial`;
+    ctx.font = `bold ${fs}px ${family}`;
     ctx.fillText('Uncropped image (same processing as figure)', fs * 0.5, fs * 1.3);
-    ctx.font = `${fs * 0.8}px Arial`;
+    ctx.font = `${fs * 0.8}px ${family}`;
     const lv = S.levels;
     const info = `${S.file.name} · SHA-256 ${String(S.file.sha256 || '').slice(0, 16)}… · ${S.file.bits}-bit · rotation ${S.rotation}° · levels ${(lv.black * 100).toFixed(2)}–${(lv.white * 100).toFixed(2)}% (linear${lv.gamma !== 1 ? ', gamma ' + lv.gamma : ''})${lv.invert ? ' · inverted' : ''}`;
     ctx.fillText(info, fs * 0.5, H + top + fs * 1.2, W - fs);
@@ -212,7 +214,7 @@
     const bounds = G.Render.laneBounds(S.lanes, A.src.w);
     return {
       tool: 'GelFigure', version: A.VERSION, exportedAt: new Date().toISOString(),
-      environment: { userAgent: navigator.userAgent, figureFont: 'Arial, Helvetica, sans-serif (vector text)' },
+      environment: { userAgent: navigator.userAgent, figureFont: G.Render.fontName(S.style.fontFamily), fontFallbacks: G.Render.fontStack(S.style.fontFamily), fontsEmbedded: false },
       source: { file: S.file.name, sha256: S.file.sha256, bytes: S.file.size, width: A.src.w, height: A.src.h, bitDepth: S.file.bits, dpi: S.file.dpi || null },
       rotationDeg: S.rotation, autoRotationDeg: A.autoRotation,
       crop: S.crop, figureWells: r ? [r[0] + 1, r[1] + 1] : null,

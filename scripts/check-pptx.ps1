@@ -1,13 +1,13 @@
 # Optional native validation on Windows with PowerPoint installed. Synthetic exports only.
 # Example: powershell -File scripts/check-pptx.ps1 -Folder test-results/pptx/chromium
-param([Parameter(Mandatory=$true)][string]$Folder)
+param([Parameter(Mandatory=$true)][string]$Folder,[string[]]$Names=@('editable', 'spliced', 'protein'))
 $ErrorActionPreference = 'Stop'
 $dir = (Resolve-Path -LiteralPath $Folder).Path
 $pp = New-Object -ComObject PowerPoint.Application
 $report = @()
 try {
   $pp.DisplayAlerts = 1
-  foreach ($name in @('editable', 'spliced', 'protein')) {
+  foreach ($name in $Names) {
     $inputFile = Join-Path $dir ($name + '.pptx')
     if (!(Test-Path -LiteralPath $inputFile)) { continue }
     $pres = $pp.Presentations.Open($inputFile, -1, 0, 0)

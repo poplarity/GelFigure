@@ -36,6 +36,7 @@ function unzip(b) {
   assert.equal(at, end);
   return out;
 }
+export { unzip as readPptx };
 // Compare PNG pixel scanlines even if the browser chooses a different lossless compression stream.
 function pngPixels(b) {
   assert.equal(b.readUInt32BE(0), 0x89504e47);
