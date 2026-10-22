@@ -23,6 +23,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 | `engine.js` | `Engine` | pure image processing on `{w, h, data: Float32Array}`: polarity, deskew, auto-crop, lane lattice, band peaks, ladder matching, gel-type vote |
 | `render.js` | `Render` | state → publication SVG, units = pt (1/72 in); text layout (wrapping, group tiers) |
 | `export.js` | `Export` | PNG (pHYs/sRGB/iTXt), TIFF writer, SVG, uncropped image, original bytes, processing log; `download()` goes through the optional `Export.deliver` hook |
+| `pptx.js` | `PPTX` | Editable PowerPoint: maps the renderer's SVG subset to native DrawingML; uncropped processed PNG + native crop per image segment; dependency-free ZIP writer |
 | `demo.js` | `Demo` | synthetic DNA / protein gels for the demo button and tests |
 | `app.js` | `App` | state `App.S`, automatic pipeline, undo/redo, projects, templates, drafts, pre-flight |
 | `editor.js` | `Editor` | canvas editor on the raw image: crop box, lanes, marker bands, arrows, boxes, brackets; zoom, pan, pinch |
@@ -58,6 +59,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 - **Safari canvas limit ≈ 16.7 MP.** Bigger canvases render blank. `mobile.js` scales camera photos above 10 MP on touch devices; the export sheet warns when a raster would exceed the limit.
 - **Headless test quirks:** `?demo=1` sets `App.forceJsHash` (WebCrypto off-thread stalls Playwright's clock); IndexedDB checks need a real browser (`&draft=1`). A full three-engine run occasionally times out in Firefox when the machine is busy — rerun that engine alone (`npm test -- --browser=firefox`) before suspecting the code.
 - **The single file** (`dist/GelFigure.html`) inlines every script and relaxes the CSP only for inline scripts; `npm test` rebuilds it and checks it offline.
+- **PPTX is not a screenshot.** Keep text/shapes native and preserve `a:srcRect` on images referencing the full processed PNG. `render.js` marks multiline labels with `data-pptx-lines` so each exports as one textbox. The SVG subset adapter rejects unknown elements; update it/tests when adding renderer primitives. See [docs/pptx.md](docs/pptx.md). Fonts are not embedded, and uncropped image pixels remain recoverable by recipients.
 
 ## Tests
 
@@ -65,6 +67,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 - `index.html?demo=1&uitest=1` (`js/uitest.js`, assertions in `tests/run.mjs` `UI_CHECKS`) — interface behaviour.
 - `tests/startup.mjs` — blocked storage, full quota, `file://`, single file offline.
 - `tests/mobile.mjs` — emulated phones per engine, WeChat user agent, desktop downloads unchanged.
+- `tests/pptx.mjs` — ZIP/XML, editable text/shapes, crop geometry, splices/insets, lossless source image, single-file offline export and phone/desktop delivery. Synthetic exports go in ignored `test-results/pptx/`. On Windows with PowerPoint installed, `powershell -File scripts/check-pptx.ps1 -Folder test-results/pptx/chromium` opens, renders, edits and re-saves them without visible presentation windows; generated files may acquire Office's local author metadata and must not be published.
 - New behaviour gets a check. CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests; for `dev`, trigger it by hand: `gh workflow run ci.yml --ref dev`.
 - **Real gels are not in the repo** and must never be committed (unpublished data). The maintainer keeps them, with a small regression harness, outside the repository. If they are not available on your machine, say so when you change detection code and ask the maintainer to run them.
 

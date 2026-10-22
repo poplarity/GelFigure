@@ -108,7 +108,7 @@
     exportSync();
   });
   // the sheet only forwards to the desktop export buttons: one code path for both layouts
-  const XBTN = { png: 'btnPNG', tiff: 'btnTIFF', svg: 'btnSVG', uncropped: 'btnUncropped', original: 'btnOriginal', log: 'btnLog', project: 'btnSaveProj' };
+  const XBTN = { png: 'btnPNG', tiff: 'btnTIFF', svg: 'btnSVG', pptx: 'btnPPTX', uncropped: 'btnUncropped', original: 'btnOriginal', log: 'btnLog', project: 'btnSaveProj' };
   $('exportSheet').addEventListener('click', e => {
     const b = e.target.closest('[data-x]'); if (!b) return;
     closeSheets();
@@ -141,7 +141,7 @@
   /* exported files: a picture to long-press into Photos (works inside WeChat too), the system share
    * sheet ("Save to Files", other apps) where the browser has one, or a plain download */
   let resultFile = null;
-  const TYPES = { png: 'image/png', tif: 'image/tiff', tiff: 'image/tiff', svg: 'image/svg+xml', json: 'application/json', gelfig: 'application/octet-stream' };
+  const TYPES = { png: 'image/png', tif: 'image/tiff', tiff: 'image/tiff', svg: 'image/svg+xml', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', json: 'application/json', gelfig: 'application/octet-stream' };
   const fmtBytes = n => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
   const canShare = f => { try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [f] })); } catch (e) { return false; } };
   function dropResult() { resultFile = null; $('rsImg').removeAttribute('src'); }

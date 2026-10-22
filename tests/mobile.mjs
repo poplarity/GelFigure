@@ -50,7 +50,7 @@ export async function mobileChecks(browser, base, engine) {
       await p.locator('#mDpiSeg [data-dpi="300"]').tap();
       const dpi = await p.evaluate(() => App.S.style.dpi);
       await p.locator('#exportSheet .sheet-x').tap();
-      return n === 7 && dpi === 300 ? true : { n, dpi };
+      return n === 8 && dpi === 300 ? true : { n, dpi };
     });
     await check('phone: an exported PNG opens as a picture to long-press, not a download', async () => {
       let downloaded = false;

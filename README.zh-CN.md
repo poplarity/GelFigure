@@ -18,7 +18,7 @@
 
 **只需下载一个文件，用浏览器打开就能做图。不用安装、不用解压，也不用注册 GitHub。**
 
-1. **[点击下载 GelFigure-v0.6.6.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.6/GelFigure-v0.6.6.html)**，约 380 KB，保存到桌面或“下载”文件夹。
+1. **[点击下载 GelFigure-v0.6.6.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.6/GelFigure-v0.6.6.html)**，不到 1 MB，保存到桌面或“下载”文件夹。
 2. **双击刚下载的文件。** 它会在浏览器中打开；如果打开的是记事本等软件，右键文件 → **打开方式** → 选择 Firefox、Chrome、Edge 或 Safari。
 3. **点“选择文件”，导入你的胶图。** 核对识别出的胶种、泳道和 Marker，点泳道名填写名称，再点 **导出 PNG**。
 
@@ -110,6 +110,7 @@ GelFigure 是一个没有后端的静态网页。图片由浏览器里的 JavaSc
 | PNG | 按所选 dpi（300 / 600 / 1200）渲染，带 `pHYs`（分辨率）、`sRGB` 和嵌入的处理摘要（`iTXt`，UTF-8）。 |
 | TIFF | 8 位灰度 LZW，带分辨率标签和处理摘要，适合只收 TIFF 的期刊。 |
 | SVG | 矢量文字和线条，可在 Illustrator / Inkscape 中修改。 |
+| PPTX（dev 测试版） | 打开即为完整成图，文字和图形可编辑，图片可重新裁切。文件内部保留未裁切的已处理图像，详见 [PowerPoint 导出说明](docs/pptx.md)。 |
 | 未裁切图 | 与成图相同的旋转和对比度，标出裁切框、孔号和剪除的泳道，放补充材料。 |
 | 原始数据 | 原样导出源文件（逐字节一致），文件名带 SHA-256。 |
 | 处理日志（JSON） | 源文件 SHA-256、旋转、线性色阶、过曝与削顶统计、有效分辨率、剪除的泳道及原因、Ladder 吻合度、每个箭头大小的估算依据。 |

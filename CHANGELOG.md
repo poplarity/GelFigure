@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- **中文摘要：可编辑 PPTX 导出。** 电脑和手机导出菜单新增 PowerPoint。打开即保持成图排版；泳道名、分组、Marker、箭头、框和括号等均为可编辑文字或图形；图片保存原生裁切范围，可在 PPT 中调整。拼接和放大图使用独立可裁切片段。文件内部包含完整的已处理图像，字体未嵌入，PPT 内调整裁切不会自动移动标注。
+- A dependency-free DrawingML/ZIP exporter reuses the SVG layout, keeps multiline group labels in one editable text box, embeds one full processed PNG shared by native crop objects, and works in the offline single HTML. Detection code is unchanged.
+- PPTX checks inspect ZIP checksums, XML relationships, lossless full-image storage, editable objects, multiline/italic/rotated text, crop coordinates, spliced insets, desktop/phone delivery and offline exports. Optional native PowerPoint validation: `scripts/check-pptx.ps1`.
+
 ### Documentation
 - `AGENTS.md` (also loaded through `CLAUDE.md`): architecture, data flow, rules, pitfalls, tests, release steps and open issues for developers and coding agents.
 

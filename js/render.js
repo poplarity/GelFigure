@@ -34,7 +34,8 @@
   const LEAD = 1.18;   // line spacing, × font size
   // several lines whose last baseline is y (they stack upwards from the line they label)
   function textLines(lines, x, y, pt, anchor, extra) {
-    return lines.map((t, i) => textEl(t, x, y - (lines.length - 1 - i) * pt * LEAD, pt, anchor, extra)).join('');
+    // Keep the semantic paragraph for editable exports; this group has no visual effect in SVG.
+    return '<g data-pptx-lines="1">' + lines.map((t, i) => textEl(t, x, y - (lines.length - 1 - i) * pt * LEAD, pt, anchor, extra)).join('') + '</g>';
   }
   /* Break a label into lines no wider than maxW (pt). Typed line breaks (\n) are kept. Chinese /
    * Japanese characters may break anywhere, other words after a space, "-" or "/". *italic* runs are

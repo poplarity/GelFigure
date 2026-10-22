@@ -207,6 +207,14 @@
   }
   $('btnPNG').onclick = () => exportRaster('png');
   $('btnTIFF').onclick = () => exportRaster('tiff');
+  $('btnPPTX').onclick = async () => {
+    if (needImage() || !(await preflight())) return;
+    App.busy(true, L('正在生成可编辑 PPTX…', 'Building editable PPTX…'));
+    try {
+      await G.PPTX.exportFile(baseName() + '_figure.pptx');
+      toast(L('已导出 PPTX：文字图形可编辑，选中图片 → 裁剪可调整显示范围', 'Exported PPTX: text and shapes are editable; select a picture → Crop to adjust its visible region'));
+    } catch (e) { alert(e.message); } finally { App.busy(false); }
+  };
   $('btnSVG').onclick = async () => { if (needImage() || !(await preflight())) return; G.Export.exportSVG(App.buildFigure(false).svg, baseName() + '_figure.svg'); toast(L('已导出 SVG', 'Exported SVG')); };
   $('btnUncropped').onclick = () => { if (needImage()) return; App.renderFull(); G.Export.exportUncropped(S(), App.fullCanvas, baseName() + '_uncropped_same-processing.png'); toast(L('已导出未裁切图（与成图同处理）', 'Exported the uncropped image (same processing as the figure)')); };
   $('btnOriginal').onclick = () => { if (needImage()) return; G.Export.exportOriginal(S(), App.srcBuffer); toast(L('已导出原始文件', 'Exported the original file') + ' (SHA-256 ' + S().file.sha256.slice(0, 12) + '…)'); };

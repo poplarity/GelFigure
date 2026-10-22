@@ -18,7 +18,7 @@
 
 **Download one file, open it in your browser, and start making your figure. No installation, ZIP extraction or GitHub account is needed.**
 
-1. **[Download GelFigure-v0.6.6.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.6/GelFigure-v0.6.6.html)** (about 380 KB). Save it to your Desktop or Downloads folder.
+1. **[Download GelFigure-v0.6.6.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.6/GelFigure-v0.6.6.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
 2. **Double-click the downloaded file.** It opens in your browser. If a text editor opens instead, right-click → **Open with** → Firefox, Chrome, Edge or Safari.
 3. **Click “Choose file” and select your gel image.** Check the detected gel type, lanes and marker, click the lane names to edit them, then choose **Export PNG**.
 
@@ -110,6 +110,7 @@ Both bright-bands-on-dark (EtBr, SYBR, fluorescence) and dark-bands-on-light (Co
 | PNG | Rendered at the chosen dpi (300 / 600 / 1200). Includes `pHYs` (resolution), `sRGB` and an embedded processing summary (`iTXt`, UTF-8). |
 | TIFF | 8-bit grayscale, LZW, with resolution tags and the processing summary. For journals that accept only TIFF. |
 | SVG | Vector text and lines; edit in Illustrator or Inkscape. |
+| PPTX (dev preview) | Finished figure with native editable text/shapes and recroppable pictures. Retains uncropped, processed pixels inside the file. See [PowerPoint export](docs/pptx.md). |
 | Uncropped image | Same rotation and contrast as the figure, with the crop box, well numbers and removed lanes marked. For the supplementary information. |
 | Original data | The untouched source file, byte-identical, with its SHA-256 in the file name. |
 | Processing log (JSON) | Source SHA-256, rotation, linear levels, saturation and clipping statistics, effective resolution, removed lanes and why, ladder fit scores, how each arrow size was estimated. |

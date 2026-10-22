@@ -43,6 +43,7 @@
         <button class="btn primary" id="btnPNG" data-en="Export PNG">导出 PNG</button><button class="btn primary caret" id="btnExportMenu" title="更多导出格式" data-en-title="More export formats">▾</button>
       </div>
       <div class="menu hidden right" id="exportMenu">
+        <button id="btnPPTX"><span data-en="PowerPoint (editable .pptx)">PowerPoint（可编辑 .pptx）</span><small data-en="Finished layout; editable text/shapes and crop (uncropped pixels included)">保留成图排版；文字图形可编辑、可重新裁切（含全图数据）</small></button>
         <button id="btnTIFF"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></button>
         <button id="btnSVG" data-en="SVG (vector, editable in Illustrator)">SVG（矢量，可在 AI 中编辑）</button>
         <div class="menu-sep"></div>
@@ -343,6 +344,7 @@
     <button class="sheet-item primary" data-x="png"><span class="si-ic">PNG</span><span class="si-tx"><span data-en="PNG image">PNG 图片</span><small data-en="For the manuscript and slides; save it to Photos on a phone">投稿、做 PPT 用；手机上可直接存到相册</small></span></button>
     <button class="sheet-item" data-x="tiff"><span class="si-ic">TIF</span><span class="si-tx"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></span></button>
     <button class="sheet-item" data-x="svg"><span class="si-ic">SVG</span><span class="si-tx"><span data-en="SVG (vector)">SVG 矢量图</span><small data-en="Text stays editable in Illustrator or Inkscape">文字可在 Illustrator / Inkscape 中编辑</small></span></button>
+    <button class="sheet-item" data-x="pptx"><span class="si-ic">PPT</span><span class="si-tx"><span data-en="PowerPoint (editable .pptx)">PowerPoint（可编辑 .pptx）</span><small data-en="Finished layout; editable text/shapes and crop (uncropped pixels included)">保留成图排版；文字图形可编辑、可重新裁切（含全图数据）</small></span></button>
     <div class="sheet-label" data-en="For the supplement">补充材料</div>
     <button class="sheet-item" data-x="uncropped"><span class="si-ic">▣</span><span class="si-tx"><span data-en="Uncropped image (same processing)">未裁切图（与成图同处理）</span><small data-en="Crop box and well numbers marked">标出裁切框与孔号</small></span></button>
     <button class="sheet-item" data-x="original"><span class="si-ic">RAW</span><span class="si-tx"><span data-en="Original data (file + SHA-256)">原始数据（原文件 + SHA-256）</span><small data-en="The untouched source file">未经任何处理的原始文件</small></span></button>
@@ -507,6 +509,7 @@
 <script src="js/engine.js"></script>
 <script src="js/render.js"></script>
 <script src="js/export.js"></script>
+<script src="js/pptx.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/app.js"></script>
 <script src="js/editor.js"></script>

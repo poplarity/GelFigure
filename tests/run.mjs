@@ -13,6 +13,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { startupChecks } from './startup.mjs';
 import { mobileChecks } from './mobile.mjs';
+import { pptxChecks } from './pptx.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -100,6 +101,9 @@ async function runIn(name, base) {
     const mobile = await mobileChecks(browser, base, name);
     out.results.push(...mobile);
     if (mobile.some(r => r[0] === 'FAIL')) out.ok = false;
+    const pptx = await pptxChecks(browser, base, ROOT, name);
+    out.results.push(...pptx);
+    if (pptx.some(r => r[0] === 'FAIL')) out.ok = false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];
