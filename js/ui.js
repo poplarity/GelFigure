@@ -257,6 +257,10 @@
       : L('已切换为 DNA 胶模式：Marker 单位为 bp', 'Switched to DNA mode: marker units in bp'));
   }));
   $('invChk').addEventListener('change', done(e => { S().levels.invert = e.target.checked; App.invertInherited = false; }));
+  $('displayModeSeg').addEventListener('click', done(e => {
+    const b = e.target.closest('[data-display]');
+    if (b && !b.disabled) App.setDisplayMode(b.dataset.display);
+  }));
   $('lvBlack').addEventListener('input', live(e => { S().levels.black = Math.min(fromSlider(+e.target.value), S().levels.white - 0.0005); $('lvBlackV').textContent = pct(S().levels.black); drawHisto(); updateClipLine(); }));
   $('lvWhite').addEventListener('input', live(e => { S().levels.white = Math.max(fromSlider(+e.target.value), S().levels.black + 0.0005); $('lvWhiteV').textContent = pct(S().levels.white); drawHisto(); updateClipLine(); }));
   $('lvBlack').addEventListener('change', done()); $('lvWhite').addEventListener('change', done());
@@ -632,8 +636,8 @@
     const lowMk = visMk.filter(m => m.score != null && m.score < 0.6);
     const set = (id, txt, cls) => { const el = $(id); el.textContent = txt; el.className = 'sec-status' + (cls ? ' ' + cls : ''); };
     set('stImage', (st.rotation ? L(`已转正 ${st.rotation}° · `, `rotated ${st.rotation}° · `) : '')
-      + (!!App.S.bright !== !!st.levels.invert ? L('黑底白带', 'white on black') : L('白底黑带', 'dark on white'))
-      + (st.saturatedInCrop ? L(' · 有过曝', ' · saturated') : ''), st.saturatedInCrop ? 'warn' : '');
+      + (App.isColour() ? L('保留原色', 'original colour') : App.displayDark() ? L('黑底白带', 'white on black') : L('白底黑带', 'dark on white'))
+      + (!App.isColour() && st.saturatedInCrop ? L(' · 有过曝', ' · saturated') : ''), !App.isColour() && st.saturatedInCrop ? 'warn' : '');
     set('stRange', r ? L(`孔 ${r[0] + 1}–${r[1] + 1} · ${fl.length} 条`, `wells ${r[0] + 1}–${r[1] + 1} · ${fl.length} lanes`) : '');
     set('stNames', `${named}/${fl.length}`);
     set('stMarker', visMk.length ? (lowMk.length ? L('请核对型号', 'check ladder') : String(visMk.length)) : L('无', 'none'), lowMk.length || !visMk.length ? 'warn' : '');
@@ -667,6 +671,17 @@
   function syncControls() {
     const st = S(), y = st.style;
     $('invChk').checked = !!st.levels.invert;
+    const colour = App.isColour();
+    $('displayModeSeg').querySelectorAll('[data-display]').forEach(b => {
+      b.disabled = b.dataset.display === 'colour' && !App.hasColour();
+      b.classList.toggle('on', b.dataset.display === (colour ? 'colour' : 'gray'));
+    });
+    $('displayModeNote').textContent = !App.hasColour()
+      ? L('原文件没有可用颜色，不能还原成真实彩图。', 'The source has no colour data to restore.')
+      : colour ? L('保留原色，仍可旋转、裁切和标注。灰度的反色、对比度和 Gamma 不会应用到彩图。', 'Original colours are retained; rotation, crop and annotations still work. Grayscale inversion, contrast and gamma are not applied.')
+        : L('识别一直使用灰度；切换显示不会改变泳道和标注。', 'Detection always uses grayscale; switching appearance keeps lanes and annotations.');
+    $('grayPolarity').classList.toggle('hidden', colour);
+    $('grayAdjustments').classList.toggle('hidden', colour);
     $('lvBlack').value = toSlider(st.levels.black); $('lvWhite').value = toSlider(st.levels.white);
     $('lvBlackV').textContent = pct(st.levels.black); $('lvWhiteV').textContent = pct(st.levels.white);
     $('rot').value = st.rotation; $('rotNum').value = st.rotation; $('rotV').textContent = st.rotation + '°';

@@ -64,6 +64,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Labels that never collide**: group labels too wide for their line wrap (or shrink, or stay on one line — your choice) and otherwise move up a row; Shift+Enter breaks a label by hand; any label, arrow or box can have its own font size.
 - **System-font choices (dev preview)**: Layout → Figure font offers Arial, Times New Roman, Helvetica, Calibri and Cambria. Measurement, wrapping, raster/SVG/PPTX exports and saved projects/styles follow the selection. No font files are downloaded or embedded; devices without the chosen font use a substitute, including when opening editable SVG/PPTX files elsewhere.
 - **Compact marker-unit headings (dev preview)**: bp/kb/kDa stay beside the gel's upper edge instead of moving above the condition matrix. Condition rows keep their normal spacing; extra clearance is added only when a label would collide.
+- **Original colour or grayscale (dev preview)**: colour sources open in their original colours, including stained protein gels and coloured markers. Image → Original colour / Grayscale changes display only; detection and annotations are unchanged. Original-colour mode keeps rotation/crop but does not apply grayscale contrast, inversion or gamma. PNG, SVG, PPTX, uncropped images and RGB TIFF retain colour. Older projects reopen in their saved grayscale appearance.
 - **Target-band arrows with sizes**: click a band; the arrow snaps to it and its size is estimated from the marker(s). Sizes outside the ladder, or where two markers disagree by more than 10 %, are marked `≈`.
 - **Several exposures at once**: drop all exposures of one gel; the best one (least saturation, best signal-to-noise) is chosen, and you can switch with all annotations kept.
 - **Rotation keeps annotations in place**: lanes, bands, arrows and the crop box rotate with the image.
@@ -88,7 +89,7 @@ The page carries a [Content Security Policy](index.html) that **forbids it from 
 
 | Format | Notes |
 |---|---|
-| TIFF (8 / 16 / 32-bit grayscale, RGB, palette) | Recommended. Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Works with the TIFFs gel imagers and flatbed scanners export. Palette (indexed) TIFFs are converted through their colour map — a false-colour map is read back as the original signal. |
+| TIFF (8 / 16 / 32-bit grayscale, RGB, palette) | Uncompressed, LZW, Deflate and PackBits; little- and big-endian. Detection uses grayscale. On dev, a separate 8-bit RGB display retains RGB/palette colours; TIFF RGB values are treated as sRGB (embedded ICC profiles are not applied, and trigger a notice). Original file bytes are kept intact. |
 | PNG / JPG / BMP | Read as 8-bit by the browser; a warning suggests using the raw 16-bit TIFF instead. |
 | `.gelfig` | GelFigure project file. |
 
@@ -110,7 +111,7 @@ Both bright-bands-on-dark (EtBr, SYBR, fluorescence) and dark-bands-on-light (Co
 | Export | Content |
 |---|---|
 | PNG | Rendered at the chosen dpi (300 / 600 / 1200). Includes `pHYs` (resolution), `sRGB` and an embedded processing summary (`iTXt`, UTF-8). |
-| TIFF | 8-bit grayscale, LZW, with resolution tags and the processing summary. For journals that accept only TIFF. |
+| TIFF | LZW with resolution tags and a processing summary. On dev: 8-bit RGB in original-colour mode, or 8-bit grayscale in grayscale mode. |
 | SVG | Vector text and lines; edit in Illustrator or Inkscape. |
 | PPTX | Finished figure with native editable text/shapes and recroppable pictures. Retains uncropped, processed pixels inside the file. See [PowerPoint export](docs/pptx.md). |
 | Uncropped image | Same rotation and contrast as the figure, with the crop box, well numbers and removed lanes marked. For the supplementary information. |

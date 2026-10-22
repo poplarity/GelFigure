@@ -52,7 +52,7 @@
     ctx.save();
     ctx.translate(view.ox, view.oy); ctx.scale(view.s, view.s);
     ctx.drawImage(App.fullCanvas, 0, 0);
-    if (document.getElementById('showSat').checked) ctx.drawImage(App.getSatCanvas(), 0, 0);
+    if (document.getElementById('showSat').checked && !App.isColour()) ctx.drawImage(App.getSatCanvas(), 0, 0);
     ctx.restore();
 
     const c = S.crop, a = toScr(c.x, c.y), b = toScr(c.x + c.w, c.y + c.h);

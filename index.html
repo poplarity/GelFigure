@@ -44,7 +44,7 @@
       </div>
       <div class="menu hidden right" id="exportMenu">
         <button id="btnPPTX"><span data-en="PowerPoint (editable .pptx)">PowerPoint（可编辑 .pptx）</span><small data-en="Finished layout; editable text/shapes and crop (uncropped pixels included)">保留成图排版；文字图形可编辑、可重新裁切（含全图数据）</small></button>
-        <button id="btnTIFF"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></button>
+        <button id="btnTIFF"><span data-en="TIFF (LZW)">TIFF（LZW）</span><small data-en="RGB in original-colour mode; grayscale otherwise">跟随当前显示：原色导出 RGB，灰度导出灰度</small></button>
         <button id="btnSVG" data-en="SVG (vector, editable in Illustrator)">SVG（矢量，可在 AI 中编辑）</button>
         <div class="menu-sep"></div>
         <button id="btnUncropped"><span data-en="Uncropped image (same processing)">未裁切图（与成图同处理）</span><small data-en="For the supplement: same contrast and orientation, crop box and well numbers marked">补充材料用：同一对比度/方向，标出裁切框与孔号</small></button>
@@ -94,6 +94,11 @@
           <p class="hint storage-note hidden" data-en="Browser storage is unavailable. You can still edit and export; preferences and custom ladders stay in this tab only. Save a project before closing.">浏览器存储不可用，仍可编辑和导出；偏好与自定义 Marker 仅在本页暂存，关闭前请保存项目。</p>
         </div>
         <div class="field">
+          <label data-en="Image appearance">图像显示</label>
+          <div class="seg full" id="displayModeSeg"><button data-display="colour" data-en="Original colour">保留原色</button><button data-display="gray" data-en="Grayscale">灰度</button></div>
+          <p class="hint" id="displayModeNote"></p>
+        </div>
+        <div class="field" id="grayPolarity">
           <label class="switch"><input type="checkbox" id="invChk"><span data-en="Invert (swap black and white)">反色（黑白对调）</span></label>
           <p class="hint" id="invNote"></p>
         </div>
@@ -111,6 +116,7 @@
             <label class="switch"><input type="checkbox" id="showGrid"><span data-en="Grid">参考网格</span></label>
           </div>
         </div>
+        <div id="grayAdjustments">
         <div class="field"><label><span data-en="Black point">暗部</span> <b id="lvBlackV"></b></label><input type="range" id="lvBlack" min="0" max="1000"></div>
         <div class="field"><label><span data-en="White point">亮部</span> <b id="lvWhiteV"></b></label><input type="range" id="lvWhite" min="0" max="1000"></div>
         <canvas id="histo" height="40"></canvas>
@@ -127,6 +133,7 @@
             <input type="number" id="gamma" min="0.2" max="5" step="0.05" value="1" class="num" disabled>
           </div>
         </details>
+        </div>
       </section>
 
       <!-- range -->
@@ -353,7 +360,7 @@
     </div>
     <p class="sheet-info" id="mDpiInfo"></p>
     <button class="sheet-item primary" data-x="png"><span class="si-ic">PNG</span><span class="si-tx"><span data-en="PNG image">PNG 图片</span><small data-en="For the manuscript and slides; save it to Photos on a phone">投稿、做 PPT 用；手机上可直接存到相册</small></span></button>
-    <button class="sheet-item" data-x="tiff"><span class="si-ic">TIF</span><span class="si-tx"><span data-en="TIFF (LZW, grayscale)">TIFF（LZW，灰度）</span><small data-en="For journals that only accept TIFF (e.g. PLOS)">PLOS 等只收 TIFF 的期刊</small></span></button>
+    <button class="sheet-item" data-x="tiff"><span class="si-ic">TIF</span><span class="si-tx"><span data-en="TIFF (LZW)">TIFF（LZW）</span><small data-en="RGB in original-colour mode; grayscale otherwise">跟随当前显示：原色导出 RGB，灰度导出灰度</small></span></button>
     <button class="sheet-item" data-x="svg"><span class="si-ic">SVG</span><span class="si-tx"><span data-en="SVG (vector)">SVG 矢量图</span><small data-en="Text stays editable in Illustrator or Inkscape">文字可在 Illustrator / Inkscape 中编辑</small></span></button>
     <button class="sheet-item" data-x="pptx"><span class="si-ic">PPT</span><span class="si-tx"><span data-en="PowerPoint (editable .pptx)">PowerPoint（可编辑 .pptx）</span><small data-en="Finished layout; editable text/shapes and crop (uncropped pixels included)">保留成图排版；文字图形可编辑、可重新裁切（含全图数据）</small></span></button>
     <div class="sheet-label" data-en="For the supplement">补充材料</div>
@@ -516,6 +523,7 @@
 <script src="js/storage.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/tiff.js"></script>
+<script src="js/colour.js"></script>
 <script src="js/ladders.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/render.js"></script>

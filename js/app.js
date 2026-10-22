@@ -92,15 +92,21 @@
   };
 
   // install a decoded image as the current source and run the automatic pipeline
+  function sourcePixels(img) {
+    App.src = { w: img.width, h: img.height, data: img.data };
+    App.sourceRGB = img.rgb || null;
+    App._colourBg = null;
+  }
   function startFrom(input) {
     const img = input.img;
-    App.src = { w: img.width, h: img.height, data: img.data };
+    sourcePixels(img);
     App.srcBuffer = input.buffer;
     App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null;
     const p = prefs();
     App.S = {
       file: { name: input.name, bits: img.bits, dpi: img.dpi, actualMax: img.actualMax, sha256: input.sha256, size: input.buffer.byteLength },
       bright: E.detectBright(App.src),
+      displayMode: img.rgb ? 'colour' : 'gray',
       rotation: 0,
       levels: { black: 0, white: 1, gamma: 1, invert: p.invert != null ? p.invert : false },
       crop: { x: 0, y: 0, w: img.width, h: img.height },
@@ -157,7 +163,7 @@
         const img = { w: input.img.width, h: input.img.height, data: input.img.data };
         const q = E.exposureScore(img);
         list.push({ name: input.name, buffer: input.buffer, sha256: input.sha256, w: img.w, h: img.h, bits: input.img.bits,
-          score: q.score, clipFrac: q.clipFrac, snr: q.snr, rangeUse: q.rangeUse, thumb: thumbnail(img, q.bright) });
+          score: q.score, clipFrac: q.clipFrac, snr: q.snr, rangeUse: q.rangeUse, thumb: thumbnail(img, q.bright, input.img.rgb) });
         // keep decoded pixels only for the current best; the rest live on as file bytes
         if (!bestInput || q.score > bestInput.score) { if (bestInput) bestInput.img = null; bestInput = Object.assign(input, { score: q.score, k }); }
         else input.img = null;
@@ -174,7 +180,12 @@
     } finally { busy(false); }
   };
 
-  function thumbnail(img, bright) {
+  function thumbnail(img, bright, rgb) {
+    if (rgb) {
+      const id = G.Colour.thumbnail(rgb, img.w, img.h, 140), c = document.createElement('canvas');
+      c.width = id.width; c.height = id.height; c.getContext('2d').putImageData(id, 0, 0);
+      return c.toDataURL('image/jpeg', 0.8);
+    }
     const sm = E.downsample(img, 140), lv = E.autoLevels(sm);
     const c = document.createElement('canvas'); c.width = sm.w; c.height = sm.h;
     c.getContext('2d').putImageData(E.toImageData(sm, { black: lv.black, white: lv.white, gamma: 1, invert: !bright ? false : true }), 0, 0);
@@ -193,7 +204,10 @@
       const S = App.S;
       App.expIdx = k;
       if (img.width === App.src.w && img.height === App.src.h) {
-        App.src = { w: img.width, h: img.height, data: img.data };
+        sourcePixels(img);
+        if (!App.sourceRGB) S.displayMode = 'gray';
+        App._colorStats = img.colorStats || null;
+        App.loadWarnings = img.warnings || [];
         App.srcBuffer = ex.buffer;
         App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null;
         S.file = { name: ex.name, bits: img.bits, dpi: img.dpi, actualMax: img.actualMax, sha256: ex.sha256, size: ex.buffer.byteLength };
@@ -221,6 +235,22 @@
   };
 
   // ---------- pipeline ----------
+  App.hasColour = function () { return !!App.sourceRGB; };
+  App.isColour = function (S) { return !!App.sourceRGB && (S || App.S).displayMode === 'colour'; };
+  App.displayLevels = function (S) { return App.isColour(S) ? { black: 0, white: 1, gamma: 1, invert: false } : (S || App.S).levels; };
+  App.displayInfo = function () { return { mode: App.isColour() ? 'original-colour' : 'grayscale', sourceHasColour: App.hasColour(), rgbDisplayBits: App.isColour() ? 8 : null, grayscaleAdjustmentsApplied: !App.isColour() }; };
+  App.setDisplayMode = function (mode) {
+    if (!App.S || (mode === 'colour' && !App.hasColour())) return false;
+    App.S.displayMode = mode === 'colour' ? 'colour' : 'gray';
+    App._display = null;
+    return true;
+  };
+  App.displayDark = function () {
+    if (!App.isColour()) return !!App.S.bright !== !!App.S.levels.invert;
+    const s = App.S, r = s.crop, key = [s.file.sha256, s.rotation, r.x, r.y, r.w, r.h].join('|');
+    if (!App._colourBg || App._colourBg.key !== key) App._colourBg = { key, dark: G.Colour.isDark(App.sourceRGB, App.src.w, App.src.h, r, s.rotation) };
+    return App._colourBg.dark;
+  };
   App.ensureRot = function () {
     if (!App.rot || App.rotFor !== App.S.rotation) {
       App.rot = E.rotate(App.src, App.S.rotation);
@@ -232,13 +262,13 @@
   };
 
   App.renderFull = function () {
-    const rot = App.ensureRot(), lv = App.S.levels;
-    const key = [App.S.rotation, lv.black, lv.white, lv.gamma, lv.invert].join('|');
+    const rot = App.ensureRot(), lv = App.displayLevels(), colour = App.isColour();
+    const key = [App.S.rotation, colour, lv.black, lv.white, lv.gamma, lv.invert].join('|');
     if (App._display === key) return;
     App._display = key;
     const c = App.fullCanvas;
     c.width = rot.w; c.height = rot.h;
-    c.getContext('2d').putImageData(E.toImageData(rot, lv), 0, 0);
+    c.getContext('2d').putImageData(colour ? G.Colour.toImageData(App.sourceRGB, rot.w, rot.h, App.S.rotation) : E.toImageData(rot, lv), 0, 0);
     App._gelKey = null;
   };
 
@@ -359,7 +389,7 @@
     return (App._clip = { n, sensor, high, low, highFrac: high / n, lowFrac: low / n, sensorFrac: sensor / n });
   };
   // the band side of the levels: bright bands are clipped at the white point, dark bands at black
-  App.bandClipFrac = function () { const k = App.clipStats(); return App.S.bright ? k.highFrac : k.lowFrac; };
+  App.bandClipFrac = function () { if (App.isColour()) return 0; const k = App.clipStats(); return App.S.bright ? k.highFrac : k.lowFrac; };
 
   // ---------- resolution ----------
   // pixels of the gel actually placed per inch of the printed figure (no upsampling)
@@ -987,8 +1017,8 @@
       return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, pt: g.pt, k } : null;
     }).filter(Boolean);
     return {
-      preview: !!preview, bright: S.bright,
-      crop: S.crop, levels: S.levels, style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
+      preview: !!preview, bright: App.isColour() ? App.displayDark() : S.bright,
+      crop: S.crop, levels: App.displayLevels(), style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
       lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name, hidden: S.lanes[i].hidden, src: i })),
       conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt })),
       groups,
@@ -1030,7 +1060,7 @@
     if (App._gelKey !== key) { App._gelKey = key; App._gelHref = gel.canvas.toDataURL('image/png'); }
     App._lastGel = gel;
     const out = G.Render.build(R, gel, App._gelHref);
-    if (S.saturatedInCrop > 0) out.warnings.push(App.saturationText());
+    if (!App.isColour() && S.saturatedInCrop > 0) out.warnings.push(App.saturationText());
     const bc = App.bandClipFrac();
     const pctBc = (bc * 100).toFixed(2), toWhite = S.bright !== !!S.levels.invert;
     if (bc > 0.001) out.warnings.push(L(
@@ -1061,7 +1091,8 @@
       { label: L(`把凝胶宽度改为 ${safe} mm`, `Set gel width to ${safe} mm`), run: () => { st.autoWidth = false; st.gelWidthMm = safe; } });
     const k = App.clipStats(), bc = App.bandClipFrac();
     const sp = (k.sensorFrac * 100).toFixed(2), bp = (bc * 100).toFixed(2);
-    if (k.sensorFrac > 0.0005) add('warn', L(`相机过曝：裁切区 ${sp}% 像素饱和。建议换一张较短曝光。`, `Camera saturation: ${sp}% of the pixels in the crop are saturated. Consider a shorter exposure.`));
+    if (!App.isColour() && k.sensorFrac > 0.0005) add('warn', L(`相机过曝：裁切区 ${sp}% 像素饱和。建议换一张较短曝光。`, `Camera saturation: ${sp}% of the pixels in the crop are saturated. Consider a shorter exposure.`));
+    if (App.isColour()) add('info', L('保留原色：以 8 位 RGB 显示和导出，未应用灰度的色阶、反色或 Gamma。灰度过曝指标不代表各 RGB 通道的饱和情况。', 'Original colour: displayed/exported as 8-bit RGB, without grayscale levels, inversion or gamma. Grayscale saturation does not assess the individual RGB channels.'));
     if (bc > 0.001) add('block', L(`色阶削顶：${bp}% 像素被对比度压平。`, `Contrast clipping: ${bp}% of the pixels are flattened by the contrast setting.`), { label: L('重置对比度', 'Reset contrast'), run: () => App.resetLevels() });
     const fig = App.buildFigure(false), wmm = fig.w / G.Render.MM;
     // the smallest text actually printed: per-item sizes and shrunk group labels count, not just the base size
@@ -1074,7 +1105,7 @@
     if (st.lineWidthPt < 0.25) add('warn', L(`线宽 ${st.lineWidthPt} pt 太细。`, `Line width ${st.lineWidthPt} pt is too thin.`), { label: L('改为 0.5 pt', 'Use 0.5 pt'), run: () => { st.lineWidthPt = 0.5; } });
     if (wmm > 183) add('warn', L(`成图宽 ${wmm.toFixed(0)} mm，超过双栏宽度（约 180 mm）。`, `The figure is ${wmm.toFixed(0)} mm wide, wider than a double column (about 180 mm).`));
     (fig.overlaps || []).forEach(w => add('warn', w));
-    if (S.levels.gamma !== 1) add('warn', L(`Gamma = ${S.levels.gamma}：非线性调整，图注中必须说明。`, `Gamma = ${S.levels.gamma}: a non-linear adjustment that must be stated in the legend.`));
+    if (!App.isColour() && S.levels.gamma !== 1) add('warn', L(`Gamma = ${S.levels.gamma}：非线性调整，图注中必须说明。`, `Gamma = ${S.levels.gamma}: a non-linear adjustment that must be stated in the legend.`));
     if (S.lanes.some(l => l.hidden)) add('info', L('有剪除的泳道：成图已加拼接间隙，图注中需说明（见"图注可参考"）。', 'Lanes were removed: splice gaps are added; state this in the legend (see "Legend notes").'));
     if (S.arrows.some(a => a.size && !a.sizeText && (App.estimateInfo(a.y) || {}).extrap)) add('info', L('有箭头大小为外推估算值（已标 ≈）。', 'Some arrow sizes are extrapolated (marked ≈).'));
     if (!S.markers.length) add('warn', L('成图中没有 Marker。', 'The figure has no marker lane.'));
@@ -1158,7 +1189,7 @@
       brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null })).filter(b => b.bp1 && b.bp2),
       // recorded for reference only: each gel is straightened on its own
       rotation: S.rotation,
-      style: S.style };
+      style: S.style, displayMode: App.isColour() ? 'colour' : 'gray' };
   };
   // facts the UI needs before applying (lane-count mismatch, ladders that cannot be resolved)
   App.checkTemplate = function (t) {
@@ -1193,6 +1224,7 @@
     S.groups = (t.groups || []).map(g => Object.assign({ from: abs(g.from), to: abs(g.to), text: g.text || '' }, ptOf(g)));
     S.conditions = (t.conditions || []).map(c => Object.assign({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }, ptOf(c)));
     S.style = normalStyle(t.style);
+    if (t.displayMode === 'colour' || t.displayMode === 'gray') App.setDisplayMode(t.displayMode === 'colour' && App.hasColour() ? 'colour' : 'gray');
     App.fixIndices();
     App.matchMarkers(true);
     S.arrows = (t.arrows || []).map(a => {
@@ -1249,7 +1281,7 @@
     restore(input, P.state, P.initial, P.autoRotation);
   };
   function restore(input, state, initial, autoRotation) {
-    App.src = { w: input.img.width, h: input.img.height, data: input.img.data };
+    sourcePixels(input.img);
     App.srcBuffer = input.buffer;
     App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null; App._emptyKey = null;
     App.exposures = null;
@@ -1257,6 +1289,8 @@
     App.laneNotice = null; App.ladderNotice = null; App._gelVoteInput = null; App.cropMeta = null;
     App.S = state;
     App.S.style = normalStyle(App.S.style);
+    // Old projects were displayed in grayscale; reopening must not silently change their appearance.
+    App.S.displayMode = App.S.displayMode === 'colour' && App.hasColour() ? 'colour' : 'gray';
     ['boxes', 'brackets', 'labels'].forEach(k => { if (!Array.isArray(App.S[k])) App.S[k] = []; });   // older projects
     // projects made before protein mode existed carry no gelType: take it from the marker ladder
     if (App.S.gelType !== 'dna' && App.S.gelType !== 'protein') {

@@ -85,7 +85,7 @@ function paletteTiff(w, h, bits, idx, cmap, opt) {
       const e1 = await TIFF.decodeBuffer(paletteTiff(w, h, 1, idx1, null, { photometric: 1 }), 'e.tif');
       const lum = i => { const k = idx8[i]; return (0.299 * rnd[k] + 0.587 * rnd[256 + k] + 0.114 * rnd[512 + k]) / 65535; };
       const errs = { greyInvLzw: err(a, i => 1 - idx8[i] / 255), falseColour: err(b, i => idx8[i] / 255), colour: err(c, lum), grey4: err(d4, i => idx4[i] * 17 / 255), bilevel: err(e1, i => idx1[i]) };
-      R.palette = { ok: Object.values(errs).every(v => v < 1e-6) && !b.colorStats && !!c.colorStats && a.warnings.length === 1 && /false-colour|伪彩色/.test(b.warnings[0]), errs };
+      R.palette = { ok: Object.values(errs).every(v => v < 1e-6) && !b.colorStats && !!c.colorStats && !a.rgb && !!b.rgb && !!c.rgb && !d4.rgb && !e1.rgb && a.warnings.length === 1 && /false-colour|伪彩色/i.test(b.warnings[0]), errs };
     }
     // 1. LZW roundtrip on noisy-ish data
     const w = 333, h = 211, px = new Uint8Array(w * h);

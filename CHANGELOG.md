@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added — original colour
+- **中文摘要：保留原色／灰度显示。** 彩色图默认保留原色，染色胶和彩色 Marker 不再强制转为黑白；切换显示不重跑识别，泳道、裁切和标注保留。原色模式只做几何处理，不应用灰度的色阶、反色或 Gamma；可切回灰度继续使用这些调整。PNG、SVG、PPTX、未裁切图和 RGB TIFF 支持彩色；项目、样式和撤销保存显示模式，旧项目保持旧的灰度外观。
+- RGB/palette input retains a separate 8-bit colour buffer, including 16/32-bit RGB TIFF, planar/endian variants and alpha composited on white. Existing grayscale data and detection algorithms are unchanged. TIFF ICC profiles are not applied; such input gets an explicit notice. Raw file bytes remain intact.
+- Shared geometric mapping keeps colour pixels aligned with lanes, crops, splices and zoom insets. TIFF exports use lossless LZW RGB in colour mode; grayscale export remains available. Logs distinguish active display settings from saved grayscale settings; grayscale saturation is not presented as RGB-channel saturation.
+- Colour tests cover independent TIFF fixtures, rotation, display switching, PNG/TIFF pixel agreement, editable/croppable colour PPTX, original-file bytes, persistence, exposure switches and offline phones. Independent Pillow/libtiff and Windows PowerPoint validation use synthetic images only.
+
 ### Fixed
 - **中文摘要：Marker 单位标题不再跟随泳道名称上移。** bp、kb、kDa 放在胶图侧边上沿稍下方，条件表维持紧贴胶图的间距；不为标题预留整行空白。只有大字号或裁切边缘的条带数值发生冲突时，才留出必要间隔。左右 Marker 共用标题基线，SVG、PNG、TIFF 和 PPTX 使用同一排版。
 - Marker units are anchored beside the gel instead of above the condition matrix. No extra blank row in the normal layout; crop-edge values and large labels receive only the clearance they need. Regression checks cover bp/kb/kDa, 0–4 conditions, two marker columns, rotated lane labels, well numbers, five fonts and mixed font sizes, plus SVG/PPTX position agreement.

@@ -280,21 +280,26 @@
       } else if (bits === 8) vals.set(total.subarray(0, n));
       else for (let i = 0; i < n; i++) vals[i] = tdv.getUint16(i * 2, le);
       const warnings = [];
-      let colorStats = null;
+      let colorStats = null, rgb = null;
       if (photo === 3) {
         const pal = paletteLut(t[320], bits, vals);
         for (let i = 0; i < n; i++) gray[i] = pal.lut[vals[i]];
         colorStats = pal.colorStats;
+        if (pal.kind !== 'grey') {
+          rgb = new Uint8Array(n * 3);
+          const N = 1 << bits;
+          for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) rgb[i * 3 + c] = Math.round(t[320][vals[i] + c * N] / 257);
+        }
         warnings.push(pal.kind === 'false-colour'
-          ? G.L('这是伪彩色调色板 TIFF：已按颜色表的序号还原为灰度信号。如有成像仪导出的原始灰度 TIFF，建议用原图。', 'This is a false-colour palette TIFF: the signal was recovered from the palette index. Use the original grey-scale TIFF from the imager if you have it.')
-          : G.L(`这是调色板 TIFF（${bits} 位）：已按颜色表转为灰度。如有原始 16 位 TIFF，动态范围更大。`, `This is a palette TIFF (${bits}-bit), converted to grey through its colour map. The raw 16-bit TIFF, if you have it, has more dynamic range.`));
+          ? G.L('这是伪彩色调色板 TIFF：识别按颜色表序号计算灰度，显示可保留颜色。分析时建议使用成像仪导出的原始灰度 TIFF。', 'False-colour palette TIFF: detection uses palette-index grayscale; display can retain the colours. Use the original grayscale TIFF for analysis if available.')
+          : G.L(`这是调色板 TIFF（${bits} 位）：识别使用灰度，彩色来源可保留原色。如有原始 16 位 TIFF，动态范围更大。`, `Palette TIFF (${bits}-bit): detection uses grayscale; colour sources can retain their colours. A raw 16-bit TIFF has more dynamic range.`));
       } else {
         const mx = (1 << bits) - 1;
         for (let i = 0; i < n; i++) gray[i] = photo === 0 ? 1 - vals[i] / mx : vals[i] / mx;
       }
       let actualMax = 0;
       for (let i = 0; i < n; i++) if (gray[i] > actualMax) actualMax = gray[i];
-      return { width: w, height: h, data: gray, bits: photo === 3 ? Math.max(8, bits) : bits, spp, compression: comp, actualMax, colorStats, dpi, warnings };
+      return { width: w, height: h, data: gray, rgb, bits: photo === 3 ? Math.max(8, bits) : bits, spp, compression: comp, actualMax, colorStats, dpi, warnings };
     }
     const get = (byteIdx) => {
       if (bits === 8) return fmt === 2 ? tdv.getInt8(byteIdx) : total[byteIdx];
@@ -341,7 +346,37 @@
       gray[i] = v;
       if (v > actualMax) actualMax = v;
     }
-    return { width: w, height: h, data: gray, bits, spp, compression: comp, actualMax, colorStats, dpi };
+    // A separate 8-bit display buffer. Never replace the high-precision grayscale used by detection.
+    // RGB TIFF values are interpreted as sRGB; source bytes (including higher precision/ICC) remain
+    // available for original-file export. Alpha is composited onto white, not onto black.
+    let rgb = null;
+    const warnings = [];
+    if (color) {
+      let scale = maxVal;
+      if (fmt === 3) {
+        scale = 1;
+        for (let i = 0; i < n; i++) for (let c = 0; c < 3; c++) {
+          const v = get((planar === 2 ? c * n + i : i * spp + c) * bps);
+          if (Number.isFinite(v) && v > scale) scale = v;
+        }
+      }
+      const bytes = new Uint8Array(n * 3), alphaType = (t[338] || [0])[0];
+      let chromatic = false;
+      for (let i = 0; i < n; i++) {
+        const sample = c => get((planar === 2 ? c * n + i : i * spp + c) * bps) / scale;
+        const alpha = spp > 3 && (alphaType === 1 || alphaType === 2) ? get((planar === 2 ? 3 * n + i : i * spp + 3) * bps) / (fmt === 3 ? 1 : maxVal) : 1;
+        const a = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 0;
+        const vals = [sample(0), sample(1), sample(2)];
+        if (a > 0 && (vals[0] !== vals[1] || vals[1] !== vals[2])) chromatic = true;
+        for (let c = 0; c < 3; c++) {
+          const v = (alphaType === 1 ? vals[c] : vals[c] * a) + 1 - a;
+          bytes[i * 3 + c] = Math.round(Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0)) * 255);
+        }
+      }
+      if (chromatic) rgb = bytes;
+      if (rgb && t[34675]) warnings.push(G.L('此 TIFF 含 ICC 色彩配置：本工具按 sRGB 显示 RGB 数值，未应用该配置；颜色可能与色彩管理软件有差异。', 'This TIFF has an ICC profile. RGB values are displayed as sRGB without applying that profile; colour-managed software may look different.'));
+    }
+    return { width: w, height: h, data: gray, rgb, bits, spp, compression: comp, actualMax, colorStats, dpi, warnings };
   }
 
   // Decode PNG/JPG etc. via the browser
@@ -357,12 +392,18 @@
         const d = ctx.getImageData(0, 0, c.width, c.height).data;
         const n = c.width * c.height;
         const gray = new Float32Array(n);
+        const rgb = new Uint8Array(n * 3); let chromatic = false;
         let mx = 0, chromaSum = 0, blueDom = 0, colorSamples = 0;
         const stepC = Math.max(1, Math.floor(n / 200000));
         for (let i = 0; i < n; i++) {
           const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
           const v = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
           gray[i] = v; if (v > mx) mx = v;
+          const alpha = d[i * 4 + 3] / 255;
+          if (alpha > 0 && (r !== g || g !== b)) chromatic = true;
+          rgb[i * 3] = Math.round(r * alpha + 255 * (1 - alpha));
+          rgb[i * 3 + 1] = Math.round(g * alpha + 255 * (1 - alpha));
+          rgb[i * 3 + 2] = Math.round(b * alpha + 255 * (1 - alpha));
           if (i % stepC === 0) {
             const mxc = Math.max(r, g, b), mnc = Math.min(r, g, b);
             if (mxc > 0) chromaSum += (mxc - mnc) / mxc;
@@ -371,7 +412,7 @@
           }
         }
         URL.revokeObjectURL(url);
-        resolve({ width: c.width, height: c.height, data: gray, bits: 8, spp: 3, compression: 0, actualMax: mx, dpi: 0,
+        resolve({ width: c.width, height: c.height, data: gray, rgb: chromatic ? rgb : null, bits: 8, spp: 3, compression: 0, actualMax: mx, dpi: 0,
           colorStats: colorSamples ? { chroma: chromaSum / colorSamples, blueFrac: blueDom / colorSamples } : null });
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(G.L('无法读取该图片', 'Cannot read this image'))); };

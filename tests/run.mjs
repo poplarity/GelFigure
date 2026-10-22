@@ -16,6 +16,7 @@ import { mobileChecks } from './mobile.mjs';
 import { pptxChecks } from './pptx.mjs';
 import { fontChecks } from './fonts.mjs';
 import { unitHeaderChecks } from './unit-header.mjs';
+import { colourChecks } from './colour.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -112,6 +113,9 @@ async function runIn(name, base) {
     const headers = await unitHeaderChecks(browser, base, ROOT, name);
     out.results.push(...headers);
     if (headers.some(r => r[0] === 'FAIL')) out.ok = false;
+    const colour = await colourChecks(browser, base, ROOT, name);
+    out.results.push(...colour);
+    if (colour.some(r => r[0] === 'FAIL')) out.ok = false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];

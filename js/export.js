@@ -82,8 +82,8 @@
     return JSON.stringify({
       tool: 'GelFigure ' + A.VERSION, source: S.file.name, sha256: S.file.sha256,
       figureFont: G.Render.fontName(S.style.fontFamily),
-      rotationDeg: S.rotation, levels: S.levels, effectiveGelDpi: Math.round(A.effectiveDpi()),
-      sensorSaturatedFrac: +k.sensorFrac.toFixed(5), levelClippedFrac: +A.bandClipFrac().toFixed(5),
+      rotationDeg: S.rotation, display: A.displayInfo(), levels: A.displayLevels(S), effectiveGelDpi: Math.round(A.effectiveDpi()),
+      sensorSaturatedFrac: A.isColour(S) ? null : +k.sensorFrac.toFixed(5), levelClippedFrac: +A.bandClipFrac().toFixed(5),
       splicedLanes: S.lanes.map((l, i) => (l.hidden ? i + 1 : null)).filter(v => v != null),
       disclosure: legendHints(S).join(' ')
     });
@@ -95,7 +95,7 @@
     download(await pngDecorate(blob, dpi, S ? { Software: 'GelFigure ' + G.App.VERSION, Description: summaryText(S) } : {}), name);
   }
 
-  // ---- TIFF (8-bit grayscale, LZW, with resolution) ----
+  // ---- TIFF (8-bit grayscale or interleaved RGB, LZW, with resolution) ----
   function lzwEncode(bytes) {
     const out = []; let acc = 0, nacc = 0, width = 9;
     const emit = c => { acc = (acc << width) | c; nacc += width; while (nacc >= 8) { out.push((acc >>> (nacc - 8)) & 255); nacc -= 8; } acc &= (1 << nacc) - 1; };
@@ -121,10 +121,11 @@
     return Uint8Array.from(out);
   }
   // one strip per ~64 KB of pixels keeps every LZW stream small and readers happy
-  function encodeTiffGray(gray, w, h, dpi, desc) {
-    const rps = Math.max(1, Math.floor(65536 / w)), nStrips = Math.ceil(h / rps);
+  function encodeTiff(data, w, h, dpi, desc, channels) {
+    const stride = w * channels;
+    const rps = Math.max(1, Math.floor(65536 / stride)), nStrips = Math.ceil(h / rps);
     const strips = [];
-    for (let s = 0; s < nStrips; s++) strips.push(lzwEncode(gray.subarray(s * rps * w, Math.min(h, (s + 1) * rps) * w)));
+    for (let s = 0; s < nStrips; s++) strips.push(lzwEncode(data.subarray(s * rps * stride, Math.min(h, (s + 1) * rps) * stride)));
     // TIFF ASCII fields are 7-bit: the summary is JSON, so other characters (γ, ≈, Chinese file
     // names) are written as \u escapes and nothing is lost
     const ascii = s => String(s).replace(/[^\x00-\x7f]/g, ch => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'));
@@ -132,6 +133,7 @@
     const tags = 14;
     let off = 8 + 2 + tags * 12 + 4;
     const resOff = off; off += 16;
+    const bitsOff = off; if (channels === 3) off += 6;
     const soOff = off; off += 4 * nStrips;
     const sbOff = off; off += 4 * nStrips;
     const descOff = off; off += d.length + 1;
@@ -142,26 +144,32 @@
     dv.setUint16(0, 0x4949); dv.setUint16(2, 42, true); dv.setUint32(4, 8, true);
     let p = 8; dv.setUint16(p, tags, true); p += 2;
     const tag = (t, type, count, val) => { dv.setUint16(p, t, true); dv.setUint16(p + 2, type, true); dv.setUint32(p + 4, count, true); if (type === 3 && count === 1) dv.setUint16(p + 8, val, true); else dv.setUint32(p + 8, val, true); p += 12; };
-    tag(256, 4, 1, w); tag(257, 4, 1, h); tag(258, 3, 1, 8); tag(259, 3, 1, 5); tag(262, 3, 1, 1);
+    tag(256, 4, 1, w); tag(257, 4, 1, h); tag(258, 3, channels, channels === 3 ? bitsOff : 8); tag(259, 3, 1, 5); tag(262, 3, 1, channels === 3 ? 2 : 1);
     tag(270, 2, d.length + 1, descOff);
     tag(273, 4, nStrips, nStrips === 1 ? dataOff : soOff);
-    tag(277, 3, 1, 1); tag(278, 4, 1, rps);
+    tag(277, 3, 1, channels); tag(278, 4, 1, rps);
     tag(279, 4, nStrips, nStrips === 1 ? strips[0].length : sbOff);
     tag(282, 5, 1, resOff); tag(283, 5, 1, resOff + 8); tag(296, 3, 1, 2);
     tag(305, 2, sw.length + 1, swOff);
     dv.setUint32(p, 0, true);
     dv.setUint32(resOff, dpi, true); dv.setUint32(resOff + 4, 1, true); dv.setUint32(resOff + 8, dpi, true); dv.setUint32(resOff + 12, 1, true);
+    if (channels === 3) for (let i = 0; i < 3; i++) dv.setUint16(bitsOff + i * 2, 8, true);
     u8.set(d, descOff); u8.set(sw, swOff);
     let q = dataOff;
     strips.forEach((s, i) => { if (nStrips > 1) { dv.setUint32(soOff + 4 * i, q, true); dv.setUint32(sbOff + 4 * i, s.length, true); } u8.set(s, q); q += s.length; });
     return buf;
   }
+  const encodeTiffGray = (data, w, h, dpi, desc) => encodeTiff(data, w, h, dpi, desc, 1);
+  const encodeTiffRGB = (data, w, h, dpi, desc) => encodeTiff(data, w, h, dpi, desc, 3);
   async function exportTIFF(svg, wPt, hPt, dpi, name, S) {
     const c = await svgToCanvas(svg, wPt, hPt, dpi);
     const id = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, n = c.width * c.height;
-    const g = new Uint8Array(n);
-    for (let i = 0; i < n; i++) g[i] = Math.round(0.299 * id[i * 4] + 0.587 * id[i * 4 + 1] + 0.114 * id[i * 4 + 2]);
-    download(new Blob([encodeTiffGray(g, c.width, c.height, dpi, summaryText(S))], { type: 'image/tiff' }), name);
+    const colour = G.App.isColour(S), g = new Uint8Array(n * (colour ? 3 : 1));
+    for (let i = 0; i < n; i++) {
+      if (colour) { g[i * 3] = id[i * 4]; g[i * 3 + 1] = id[i * 4 + 1]; g[i * 3 + 2] = id[i * 4 + 2]; }
+      else g[i] = Math.round(0.299 * id[i * 4] + 0.587 * id[i * 4 + 1] + 0.114 * id[i * 4 + 2]);
+    }
+    download(new Blob([(colour ? encodeTiffRGB : encodeTiffGray)(g, c.width, c.height, dpi, summaryText(S))], { type: 'image/tiff' }), name);
   }
 
   function exportSVG(svg, name) {
@@ -194,8 +202,8 @@
     ctx.font = `bold ${fs}px ${family}`;
     ctx.fillText('Uncropped image (same processing as figure)', fs * 0.5, fs * 1.3);
     ctx.font = `${fs * 0.8}px ${family}`;
-    const lv = S.levels;
-    const info = `${S.file.name} · SHA-256 ${String(S.file.sha256 || '').slice(0, 16)}… · ${S.file.bits}-bit · rotation ${S.rotation}° · levels ${(lv.black * 100).toFixed(2)}–${(lv.white * 100).toFixed(2)}% (linear${lv.gamma !== 1 ? ', gamma ' + lv.gamma : ''})${lv.invert ? ' · inverted' : ''}`;
+    const lv = G.App.displayLevels(S);
+    const info = `${S.file.name} · SHA-256 ${String(S.file.sha256 || '').slice(0, 16)}… · ${S.file.bits}-bit · rotation ${S.rotation}° · ${G.App.isColour(S) ? 'original colour (8-bit RGB)' : `levels ${(lv.black * 100).toFixed(2)}–${(lv.white * 100).toFixed(2)}% (linear${lv.gamma !== 1 ? ', gamma ' + lv.gamma : ''})${lv.invert ? ' · inverted' : ''}`}`;
     ctx.fillText(info, fs * 0.5, H + top + fs * 1.2, W - fs);
     const key = S.lanes.map((l, i) => `${l.hidden ? 'X' : i + 1}: ${l.name || '—'}`).join('   ');
     ctx.fillText(key, fs * 0.5, H + top + fs * 2.4, W - fs);
@@ -218,8 +226,12 @@
       source: { file: S.file.name, sha256: S.file.sha256, bytes: S.file.size, width: A.src.w, height: A.src.h, bitDepth: S.file.bits, dpi: S.file.dpi || null },
       rotationDeg: S.rotation, autoRotationDeg: A.autoRotation,
       crop: S.crop, figureWells: r ? [r[0] + 1, r[1] + 1] : null,
-      levels: Object.assign({ note: 'linear whole-image stretch; values are fractions of full scale' }, S.levels),
+      display: A.displayInfo(),
+      levels: Object.assign({ note: A.isColour(S) ? 'original-colour display; grayscale adjustments are not applied' : 'linear whole-image stretch; values are fractions of full scale' }, A.displayLevels(S)),
+      savedGrayscaleLevels: Object.assign({}, S.levels),
       clipping: {
+        basis: 'grayscale analysis image; not an assessment of individual RGB channels',
+        grayscaleAdjustmentsApplied: !A.isColour(S),
         sensorSaturatedPixels: k.sensor, sensorSaturatedFrac: k.sensorFrac,
         levelClippedHighPixels: k.high, levelClippedLowPixels: k.low,
         levelClippedOnBandSideFrac: A.bandClipFrac(), pixelsInCrop: k.n
@@ -257,7 +269,9 @@
     const A = G.App, R = A.renderState(false);
     const cut = S.lanes.map((l, i) => (l.hidden ? i + 1 : null)).filter(v => v != null);
     if (cut.length) h.push(`Lane${cut.length > 1 ? 's' : ''} ${cut.join(', ')} ${cut.length > 1 ? 'were' : 'was'} removed from the same gel; splice sites are indicated by ` + (S.style.spliceStyle === 'line' ? 'lines.' : 'white gaps.'));
-    if (S.levels.invert) h.push('Image colours were inverted for display.');
+    const lv = A.displayLevels(S);
+    if (A.isColour(S)) h.push('Original colours are retained as 8-bit RGB; grayscale contrast, inversion and gamma settings were not applied.');
+    if (lv.invert) h.push('Image colours were inverted for display.');
     const syms = new Set(R.arrows.map(a => a.sym));
     if (syms.has('star')) h.push('Asterisks (*) indicate non-specific bands.');
     if (syms.has('hash')) h.push('# indicates [describe, e.g. degradation products].');
@@ -267,7 +281,7 @@
       const z = Math.round(Math.min(b.zoom, S.crop.h / b.h) * 10) / 10;
       h.push(`The boxed region${b.text ? ` (${b.text})` : ''} is shown enlarged ${z}× on the right.`);
     });
-    if (S.levels.gamma !== 1) h.push(`A non-linear gamma adjustment (γ = ${S.levels.gamma}) was applied to the whole image.`);
+    if (lv.gamma !== 1) h.push(`A non-linear gamma adjustment (γ = ${lv.gamma}) was applied to the whole image.`);
     const shown = S.markers.filter(m => !S.lanes[m.lane].hidden && G.Ladders.get(m.ladderId));
     const ladName = m => G.Ladders.get(m.ladderId).name.replace(/\s*\(.*\)/, '');
     const names = [...new Set(shown.map(ladName))];
@@ -280,5 +294,5 @@
     return h;
   }
 
-  G.Export = { download, saveAs, deliver: null, exportPNG, exportTIFF, exportSVG, exportUncropped, exportOriginal, processingLog, legendHints, svgToCanvas, encodeTiffGray, pngDecorate };
+  G.Export = { download, saveAs, deliver: null, exportPNG, exportTIFF, exportSVG, exportUncropped, exportOriginal, processingLog, legendHints, svgToCanvas, encodeTiffGray, encodeTiffRGB, pngDecorate };
 })(window);
