@@ -133,13 +133,14 @@
     const y = g.y + (p.y - g.oy) / g.dh * g.h;
     let b = placing ? m.bands.find(b => b.bp === selected) : m.bands.filter(b => b.show).reduce((best, b) => !best || Math.abs(b.y - y) < Math.abs(best.y - y) ? b : best, null);
     if (!b || !placing && Math.abs(b.y - y) > g.h / g.dh * 10) { UI.toast(L('先在右侧图例中选一个大小', 'Select a size in the reference first')); return; }
-    selected = b.bp; drag = { bands: m.bands.map(b => ({ ...b })), bp: b.bp, changed: false, placing, pointerId: e.pointerId };
+    selected = b.bp; drag = { marker: m, bands: m.bands.map(b => ({ ...b })), bp: b.bp, changed: false, placing, pointerId: e.pointerId };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { /* synthetic events / older browsers */ } e.preventDefault();
     if (placing) moveDrag(e);
   }
   function moveDrag(e) {
     if (!drag || !geometry || e.pointerId !== drag.pointerId) return;
-    const m = current(), g = geometry, p = canvasPoint(e);
+    const m = current(); if (m !== drag.marker) { drag = null; return; }
+    const g = geometry, p = canvasPoint(e);
     let y = E.clamp(g.y + (p.y - g.oy) / g.dh * g.h, g.y, g.y + g.h);
     if (!e.altKey) {
       const tol = g.h / g.dh * 7;
@@ -153,7 +154,7 @@
   }
   function finishDrag(cancel) {
     if (!drag) return;
-    const d = drag; drag = null; const m = current(); if (!m) return;
+    const d = drag; drag = null; const m = current(); if (!m || m !== d.marker) return;
     if (cancel) { m.bands = d.bands; App.refresh(); drawLane(); return; }
     if (d.changed) { App.matchMarkers(false); App.commit(); }
     placing = false; render();

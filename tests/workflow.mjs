@@ -134,6 +134,18 @@ export async function workflowChecks(browser, base, root, engine) {
       const r=await p.evaluate(()=>({preview:App.buildFigure(true).svg,exported:App.buildFigure(false).svg}));
       assert(r.preview.includes('data-edit="marker"'));assert(!r.exported.includes('data-edit='));assert(!r.exported.includes('ladder-reference'));
     });
+    await check('replacing a project cancels a marker gesture without writing into the new project',async()=>{
+      const before=await p.evaluate(()=>App.snapshot());await p.evaluate(()=>MarkerUI.open(0));
+      const bp=await p.evaluate(()=>App.S.markers[0].bands[4].bp);await p.locator(`[data-size="${bp}"]`).click();
+      const r=await p.evaluate(s=>{
+        const cv=document.getElementById('markerLanePreview'),rect=cv.getBoundingClientRect();
+        cv.dispatchEvent(new PointerEvent('pointerdown',{pointerId:77,button:0,clientX:rect.x+rect.width/2,clientY:rect.y+rect.height/2,bubbles:true}));
+        const started=App.S.markers[0].bands.some(b=>b.manual);
+        const next=JSON.parse(s);next.markers[0].bands.forEach(b=>{b.y+=3;});const expected=JSON.stringify(next.markers);
+        App.S=next;App.emit('loaded');const intact=JSON.stringify(App.S.markers)===expected;
+        App.S=JSON.parse(s);App.emit('loaded');return {started,intact};
+      },before);assert.deepEqual(r,{started:true,intact:true});
+    });
     await check('phone and narrow desktop layouts expose the same tools without overflow',async()=>{
       for(const width of [1024,390,320]){
         await p.setViewportSize({width,height:860});
