@@ -141,14 +141,15 @@
 
       <!-- range -->
       <section class="sec">
-        <div class="sec-head"><span class="sec-n">2</span><span data-en="Lanes in figure">出图范围</span><span class="sec-status" id="stRange"></span></div>
-        <div class="field inline range-row">
-          <span data-en="Wells">孔</span> <select id="rangeA"></select> – <select id="rangeB"></select>
-          <button class="btn sm ghost" id="btnRangeAuto" title="只保留有条带的泳道" data-en-title="Keep only lanes with bands" data-en="Auto">自动</button>
+        <div class="sec-head"><span class="sec-n">2</span><span data-en="Lane alignment">泳道对齐</span><span class="sec-status" id="stRange"></span></div>
+        <div id="laneControls" class="lane-grid-control">
+          <div class="raw-grid-row"><label for="cropLaneN" data-en="Lanes">泳道数</label><div class="lane-count-stepper"><button class="btn sm" id="laneCountMinus" title="减少一条" data-en-title="One fewer lane">−</button><input type="number" id="cropLaneN" min="1" max="60" class="num"><button class="btn sm" id="laneCountPlus" title="增加一条" data-en-title="One more lane">＋</button></div></div>
+          <label class="switch"><input id="laneLinked" type="checkbox" checked><span data-en="Link end-lane spacing">首尾等距联动</span></label>
+          <p class="hint" data-en="Include marker and empty lanes. Drag the two end lines; the middle follows. Alt-drag adjusts one lane.">条数含 Marker 和空道。拖首尾线，中间联动；Alt 拖动可单独微调。</p>
+          <button class="btn sm primary" id="btnRedetectCrop" data-en="Re-detect lanes + markers in crop">框内重新识别泳道和 Marker</button>
+          <p class="hint" data-en="Runs both steps inside the red crop. Confirmed marker choices and manual anchors are kept.">在红框内一起识别；保留手动确认的 Marker 和定位点。</p>
         </div>
-        <p class="hint" data-en="Or drag the red box on the image. Changing the range never loses lane names.">也可以直接在原图上拖红框。换范围不会丢泳道名。</p>
-
-        <p class="hint" data-en="Set the lane count above the image, then drag the two end lines. Names are edited on the figure.">在原图上方设置泳道数，再拖首尾线对齐；名称在成图上直接填写。</p>
+        <p class="hint" data-en="Drag the red box directly to change the figure crop.">出图范围直接拖动原图上的红框调整。</p>
 
         <div class="suggest hidden" id="emptyBar">
           <div id="emptyText"></div>
@@ -179,7 +180,7 @@
       <!-- marker -->
       <section class="sec">
         <div class="sec-head"><span class="sec-n">3</span>Marker<span class="sec-status" id="stMarker"></span></div>
-        <p class="lead" data-en="Choose the marker lane, check the ladder reference, then correct any bands that need it.">先选 Marker 泳道，再对照型号图例核对条带。</p>
+        <p class="lead" data-en="Pick a marker lane, choose its ladder, then Detect bands. The reference stays beside the image; click a number on the figure to edit its label.">选泳道、选型号，再点“识别此泳道”。图例留在原图旁；点成图数字可改显示、删除和字号。</p>
         <div id="markerList"></div>
         <div class="field inline">
           <button class="btn sm" id="btnAddMarker" data-en="Pick a marker lane">点选 Marker 泳道</button>
@@ -265,14 +266,6 @@
         <button class="btn sm ghost" id="fitCrop" title="放大到出图范围" data-en-title="Zoom to the figure area" data-en="Crop">范围</button>
         <button class="btn sm ghost m-only" id="btnAddLaneM" title="在原图上点一下加一条泳道" data-en-title="Tap the image to add a lane" data-en="+ Lane">＋ 泳道</button>
         <span class="zoomlabel" id="zoomLabel"></span>
-      </div>
-      <div id="rawGridTools" class="lane-grid-control raw-grid-tools hidden">
-        <div class="raw-grid-row"><label for="cropLaneN" data-en="Lanes">泳道数</label>
-          <div class="lane-count-stepper"><button class="btn sm" id="laneCountMinus" title="减少一条" data-en-title="One fewer lane" aria-label="减少一条泳道">−</button><input type="number" id="cropLaneN" min="1" max="60" class="num" title="框内总道数，含 Marker 和空道" data-en-title="Total lanes inside the crop, including marker and empty lanes"><button class="btn sm" id="laneCountPlus" title="增加一条" data-en-title="One more lane" aria-label="增加一条泳道">＋</button></div>
-          <label class="switch"><input id="laneLinked" type="checkbox" checked><span data-en="Link spacing">等距联动</span></label>
-          <details class="grid-help"><summary data-en="More">更多</summary><div><p class="hint" data-en="The count includes marker and empty lanes. Drag a middle line to shift the whole grid. Turn off linking or hold Alt to adjust one lane. Cropping keeps existing annotations.">条数包含 Marker 和空道。拖中间泳道可整体平移；关闭联动或按 Alt 可单独微调。裁切保留已有标注。</p><button class="btn sm" id="btnRedetectCrop" data-en="Detect lanes inside crop">框内重新识别泳道</button></div></details>
-        </div>
-        <p class="hint grid-caption" data-en="Count marker and empty lanes too. Drag ↔ end lines; the middle follows immediately.">条数含 Marker 和空道；拖 ↔ 首尾线，中间实时均分。</p>
       </div>
       <div id="expoStrip" class="expo hidden"></div>
       <div id="editorBox" tabindex="0">
@@ -443,20 +436,21 @@
   <ol>
     <li>Drop the gel image — straightening, cropping, lanes, markers and contrast are automatic. Several exposures of one gel can be dropped together; the best is chosen.</li>
     <li><b>Click a lane name</b> on the figure and type; Enter jumps to the next. “Paste names” above the figure accepts a whole row.</li>
-    <li>Use “Review bands / ladder guide” to compare the actual marker lane with a reference.</li>
+    <li>Pick the marker lane and model, then “Detect bands here”. “Calibrate / reference” opens a small card beside the source image.</li>
     <li>“Export PNG” at the top right. A pre-flight check points out problems first.</li>
   </ol>
   <h3>Common tasks</h3>
   <ul>
-    <li><b>Show only some lanes</b>: pick wells under “Lanes in figure”, or drag the sides of the red box. Names are never lost.</li>
+    <li><b>Show only some lanes</b>: drag the red frame on the original image. Cropping keeps lane names and marker choices.</li>
     <li><b>Remove a lane in the middle</b>: select it on the image and press <code>H</code> (or untick “Show”). A splice gap is added; state it in the legend.</li>
     <li><b>Group line</b>: drag from one lane name to another on the figure.</li>
     <li><b>Target band arrow</b>: click “Target band”, then the band. The size is estimated from the marker; values outside the ladder are marked ≈.</li>
     <li><b>+ / − rows</b>: add a row, then click cells on the figure to cycle + / − / empty.</li>
-    <li><b>Lane lines off</b>: set the count above the image, then drag the ↔ end lines; the middle follows in real time. Drag a middle line to shift the grid. Turn off “Link spacing” or Alt-drag to adjust one lane. Counts include marker and empty lanes; changes can be undone.</li>
-    <li><b>Text sizes</b>: use “Fonts &amp; sizes” above the figure, or click a name or marker number directly. Marker label checkboxes stay open and hiding a label keeps its calibration.</li>
+    <li><b>Lane lines off</b>: set the count on the left (Settings on phones), then drag the ↔ end lines; the middle follows in real time. Drag a middle line to shift the grid. Turn off “Link spacing” or Alt-drag to adjust one lane. Counts include marker and empty lanes; changes can be undone.</li>
+    <li><b>Try detection again</b>: “Re-detect lanes + markers in crop” runs both stages inside the red frame, keeping confirmed marker choices and manual anchors. Removed marker roles are not re-added. Simply moving the crop does not reclassify lanes.</li>
+    <li><b>Text sizes / marker labels</b>: use “Fonts &amp; sizes” above the figure, or click a name or marker number directly. Marker controls stay open for show/hide and delete. Hiding preserves calibration; deleting removes the anchor too. Undo or re-position the band to restore a deleted mark.</li>
     <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
-    <li><b>A marker band is wrong</b>: open the ladder guide, select a size in the reference, then click its real band in the lane preview. Yellow lines can be dragged; Alt disables snapping. Browsing ladder models changes nothing until “Use this ladder”. The reference is a schematic, not measured migration.</li>
+    <li><b>A marker band is wrong</b>: select its lane and model, then “Detect bands here” to align only that marker. Open “Calibrate / reference”, select a size and click its actual band on the original image; or click a band first to choose the size. Drag yellow lines to fine-tune (Alt disables snapping). Browsing reference models changes nothing until “Use this ladder”. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
   </ul>
   <h3>Image integrity</h3>
@@ -476,20 +470,21 @@
   <ol>
     <li>拖入胶图 —— 转正、裁切、泳道、Marker、对比度全部自动完成。同一块胶的多张曝光可以一起拖进来，自动挑最好的一张。</li>
     <li>在右侧成图上<b>点泳道名</b>输入，回车自动跳到下一条；也可用成图上方的“批量粘贴”一次填入整行。</li>
-    <li>点“核对条带 / 型号图例”，对照实际泳道核对 Marker。</li>
+    <li>选 Marker 泳道和型号，点“识别此泳道”；“校准 / 图例”在原图旁打开小型参考卡。</li>
     <li>右上角"导出 PNG"。导出前会自动检查常见问题。</li>
   </ol>
   <h3>常用操作</h3>
   <ul>
-    <li><b>只出一部分泳道</b>：左侧"出图范围"选孔号，或在原图上拖红框左右边。泳道名称不会丢。</li>
+    <li><b>只出一部分泳道</b>：直接在原图上拖红框，裁切保留泳道名称和 Marker 选择。</li>
     <li><b>剪掉中间某条泳道</b>：在原图上选中后按 <code>H</code>（或取消"显示"），会自动加拼接间隙，图注中需说明。</li>
     <li><b>分组横线</b>：在成图上从一个泳道名拖到另一个泳道名。</li>
     <li><b>目标条带箭头</b>：点"目标条带"，再点那条带；大小按 Marker 估算，超出 Marker 范围会标 ≈。</li>
     <li><b>+ / − 条件行</b>：加一行后，在成图上点格子即可在 + / − / 空 之间切换。</li>
-    <li><b>泳道线没对齐</b>：在原图上方填写条数，拖 ↔ 首尾线，中间实时均分；拖中间线可整体平移。关闭“等距联动”或按 Alt 拖动可单独微调。数量包含 Marker 和空道，修改可撤销。</li>
-    <li><b>字号</b>：成图上方“字体与字号”统一设置，也可直接点名称或 Marker 数字调整；Marker 显示勾选不会自动收起，隐藏标签仍保留校准点。</li>
+    <li><b>泳道线没对齐</b>：在左侧填写条数（手机在“设置”页），拖 ↔ 首尾线，中间实时均分；拖中间线可整体平移。关闭“等距联动”或按 Alt 拖动可单独微调。数量包含 Marker 和空道，修改可撤销。</li>
+    <li><b>重新识别</b>：“框内重新识别泳道和 Marker”一次完成两个步骤，保留手动确认的 Marker 和定位点，不重新添加已取消的 Marker；单纯拖裁切框不会重新分类。</li>
+    <li><b>字号 / Marker 显示</b>：成图上方“字体与字号”统一设置，也可直接点名称或 Marker 数字调整；Marker 小面板支持显示、隐藏和删除且不会自动收起。隐藏仍保留校准，删除同时移除定位点；可撤销或重新定位恢复。</li>
     <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
-    <li><b>Marker 条带不对</b>：打开型号图例，先选右侧大小，再点左侧实际条带；黄线可拖动，Alt 可关闭吸附。切换型号先预览，点“使用此型号”才应用。图例是示意，不是真实迁移位置。</li>
+    <li><b>Marker 条带不对</b>：选好泳道和型号后点“识别此泳道”，只对齐这一个 Marker。打开“校准 / 图例”，先选大小再点原图上的实际条带，也可先点条带再选大小；拖黄线微调，Alt 关闭吸附。参考卡里切换型号先预览，点“使用此型号”才应用。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
   </ul>
   <h3>图像规范</h3>

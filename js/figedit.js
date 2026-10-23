@@ -27,12 +27,14 @@
       : m === 'bracket' ? (phone() ? L('在原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'Drag from top to bottom on the image over the region the bracket covers (smear, oligomers …)')
         : L('在左侧原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'On the image on the left, drag from top to bottom over the region the bracket covers (smear, oligomers …)'))
       : m === 'marker-lane' ? L('点原图中的 Marker 泳道，或点成图上的泳道名；选中后可核对型号和条带', 'Click the marker lane on the image, or its name on the figure; then review the ladder and bands')
+      : m === 'marker-band' ? L('点黄色 Marker 泳道的实际条带选大小，或先点参考图大小再定位；拖黄线微调', 'Click a band on the yellow marker lane to choose its size, or choose a reference size first; drag yellow lines to adjust')
       : m === 'lane' ? L('点一下要加泳道的位置（红框内）', 'Tap where the new lane goes (inside the red box)') : '';
     $('btnAddArrow').classList.toggle('on', m === 'arrow');
     $('btnAddGroup').classList.toggle('on', m === 'group');
     $('btnAddBox').classList.toggle('on', m === 'box');
     $('btnAddBracket').classList.toggle('on', m === 'bracket');
     prev.classList.toggle('arming', m === 'arrow');
+    if (G.MarkerUI) G.MarkerUI.modeChanged(m);
     G.Editor.draw();
   }
   $('modeCancel').onclick = () => setMode(null);

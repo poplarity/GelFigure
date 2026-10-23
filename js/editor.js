@@ -24,16 +24,19 @@
     draw();
   }
 
-  function fit(rect) {
+  function fit(rect, reserveRight = 0, reserveTop = 0, reserveBottom = 0) {
     const r = box.getBoundingClientRect(), pad = 34;
     if (r.width < 10 || r.height < 10) return;
-    view.s = Math.min((r.width - 2 * pad) / rect.w, (r.height - 2 * pad) / rect.h);
-    view.ox = (r.width - rect.w * view.s) / 2 - rect.x * view.s;
-    view.oy = (r.height - rect.h * view.s) / 2 - rect.y * view.s;
+    const available = r.width - Math.min(reserveRight, r.width * 0.5);
+    const height = Math.max(40, r.height - reserveTop - reserveBottom);
+    view.s = Math.max(0.01, Math.min((available - 2 * pad) / rect.w, (height - 2 * pad) / rect.h));
+    view.ox = (available - rect.w * view.s) / 2 - rect.x * view.s;
+    view.oy = reserveTop + (height - rect.h * view.s) / 2 - rect.y * view.s;
     draw();
   }
   function fitFull() { if (App.src) { const r = App.ensureRot(); fit({ x: 0, y: 0, w: r.w, h: r.h }); } }
   function fitCrop() { if (App.S) { const c = App.S.crop, m = Math.max(c.w, c.h) * 0.08; fit({ x: c.x - m, y: c.y - m * 2, w: c.w + 2 * m, h: c.h + 3 * m }); } }
+  function fitMarker(lane,reserve,top,bottom) { if(App.S?.lanes[lane]){const c=App.S.crop,w=Math.max(40,(App.S.lanePitch||40)*1.8);fit({x:App.S.lanes[lane].x-w/2,y:c.y,w,h:c.h},reserve,top,bottom);} }
 
   function roundRect(c, x, y, w, h, r) {
     c.beginPath();
@@ -205,6 +208,14 @@
     return [[c.x, c.y, 'nw'], [mx, c.y, 'n'], [c.x + c.w, c.y, 'ne'], [c.x + c.w, my, 'e'], [c.x + c.w, c.y + c.h, 'se'], [mx, c.y + c.h, 's'], [c.x, c.y + c.h, 'sw'], [c.x, my, 'w']];
   }
 
+  function bandHit(p,tol) {
+    const S=App.S;
+    for(let mi=0;mi<S.markers.length;mi++){
+      const mk=S.markers[mi];if(!S.lanes[mk.lane]||Math.abs(p.x-S.lanes[mk.lane].x)>S.laneHalfW*1.5)continue;
+      let best=-1,dist=tol;mk.bands.forEach((b,k)=>{const d=Math.abs(p.y-b.y);if(b.show&&!b.excluded&&d<=dist){dist=d;best=k;}});
+      if(best>=0)return {type:'band',m:mi,i:best};
+    }return null;
+  }
   function hitTest(sx, sy, shift, hit) {
     const S = App.S; if (!S) return null;
     const c = S.crop, p = toImg(sx, sy), tol = (hit || HIT) / view.s;
@@ -232,13 +243,7 @@
       const lo = Math.min(brs[k].y1, brs[k].y2), hi = Math.max(brs[k].y1, brs[k].y2);
       if (p.y >= lo && p.y <= hi && p.x > c.x + c.w && p.x < c.x + c.w + 18 / view.s) return { type: 'brmove', i: k };
     }
-    for (let mi = 0; mi < S.markers.length; mi++) {
-      const mk = S.markers[mi];
-      if (!S.lanes[mk.lane] || Math.abs(p.x - S.lanes[mk.lane].x) > S.laneHalfW * 1.5) continue;
-      let best = -1, bd = tol;
-      mk.bands.forEach((b, k) => { const d = Math.abs(p.y - b.y); if (d <= bd) { bd = d; best = k; } });
-      if (best >= 0) return { type: 'band', m: mi, i: best };
-    }
+    const bh=bandHit(p,tol);if(bh)return bh;
     if (inY && S.lanes.length) { const i = nearestLane(p.x); if (Math.abs(p.x - S.lanes[i].x) <= tol) return { type: 'lane', i }; }
     if (inY && Math.abs(p.x - c.x) <= tol) return { type: 'crop', k: 'w' };
     if (inY && Math.abs(p.x - c.x - c.w) <= tol) return { type: 'crop', k: 'e' };
@@ -268,7 +273,7 @@
   // a second finger turned a one-finger edit into a pinch: put back whatever the first finger moved
   function cancelDrag() {
     const d = drag; drag = null;
-    if (!d || !d.moved || !App.S) return;
+    if (!d || !d.moved || !App.S || d.state !== App.S) return;
     const S = App.S, h = d.h;
     if (h.type === 'crop' || h.type === 'cropmove') S.crop = d.crop0;
     else if (h.type === 'lane' && d.grid0) App.restoreLaneGrid(d.grid0);
@@ -282,9 +287,10 @@
   const pinchMid = () => { const [a, b] = [...touches.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
 
   // one-tap tools: place a target-band arrow / add a lane where the image was tapped
-  function tapAction(mode, p) {
+  function tapAction(mode, p, free) {
     const c = App.S.crop;
     if (p.y < c.y || p.y > c.y + c.h) return;
+    if (mode === 'marker-band') { G.MarkerUI.point(p.x,p.y,free); return; }
     if (mode === 'arrow') { if (App.placeArrow) App.placeArrow(p.x, p.y); return; }
     if (p.x < c.x || p.x > c.x + c.w) return;
     if (mode === 'marker-lane') { G.MarkerUI.pickAt(p.x); return; }
@@ -313,10 +319,11 @@
     }
     if (pinch) return;
     const p = toImg(sx, sy);
-    if (App.mode === 'arrow' || App.mode === 'lane' || App.mode === 'marker-lane') {
+    const markHit=App.mode==='marker-band'&&!spaceDown?bandHit(p,(touch?HIT_TOUCH:HIT)/view.s):null;
+    if (App.mode === 'arrow' || App.mode === 'lane' || App.mode === 'marker-lane' || App.mode==='marker-band'&&!spaceDown&&(!markHit||G.MarkerUI.pendingSize())) {
       // a mouse click acts at once; a finger may still pan or pinch first, so it acts on a clean tap
-      if (touch) drag = { h: { type: 'pan' }, tap: App.mode, sx, sy, p0: p, moved: false, view0: Object.assign({}, view), touch };
-      else tapAction(App.mode, p);
+      if (touch) drag = { state:App.S,h: { type: 'pan' }, tap: App.mode, free:e.altKey,sx, sy, p0: p, moved: false, view0: Object.assign({}, view), touch };
+      else tapAction(App.mode, p,e.altKey);
       e.preventDefault();
       return;
     }
@@ -324,14 +331,14 @@
     if (App.mode === 'box' || App.mode === 'bracket') {
       const c = App.S.crop;
       if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) {
-        drag = { h: { type: 'draw' }, kind: App.mode, sx, sy, p0: p, cur: p, moved: false, view0: Object.assign({}, view), touch };
+        drag = { state:App.S,h: { type: 'draw' }, kind: App.mode, sx, sy, p0: p, cur: p, moved: false, view0: Object.assign({}, view), touch };
         cv.style.cursor = 'crosshair';
       }
       e.preventDefault();
       return;
     }
-    const h = hitTest(sx, sy, e.shiftKey, touch ? HIT_TOUCH : HIT);
-    drag = { h, sx, sy, p0: p, crop0: Object.assign({}, App.S.crop), moved: false, view0: Object.assign({}, view), touch };
+    const h = markHit || hitTest(sx, sy, e.shiftKey, touch ? HIT_TOUCH : HIT);
+    drag = { state:App.S,h, sx, sy, p0: p, crop0: Object.assign({}, App.S.crop), moved: false, view0: Object.assign({}, view), touch };
     App.selAnno = null;
     if (h.type === 'lane') { App.selLane = h.i; App.selArrow = -1; drag.x0 = App.S.lanes[h.i].x; drag.grid0 = App.laneGrid(); App.emit('select'); }
     else if (h.type === 'arrow') { App.selArrow = h.i; App.selLane = -1; drag.y0 = App.S.arrows[h.i].y; App.emit('select'); }
@@ -363,6 +370,7 @@
       }
       if (pinch) return;   // one finger still down after a pinch: nothing until it lifts
     }
+    if (drag && drag.state !== App.S) { drag = null; return; }
     if (drag) {
       if (e.cancelable) e.preventDefault();   /* take the finger from the browser's scroll/zoom */
     } else if (e.pointerType !== 'mouse' || e.target !== cv) return;
@@ -375,6 +383,7 @@
         cv.style.cursor = 'crosshair'; draw();
         return;
       }
+      if (App.mode==='marker-band'){const h=bandHit(toImg(sx,sy),HIT/view.s);hover=h;cv.style.cursor=h?'ns-resize':'crosshair';draw();return;}
       if (App.mode === 'box' || App.mode === 'bracket' || App.mode === 'lane' || App.mode === 'marker-lane') { cv.style.cursor = 'crosshair'; return; }
       const h = hitTest(sx, sy, e.shiftKey);
       const changed = JSON.stringify(h) !== JSON.stringify(hover);
@@ -429,6 +438,7 @@
     if (cancelled) { cancelDrag(); draw(); return; }   // the browser took the gesture over
     const d = drag; drag = null;
     const S = App.S;
+    if(d.state!==S)return;
     if (d.h.type === 'draw') {
       const q = d.cur || d.p0, x0 = Math.min(d.p0.x, q.x), x1 = Math.max(d.p0.x, q.x), y0 = Math.min(d.p0.y, q.y), y1 = Math.max(d.p0.y, q.y);
       // Esc during the drag cancelled the tool: draw nothing
@@ -437,8 +447,8 @@
       return;
     }
     if (!d.moved) {
-      if (d.tap) { if (App.mode === d.tap) tapAction(d.tap, d.p0); return; }
-      if (d.h.type === 'band' && G.MarkerUI) { G.MarkerUI.open(d.h.m, d.h.i); return; }
+      if (d.tap) { if (App.mode === d.tap) tapAction(d.tap, d.p0,d.free); return; }
+      if (d.h.type === 'band' && G.MarkerUI) { G.MarkerUI.editBand(d.h.m, d.h.i); return; }
       if ((d.h.type === 'boxmove' || d.h.type === 'boxsize' || d.h.type === 'brend' || d.h.type === 'brmove') && App.openAnno) {
         App.openAnno(d.h.type.startsWith('box') ? 'box' : 'bracket', d.h.i);
         draw(); return;
@@ -461,7 +471,7 @@
     }
     if (d.h.type === 'crop' || d.h.type === 'cropmove') { App.updateSaturation(); if (App.afterRangeChange) App.afterRangeChange(); }
     if (d.h.type === 'lane') { const moved = S.lanes[d.h.i]; App.sortLanesIfNeeded(); App.selLane = S.lanes.indexOf(moved); }
-    if (d.h.type === 'band') App.matchMarkers(false);
+    if (d.h.type === 'band') { const m=S.markers[d.h.m];m.userAssigned=true;App.matchMarkers(false,[m]); }
     if (d.h.type !== 'pan' && d.h.type !== 'inside') App.commit();
     cv.style.cursor = cursorFor(hover);
   }
@@ -539,5 +549,5 @@
 
   function setGrid(on) { if (gridOn !== !!on) { gridOn = !!on; draw(); } }
   // x/y are canvas-image pixels; screen/browser coords are toScr / toImg
-  G.Editor = { draw, resize, fitFull, fitCrop, zoom: () => view.s, refreshZoom, setGrid, toScr, toImg };
+  G.Editor = { draw, resize, fitFull, fitCrop, fitMarker, zoom: () => view.s, refreshZoom, setGrid, toScr, toImg };
 })(window);

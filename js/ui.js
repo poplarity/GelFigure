@@ -50,9 +50,8 @@
   const figLanes = () => { const r = range(); if (!r) return []; const out = []; for (let i = r[0]; i <= r[1]; i++) if (!S().lanes[i].hidden) out.push(i); return out; };
   const isMarkerLane = i => S().markers.some(m => m.lane === i);
   App.afterRangeChange = function () {
-    const r = range();
-    const vis = r ? S().markers.filter(m => m.lane >= r[0] && m.lane <= r[1]) : [];
-    if (!vis.length) App.autoMarkers(); else App.matchMarkers(false);
+    // Cropping only changes what is displayed. Re-detection is an explicit action below.
+    App.refresh();
   };
 
   // Finish inline/side-panel edits before capturing a project or switching pictures.
@@ -324,30 +323,11 @@
   });
   $('gamma').addEventListener('change', done(e => { S().levels.gamma = E.clamp(+e.target.value || 1, 0.2, 5); }));
 
-  /* ---------- 2 range ---------- */
-  function onRange() {
-    const a = +$('rangeA').value, b = +$('rangeB').value;
-    App.setLaneRange(a, b); App.afterRangeChange(); App.commit(); G.Editor.fitCrop();
-  }
-  $('rangeA').addEventListener('change', onRange);
-  $('rangeB').addEventListener('change', onRange);
-  $('btnRangeAuto').onclick = done(() => {
-    const r = App.loadedLaneRange();
-    if (r) { App.setLaneRange(r[0], r[1]); App.afterRangeChange(); G.Editor.fitCrop(); }
-  });
-  $('btnAutoLanes').onclick = done(() => { App.autoLanes(); App.afterRangeChange(); toast(L(`整块胶识别出 ${S().lanes.length} 个加样孔`, `Detected ${S().lanes.length} wells on the whole gel`)); });
-  // after lanes inside the crop are rebuilt, find the marker lanes again but keep the ladder the
-  // user chose for a marker that is still at (about) the same position
-  function relaneMarkers(fn) {
-    const st = S();
-    const n = fn();
-    // Refit surviving markers around their manual anchors; never recreate a removed marker here.
-    if (st.markers.length) App.matchMarkers(false);
-    return n;
-  }
+  /* ---------- 2 lane alignment ---------- */
+  $('btnAutoLanes').onclick = done(() => { App.autoLanes(); App.detectMarkersInCrop(); toast(L('已重新识别泳道和 Marker，请核对', 'Lanes and markers re-detected; please check')); });
   $('btnRedetectCrop').onclick = done(() => {
-    const n = relaneMarkers(() => { const count = App.redetectLanesInCrop(); if (count && S().laneLinked !== false) App.resizeLaneGrid(count); return count; });
-    toast(n ? L(`框内识别出 ${n} 条泳道，可拖动首尾线对齐`, `Found ${n} lanes; drag the end lines to align`) : L('框内没识别到泳道，请直接填写泳道数', 'No lanes found; enter the lane count directly'));
+    const r = App.redetectCrop();
+    toast(r.lanes ? L(`框内识别出 ${r.lanes} 条泳道、${r.markers} 个 Marker；请核对`, `Detected ${r.lanes} lanes and ${r.markers} markers inside the crop; please check`) : L('框内没识别到泳道，请调整红框或填写条数', 'No lanes detected; adjust the crop or enter the count'));
   });
   function setGridCount(n) {
     if (!S()) return;
@@ -356,7 +336,6 @@
     const res = App.resizeLaneGrid(n); App.commit();
     if (res.removedMarkers) toast(L('减少条数移除了对应的 Marker，Ctrl/⌘+Z 可撤销', 'Reducing the count removed a marker; Ctrl/⌘+Z undoes it'));
   }
-  G.UI_relane = relaneMarkers;
   $('cropLaneN').addEventListener('change', e => setGridCount(+e.target.value));
   $('cropLaneN').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
   $('laneCountMinus').onclick = () => setGridCount(Math.max(1, +$('cropLaneN').value - 1));
@@ -368,7 +347,6 @@
   }
   gridLabels(); G.I18N.onChange(gridLabels);
   $('laneLinked').onchange = done(e => { S().laneLinked = e.target.checked; if (e.target.checked) App.resizeLaneGrid(+$('cropLaneN').value); });
-  document.addEventListener('pointerdown', e => { const d = document.querySelector('.grid-help'); if (!d.contains(e.target)) d.open = false; });
 
   // empty lanes inside the range: suggest cutting them (never done silently)
   const ignoredEmpty = new Set();
@@ -438,7 +416,7 @@
 
   /* ---------- 4 markers ---------- */
   $('btnAutoMarkers').onclick = done(() => {
-    App.autoMarkers();
+    App.detectMarkersInCrop();
     const n = S().markers.length;
     toast(n ? L(`找到 ${n} 个 Marker 泳道`, `Found ${n} marker lane${n > 1 ? 's' : ''}`) : L('出图范围内没找到明显的 Marker 泳道', 'No clear marker lane in the figure range'));
   });
@@ -513,9 +491,9 @@
           ${out ? `<span class="h3-note">${L('不在出图范围', 'outside the figure')}</span>` : sc != null ? `<span class="mk-score${sc < 60 ? ' low' : ''}">${sc < 60 ? L('吻合度低，请核对型号', 'Poor fit — check the ladder') : L('吻合 ', 'Fit ') + sc + '%'}</span>` : ''}
           <button class="star${G.Ladders.isFavorite(m.ladderId) ? '' : ' off'}" data-f="fav" title="${L('把这个型号设为/取消常用（常用型号在自动识别时优先）', 'Add this ladder to / remove it from favourites (preferred during detection)')}">★</button>
           <button class="x" data-f="del" title="${L('不作为 Marker', 'Not a marker')}">×</button></div>
-        <div class="marker-actions"><button class="btn sm primary" data-f="guide">${L('核对条带 / 型号图例', 'Review bands / ladder guide')}</button><button class="btn sm ghost" data-f="move">${L('换泳道', 'Change lane')}</button></div>
         <label class="marker-lane-select">${L('所在泳道', 'Marker lane')}<select data-f="lane">${st.lanes.map((l,i) => laneOpt(i,m.lane)).join('')}</select></label>
         <select data-f="ladder" aria-label="${L('Marker 型号', 'Ladder model')}">${ladderOptions(all, m.ladderId)}</select>
+        <div class="marker-actions"><button class="btn sm primary" data-f="align">${L('识别此泳道', 'Detect bands here')}</button><button class="btn sm" data-f="guide">${L('校准 / 图例', 'Calibrate / reference')}</button><button class="btn sm ghost" data-f="labels">${L('显示 / 字号', 'Labels / font')}</button><button class="btn sm ghost" data-f="move">${L('换泳道', 'Change lane')}</button></div>
         <div class="row2">
           <select data-f="side"><option value="auto">${L('标签：自动分侧', 'Labels: auto side')}</option><option value="left">${L('标签在左', 'Labels left')}</option><option value="right">${L('标签在右', 'Labels right')}</option></select>
           <select data-f="unit">${App.gelKind() === 'protein'
@@ -523,8 +501,8 @@
             : `<option value="bp">bp</option><option value="kb">kb</option><option value="auto">bp/kb</option>`}</select>
         </div>
         <details class="adv" data-lane="${m.lane}"${openWas.has(String(m.lane)) ? ' open' : ''}><summary>${L(`条带（显示 ${shown}/${m.bands.length}）`, `Bands (${shown}/${m.bands.length} shown)`)}</summary>
-          <div class="list">${m.bands.map((b, k) => `<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" ${b.show ? 'checked' : ''}></label>
-            <span style="flex:1">${App.fmtSize(b.bp)}${b.ref ? ' ★' : ''}</span><span class="tag ${b.manual ? 'man' : b.matched ? 'ok' : ''}">${b.manual ? L('手动', 'manual') : b.matched ? L('已对上', 'matched') : L('推测', 'predicted')}</span></div>`).join('')}</div>
+          <div class="list">${m.bands.map((b, k) => `<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" ${b.show ? 'checked' : ''} ${b.excluded ? 'disabled' : ''}></label>
+            <span style="flex:1">${App.fmtSize(b.bp)}${b.ref ? ' ★' : ''}</span><span class="tag ${b.manual ? 'man' : b.matched ? 'ok' : ''}">${b.excluded ? L('已删除','deleted') : b.manual ? L('手动', 'manual') : b.matched ? L('已对上', 'matched') : L('推测', 'predicted')}</span></div>`).join('')}</div>
           <div class="field inline"><button class="btn sm" data-f="thin">${L('精简标签', 'Thin labels')}</button><button class="btn sm ghost" data-f="match">${L('重新匹配', 'Re-match')}</button></div>
           <p class="hint">${L('某条带对错了：在原图上把那条黄线拖到正确位置，其余会围绕它重新匹配。', 'A band is wrong? Drag its yellow line on the image to the right place; the others re-fit around it.')}</p>
         </details>
@@ -534,15 +512,17 @@
       const m = st.markers[+card.dataset.mi], q = f => card.querySelector(`[data-f="${f}"]`);
       q('side').value = m.side; q('unit').value = m.unit;
       q('guide').onclick = () => G.MarkerUI.open(+card.dataset.mi);
+      q('align').onclick = done(() => { App.alignMarker(+card.dataset.mi); toast(L('按当前型号识别此泳道，保留手动定位；其他泳道不变', 'Detected this lane with its current ladder; manual anchors kept, other lanes unchanged')); });
+      q('labels').onclick = () => G.MarkerUI.labelPopover(+card.dataset.mi,-1,q('labels'));
       q('move').onclick = () => G.MarkerUI.pickLane(+card.dataset.mi);
       q('lane').onchange = e => { if (!G.MarkerUI.assignLane(+e.target.value, +card.dataset.mi)) e.target.value = String(m.lane); };
-      q('ladder').addEventListener('change', done(e => { m.ladderId = e.target.value; m.bands = []; App.prefLadder = m.ladderId; App.matchMarkers(false); }));
+      q('ladder').addEventListener('change', done(e => { m.ladderId = e.target.value; m.bands = []; m.ladderLocked = true; App.prefLadder = m.ladderId; App.alignMarker(+card.dataset.mi); }));
       q('side').addEventListener('change', done(e => { m.side = e.target.value; }));
       q('unit').addEventListener('change', done(e => { m.unit = e.target.value; App.prefUnit = m.unit; }));
-      q('del').onclick = done(() => { st.markers.splice(+card.dataset.mi, 1); });
+      q('del').onclick = done(() => { App.removeMarker(+card.dataset.mi); });
       q('fav').onclick = () => { const on = G.Ladders.toggleFavorite(m.ladderId); renderFavs(); renderMarkers(); toast(on ? L('已加入常用型号', 'Added to favourites') : L('已移出常用型号', 'Removed from favourites')); };
-      q('thin').onclick = done(() => { m.bands.forEach(b => { b.show = true; }); App.thinMarkerLabels(m, false); });
-      q('match').onclick = done(() => { m.bands = []; App.matchMarkers(false); });
+      q('thin').onclick = done(() => { m.bands.forEach(b => { b.show = !b.excluded && (b.show || b.matched || b.manual); }); App.thinMarkerLabels(m, false); });
+      q('match').onclick = done(() => { App.alignMarker(+card.dataset.mi); });
       card.querySelectorAll('[data-band]').forEach(inp => inp.addEventListener('change', done(e => { m.bands[+inp.dataset.band].show = e.target.checked; })));
       const d = card.querySelector('details[data-lane]'), top = openWas.get(String(m.lane));
       if (d && top) { const lst = d.querySelector('.list'); if (lst) lst.scrollTop = top; }
@@ -573,10 +553,6 @@
     $('laneCountNote').textContent = L(`${st.lanes.length} 孔`, `${st.lanes.length} wells`);
     if (document.activeElement !== $('cropLaneN')) $('cropLaneN').value = r ? r[1] - r[0] + 1 : '';
     $('laneLinked').checked = st.laneLinked !== false;
-    // range selects
-    const opts = sel => st.lanes.map((l, i) => laneOpt(i, sel)).join('');
-    $('rangeA').innerHTML = opts(r ? r[0] : 0);
-    $('rangeB').innerHTML = opts(r ? r[1] : st.lanes.length - 1);
   }
 
   /* ---------- annotation list ---------- */
@@ -675,14 +651,14 @@
     if (firstTodo >= 0 && secs[firstTodo]) secs[firstTodo].classList.add('todo');
     // coach: the single most useful next step
     let msg, ok = false;
-    if (!r) msg = P(L('在原图上拖红框，或在左侧"出图范围"选择泳道', 'Drag the red box on the image, or choose wells under "Lanes in figure"'),
-      L('在「原图」页拖红框，或在「设置 → 出图范围」选择泳道', 'Drag the red box on the Image tab, or choose wells under Settings → Lanes in figure'));
+    if (!r) msg = P(L('拖动原图上的红框包含泳道，再点左侧“框内重新识别泳道和 Marker”', 'Frame the lanes with the red box, then use Re-detect lanes + markers in crop on the left'),
+      L('在「原图」页拖红框包含泳道，再到「设置」点“框内重新识别泳道和 Marker”', 'Frame the lanes on the Image tab, then use Re-detect lanes + markers in crop in Settings'));
     else if (named < fl.length) msg = P(L(`下一步：在右侧成图上<b>点灰色的泳道号</b>输入名称，回车跳到下一条（还差 ${fl.length - named} 条）`,
       `Next: <b>click a grey lane number</b> on the figure and type its name; Enter moves on (${fl.length - named} to go)`),
       L(`下一步：在「成图」页<b>点灰色泳道号</b>输入名称，键盘上的“下一项”跳到下一条（还差 ${fl.length - named} 条）`,
         `Next: on the Figure tab <b>tap a grey lane number</b> and type; the keyboard’s Next key moves on (${fl.length - named} to go)`));
-    else if (!visMk.length) msg = P(L('出图范围里没有 Marker：左侧第 4 步把 Marker 泳道加上', 'No marker in the figure: add the marker lane in step 4 on the left'),
-      L('出图范围里没有 Marker：在「设置」第 4 步把 Marker 泳道加上', 'No marker in the figure: add the marker lane in Settings, step 4'));
+    else if (!visMk.length) msg = P(L('没有 Marker：在左侧 Marker 区点“点选 Marker 泳道”，再选型号和识别', 'No marker: use Pick a marker lane in the left Marker section, choose a ladder and detect its bands'),
+      L('没有 Marker：在「设置 → Marker」点“点选 Marker 泳道”，再选型号和识别', 'No marker: use Pick a marker lane in Settings → Marker, choose a ladder and detect its bands'));
     else if (lowMk.length) msg = L(`孔 ${lowMk[0].lane + 1} 的 Marker 与所选 Ladder 吻合度低，<b>请核对型号</b>`, `The marker in well ${lowMk[0].lane + 1} fits the chosen ladder poorly — <b>check the ladder</b>`);
     else {
       msg = P(L('已可导出 —— 右上角<b>导出 PNG</b>；需要分组、箭头、+/− 时用左侧"标注"', 'Ready — <b>Export PNG</b> at the top right; add groups, arrows or +/− rows under "Annotations"'),
@@ -812,7 +788,6 @@
     if (!S()) return;
     if (what === 'loaded') {
       $('figureTools').classList.remove('hidden'); $('figureNames').classList.add('hidden');
-      $('rawGridTools').classList.remove('hidden');
       requestAnimationFrame(() => { G.Editor.resize(); G.Editor.fitCrop(); });
       $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden');
       histCache = null; renderExposures();

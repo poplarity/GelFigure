@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {markerWorkflowChecks} from './marker-workflow.mjs';
 
 export async function workflowChecks(browser, base, root, engine) {
   const results=[],ctx=await browser.newContext({viewport:{width:1600,height:1000}}),p=await ctx.newPage(),errors=[];
@@ -68,111 +68,7 @@ export async function workflowChecks(browser, base, root, engine) {
       assert.deepEqual(await p.evaluate(()=>[App.S.style.lanePt,App.S.style.markerPt,App.S.style.fontFamily]),[9,8,'Times New Roman']);
       await p.locator('#figureTextMenu summary').click();
     });
-    await check('marker labels are editable on the figure and visibility does not dismiss the popup',async()=>{
-      await p.locator('#preview [data-edit="marker"]').first().click();
-      await p.locator('#markerPopPt').fill('6');await p.locator('#markerPopPt').press('Tab');
-      const before=await p.evaluate(()=>App.S.markers.map(m=>m.bands.map(b=>[b.bp,b.y,b.manual])));
-      const cb=p.locator('#markerLabelPop [data-visible-band]').first();const was=await cb.isChecked();await cb.setChecked(!was);
-      assert(await p.locator('#markerLabelPop').isVisible());assert.equal(await p.evaluate(()=>App.S.style.markerPt),6);
-      assert.deepEqual(await p.evaluate(()=>App.S.markers.map(m=>m.bands.map(b=>[b.bp,b.y,b.manual]))),before);
-      await p.locator('#markerPopClose').click();
-    });
-    await check('marker picking waits for an explicit lane and does not create duplicates',async()=>{
-      const n=await p.evaluate(()=>App.S.markers.length);
-      await p.locator('#btnAddMarker').click();assert.equal(await p.evaluate(()=>App.S.markers.length),n);
-      await p.locator('#modeCancel').click();assert.equal(await p.evaluate(()=>App.S.markers.length),n);
-      await p.locator('#btnAddMarker').click();
-      const i=await p.evaluate(()=>App.S.markers[0].lane);await p.locator(`#preview [data-edit="lane"][data-src="${i}"]`).click();
-      await p.waitForSelector('#markerGuide:not(.hidden)');assert.equal(await p.evaluate(()=>App.S.markers.length),n);
-    });
-    await check('ladder browsing previews without changing annotations; guide places real calibration anchors',async()=>{
-      const original=await p.evaluate(()=>JSON.stringify(App.S.markers));
-      const other=await p.locator('#markerGuideModel option').evaluateAll(os=>os.find(o=>!o.selected).value);
-      await p.locator('#markerGuideModel').selectOption(other);assert.equal(await p.evaluate(()=>JSON.stringify(App.S.markers)),original);
-      assert(await p.locator('#markerUseModel').isVisible());
-      const originalId=JSON.parse(original)[0].ladderId;await p.locator('#markerGuideModel').selectOption(originalId);
-      // Firefox's automation scrollIntoView for an SVG child can reset its scrolling parent.
-      // Scroll the real container, verify the hit target, then use an ordinary pointer click.
-      await p.locator('.marker-reference-scroll').evaluate(e=>{e.scrollTop=e.scrollHeight;});
-      const last=p.locator('[data-size]').last(),target=await last.boundingBox(),scroll=await p.locator('.marker-reference-scroll').evaluate(e=>e.scrollTop);
-      const point={x:target.x+target.width/2,y:target.y+target.height/2};
-      assert(await p.evaluate(({x,y})=>!!document.elementFromPoint(x,y)?.closest('[data-size]'),point));
-      await p.mouse.click(point.x,point.y);
-      assert.equal(await p.locator('.marker-reference-scroll').evaluate(e=>e.scrollTop),scroll,'choosing a band keeps the reference scrolled to it');
-      const bp=await p.evaluate(()=>App.S.markers[0].bands[Math.floor(App.S.markers[0].bands.length/2)].bp);
-      await p.locator(`[data-size="${bp}"]`).click();
-      const rect=await p.locator('#markerLanePreview').boundingBox();await p.mouse.click(rect.x+rect.width/2,rect.y+rect.height*.5);
-      assert(await p.evaluate(k=>App.S.markers[0].bands.some(b=>b.bp===k&&b.manual&&b.show),bp));
-      await p.screenshot({path:path.join(dir,'marker-guide.png')});await p.locator('#markerGuideDone').click();
-    });
-    await check('changing marker lanes preserves other markers and is undoable',async()=>{
-      const r=await p.evaluate(()=>{
-        const was=App.snapshot(),m=App.S.markers[0],other=UI.figLanes().find(i=>!App.S.markers.some(m=>m.lane===i));
-        MarkerUI.assignLane(other,0);const moved=App.S.markers[0].lane===other;MarkerUI.close();App.undo();
-        return {moved,undo:App.snapshot()===was};
-      });assert.deepEqual(r,{moved:true,undo:true});
-    });
-    await check('protein guides show protein ladders; applying a preview keeps source bytes intact',async()=>{
-      const source=await p.evaluate(async()=>{await App.load({name:'synthetic_protein.tif',buffer:Demo.encodeTiff16(Demo.makeProteinGel())});return App.S.file.sha256;});
-      await p.evaluate(()=>MarkerUI.open(0));
-      assert(await p.locator('#markerGuideModel option').evaluateAll(os=>os.every(o=>Ladders.kindOf(Ladders.get(o.value))==='protein')));
-      const model=await p.locator('#markerGuideModel option').evaluateAll(os=>os.find(o=>!o.selected).value);
-      await p.locator('#markerGuideModel').selectOption(model);await p.locator('#markerUseModel').click();
-      assert.equal(await p.evaluate(()=>App.S.markers[0].ladderId),model);
-      assert.equal(await p.evaluate(()=>App.sha256(App.srcBuffer)),source);
-      assert((await p.locator('.marker-compare-title').last().textContent()).includes('kDa'));
-      await p.locator('#markerGuideClose').click();
-    });
-    await check('a missing custom model can be replaced through the guide',async()=>{
-      const state=await p.evaluate(()=>App.snapshot());
-      await p.evaluate(()=>{App.S.markers[0].ladderId='missing-custom-model';MarkerUI.open(0);});
-      assert(await p.locator('#markerUseModel').isVisible());
-      await p.locator('#markerUseModel').click();assert(await p.evaluate(()=>!!Ladders.get(App.S.markers[0].ladderId)));
-      await p.locator('#markerGuideClose').click();await p.evaluate(s=>{App.S=JSON.parse(s);App.emit('change');},state);
-    });
-    await check('export SVG contains no editor handles or schematic reference',async()=>{
-      const r=await p.evaluate(()=>({preview:App.buildFigure(true).svg,exported:App.buildFigure(false).svg}));
-      assert(r.preview.includes('data-edit="marker"'));assert(!r.exported.includes('data-edit='));assert(!r.exported.includes('ladder-reference'));
-    });
-    await check('replacing a project cancels a marker gesture without writing into the new project',async()=>{
-      const before=await p.evaluate(()=>App.snapshot());await p.evaluate(()=>MarkerUI.open(0));
-      const bp=await p.evaluate(()=>App.S.markers[0].bands[4].bp);await p.locator(`[data-size="${bp}"]`).click();
-      const r=await p.evaluate(s=>{
-        const cv=document.getElementById('markerLanePreview'),rect=cv.getBoundingClientRect();
-        cv.dispatchEvent(new PointerEvent('pointerdown',{pointerId:77,button:0,clientX:rect.x+rect.width/2,clientY:rect.y+rect.height/2,bubbles:true}));
-        const started=App.S.markers[0].bands.some(b=>b.manual);
-        const next=JSON.parse(s);next.markers[0].bands.forEach(b=>{b.y+=3;});const expected=JSON.stringify(next.markers);
-        App.S=next;App.emit('loaded');const intact=JSON.stringify(App.S.markers)===expected;
-        App.S=JSON.parse(s);App.emit('loaded');return {started,intact};
-      },before);assert.deepEqual(r,{started:true,intact:true});
-    });
-    await check('phone and narrow desktop layouts expose the same tools without overflow',async()=>{
-      for(const width of [1024,390,320]){
-        await p.setViewportSize({width,height:860});
-        if(width<900){
-          await p.locator('#mNav [data-view="raw"]').click();
-          assert(await p.locator('#cropLaneN').isVisible(), await p.evaluate(()=>{let el=document.getElementById('cropLaneN'),a=[];while(el){const c=getComputedStyle(el),r=el.getBoundingClientRect();a.push([el.id,el.className,c.display,c.visibility,r.width,r.height]);el=el.parentElement;}return JSON.stringify(a);}));
-          await p.locator('#mNav [data-view="fig"]').click();
-        }
-        assert(await p.locator('#btnEditNames').isVisible());
-        await p.locator('#figureTextMenu summary').click();assert(await p.locator('#markerPt').isVisible());
-        assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),width);
-        await p.locator('#figureTextMenu summary').click();
-        await p.evaluate(()=>MarkerUI.open(0));
-        assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),width);
-        const box=await p.locator('.marker-guide-body').boundingBox();assert(box.width<=width);
-        if(width===390)await p.screenshot({path:path.join(dir,'phone-guide.png')});
-        await p.locator('#markerGuideClose').click();
-      }
-      await p.setViewportSize({width:1600,height:1000});await p.screenshot({path:path.join(dir,'desktop.png')});
-    });
-    await check('no unhandled interaction errors',async()=>assert.deepEqual(errors,[]));
-  } finally {await ctx.close();}
-  await check('offline single HTML offers marker references and direct editing',async()=>{
-    const c=await browser.newContext();try{
-      await c.setOffline(true);const p=await c.newPage();await p.goto(pathToFileURL(path.join(root,'dist/GelFigure.html')).href+'?demo=1&lang=en');
-      await p.waitForFunction(()=>document.title.startsWith('READY '),null,{timeout:120000});await p.evaluate(()=>MarkerUI.open(0));
-      assert(await p.locator('.ladder-reference').isVisible());assert(await p.locator('#markerLanePreview').isVisible());
-    }finally{await c.close();}
-  });return results;
+    await check('no unhandled grid or name errors',async()=>assert.deepEqual(errors,[]));
+  } finally { await ctx.close(); }
+  return [...results,...await markerWorkflowChecks(browser,base,root,engine)];
 }

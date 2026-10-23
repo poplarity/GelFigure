@@ -238,9 +238,10 @@
   // the banner sits just under the visible pane's header (the coach line above it varies in height)
   function placeBannerTop() {
     if (!phone() || banner.classList.contains('hidden')) { banner.style.top = ''; return; }
-    const head = document.querySelector(view() === 'fig' ? '#figureTools' : '#rawGridTools');
+    const head = document.querySelector(view() === 'fig' ? '#figureTools' : '#rawCol .col-head');
     const r = head && head.getBoundingClientRect();
     banner.style.top = r && r.height ? Math.round(r.bottom + 6) + 'px' : '';
+    G.MarkerUI?.layout();
   }
   new MutationObserver(() => {
     $('btnAddLaneM').classList.toggle('on', App.mode === 'lane' && !banner.classList.contains('hidden'));

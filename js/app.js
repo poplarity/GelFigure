@@ -446,11 +446,12 @@
   // swap in new lane positions, carrying names / markers / groups / conditions over by position
   App.replaceLanes = function (xs) {
     const S = App.S, old = S.lanes, tol = (S.lanePitch || 40) * 0.45;
-    const near = x => { let bi = -1, bd = tol; old.forEach((l, i) => { const d = Math.abs(l.x - x); if (d < bd) { bd = d; bi = i; } }); return bi; };
-    const fromOld = xs.map(near);                 // new index -> old index (or -1)
+    const fromOld = xs.map(()=>-1), used = new Set(), pairs=[];
+    xs.forEach((x,n)=>old.forEach((l,o)=>{const d=Math.abs(x-l.x);if(d<tol)pairs.push({n,o,d});}));
+    pairs.sort((a,b)=>a.d-b.d).forEach(({n,o})=>{if(fromOld[n]<0&&!used.has(o)){fromOld[n]=o;used.add(o);}});
     const toNew = new Map(); fromOld.forEach((o, n) => { if (o >= 0 && !toNew.has(o)) toNew.set(o, n); });
     const nearestNew = o => { if (toNew.has(o)) return toNew.get(o); let bi = 0, bd = Infinity; xs.forEach((x, n) => { const d = Math.abs(x - (old[o] ? old[o].x : 0)); if (d < bd) { bd = d; bi = n; } }); return bi; };
-    S.lanes = xs.map((x, n) => { const o = fromOld[n] >= 0 ? old[fromOld[n]] : null; return { x, name: o ? o.name : '', hidden: o ? !!o.hidden : false }; });
+    S.lanes = xs.map((x, n) => { const o = fromOld[n] >= 0 ? old[fromOld[n]] : null; return { ...(o || {}), x, name: o ? o.name : '', hidden: o ? !!o.hidden : false }; });
     S.markers = S.markers.filter(m => toNew.has(m.lane)).map(m => Object.assign(m, { lane: toNew.get(m.lane) }));
     S.groups.forEach(g => { g.from = nearestNew(g.from); g.to = nearestNew(g.to); });
     S.conditions.forEach(c => { const v = c.values.slice(); c.values = xs.map((x, n) => (fromOld[n] >= 0 ? v[fromOld[n]] || '' : '')); });
@@ -470,13 +471,55 @@
     S.lanePitch = pitch;
     S.laneHalfW = Math.max(2, pitch * 0.3);
   }
+  // Re-detection needs one mapping for names, roles, conditions and groups. In particular, never
+  // copy M names by ordinal while moving the corresponding marker by an unrelated nearest match.
+  function replaceDetectedCrop(xs, pitch) {
+    const S = App.S, old = S.lanes, c = S.crop, inCrop = l => l.x >= c.x && l.x <= c.x + c.w;
+    const ids = old.map((_,i)=>i).filter(i=>inCrop(old[i])), oldMarkers = S.markers.slice();
+    const markerIds = new Set(oldMarkers.map(m=>m.lane)), tol = (S.lanePitch || pitch || 40) * 0.45;
+    const locked = new Set(oldMarkers.filter(m=>m.userAssigned || m.ladderLocked || m.bands.some(b=>b.manual)).map(m=>m.lane));
+    ids.forEach(i=>{if(old[i].hidden || old[i].markerExcluded)locked.add(i);});
+    const slots = xs.map(x=>({x,old:-1}));
+    for (const i of ids.filter(i=>locked.has(i))) {
+      let best=null,dist=tol;
+      slots.forEach(s=>{const d=Math.abs(s.x-old[i].x);if(s.old<0 && d<=dist){best=s;dist=d;}});
+      // A confirmed marker/exclusion is an image-coordinate anchor, not another detection guess.
+      if(best){best.old=i;best.x=old[i].x;}else slots.push({x:old[i].x,old:i});
+    }
+    slots.sort((a,b)=>a.x-b.x);
+    // Ordered sequence alignment preserves named wells, placing genuinely new slots between them.
+    // Explicit marker/sample choices partition the sequence so a name cannot cross a fixed marker.
+    const anchors=[{oi:ids.length?ids[0]-1:-1,ni:-1},...slots.map((s,ni)=>({oi:s.old,ni})).filter(a=>a.oi>=0),{oi:ids.length?ids[ids.length-1]+1:old.length,ni:slots.length}];
+    for(let part=1;part<anchors.length;part++){
+      const a=anchors[part-1],z=anchors[part],os=ids.filter(i=>i>a.oi&&i<z.oi),ns=Array.from({length:z.ni-a.ni-1},(_,k)=>a.ni+1+k);
+      const dp=Array.from({length:os.length+1},()=>new Float64Array(ns.length+1).fill(Infinity)),move=dp.map(r=>new Uint8Array(r.length));dp[0][0]=0;
+      // Keep a named M slot too: dropping it would shift the following sample names onto the
+      // rediscovered marker. Its name is cleared below if that slot loses its marker identity.
+      const drop=i=>(old[i].name ? 4 : 0.7)+(S.conditions.some(r=>r.values[i])?2:0);
+      for(let i=0;i<=os.length;i++)for(let j=0;j<=ns.length;j++){
+        if(i&&dp[i-1][j]+drop(os[i-1])<dp[i][j]){dp[i][j]=dp[i-1][j]+drop(os[i-1]);move[i][j]=1;}
+        if(j&&dp[i][j-1]+0.7<dp[i][j]){dp[i][j]=dp[i][j-1]+0.7;move[i][j]=2;}
+        if(i&&j){const cost=Math.min(4,((old[os[i-1]].x-slots[ns[j-1]].x)/(S.lanePitch||pitch||40))**2)*0.1;if(dp[i-1][j-1]+cost<=dp[i][j]){dp[i][j]=dp[i-1][j-1]+cost;move[i][j]=3;}}
+      }
+      let i=os.length,j=ns.length;while(i||j){const m=move[i][j];if(m===3){slots[ns[j-1]].old=os[i-1];i--;j--;}else if(m===1)i--;else j--;}
+    }
+    const records=old.map((l,i)=>({x:l.x,old:i})).filter(s=>!inCrop(old[s.old])).concat(slots).sort((a,b)=>a.x-b.x);
+    const remap=new Map();records.forEach((s,i)=>{if(s.old>=0)remap.set(s.old,i);});
+    S.lanes=records.map(s=>({...(s.old>=0?old[s.old]:{name:'',hidden:false}),x:s.x}));
+    S.markers=oldMarkers.filter(m=>remap.has(m.lane)&&(locked.has(m.lane)||Math.abs(S.lanes[remap.get(m.lane)].x-old[m.lane].x)<=tol)).map(m=>({...m,lane:remap.get(m.lane)}));
+    const keptMarkers=new Set(S.markers.map(m=>m.lane));
+    records.forEach((s,i)=>{if(markerIds.has(s.old)&&old[s.old].name==='M'&&!keptMarkers.has(i))S.lanes[i].name='';});
+    S.conditions.forEach(r=>{const v=r.values;r.values=records.map(s=>s.old>=0?v[s.old]||'':'');});
+    S.groups=S.groups.flatMap(g=>{const kept=[...remap.keys()].filter(i=>i>=Math.min(g.from,g.to)&&i<=Math.max(g.from,g.to)).map(i=>remap.get(i));return kept.length?[{...g,from:Math.min(...kept),to:Math.max(...kept)}]:[];});
+    S.lanePitch=pitch||S.lanePitch;S.laneHalfW=Math.max(2,S.lanePitch*0.3);App.selLane=remap.get(App.selLane)??-1;
+    return slots.length;
+  }
   App.redetectLanesInCrop = function () {
     const S = App.S, c = App.cropImg();
     const r = E.detectLanes(c, S.bright);
     if (!r.centers.length) return 0;
     // the crop is the user's statement of where the lanes are: keep edge lanes it deliberately includes
-    replaceInCrop(r.centers.map(x => x + S.crop.x), r.pitch);
-    return r.centers.length;
+    return replaceDetectedCrop(r.centers.map(x => x + S.crop.x), r.pitch);
   };
   // n lanes spread evenly across the crop width (default: keep the current in-crop count)
   App.evenLanesInCrop = function (n) {
@@ -814,7 +857,7 @@
       // most promising lanes first, so lanes that can no longer come close are skipped unscored
       const order = [];
       // lanes cut out of the figure are never markers
-      for (let i = rg[0]; i <= rg[1]; i++) if (counts[i] >= minBands && !S.lanes[i].hidden) order.push({ i, ub: E.markerQuality.bound(peaks[i], all) });
+      for (let i = rg[0]; i <= rg[1]; i++) if (counts[i] >= minBands && !S.lanes[i].hidden && !S.lanes[i].markerExcluded) order.push({ i, ub: E.markerQuality.bound(peaks[i], all) });
       order.sort((a, b) => b.ub - a.ub);
       let topQ = 0;
       for (const { i, ub } of order) {
@@ -885,10 +928,17 @@
       const onGel = i => { const m = markerAt(i); return m ? m.bands.filter(b => b.y >= S.crop.y && b.y <= S.crop.y + S.crop.h).length : 0; };
       const sorted = a => a.slice().sort((x, y) => x - y);
       const fits = i => { const n = nMatched(i); return n >= 4 && n >= 0.6 * counts[i] && n >= 0.75 * onGel(i); };
-      let keep = picked.slice(0, 1).map(c => c.i);
-      assign(keep);
+      // The first candidate must pass the same coverage checks as every additional marker.
+      // Being the best-looking sample lane is not enough to make it a marker.
+      let keep = [];
+      for (const c of picked) {
+        assign([c.i]);
+        if (!fits(c.i) && markerAt(c.i).ladderId !== c.id) { markerAt(c.i).ladderId = c.id; App.matchMarkers(true); }
+        if (fits(c.i)) { keep = [c.i]; break; }
+      }
+      if (!keep.length) { S.markers = []; return; }
       const lads = new Map(S.markers.map(m => [m.lane, m.ladderId]));
-      for (const { i, id } of picked.slice(1)) {
+      for (const { i, id } of picked.filter(c=>!keep.includes(c.i))) {
         assign(sorted(keep.concat([i])));
         S.markers.forEach(m => { if (lads.has(m.lane)) m.ladderId = lads.get(m.lane); });
         App.matchMarkers(true);
@@ -896,14 +946,18 @@
         if (!fits(i) && id && markerAt(i).ladderId !== id) { markerAt(i).ladderId = id; App.matchMarkers(true); }
         if (fits(i)) { keep = keep.concat([i]); lads.set(i, markerAt(i).ladderId); }
       }
-      // the joint ladder choice can still leave an added lane with few bands: drop it and choose again
+      // A joint re-choice may undo an individually verified model. Restore that model if needed,
+      // then validate EVERY retained lane (including the first) before publishing the result.
       if (picked.length > 1) {
-        assign(sorted(keep));
-        for (let t = 0; t < 2 && keep.length > 1; t++) {
-          const bad = keep.slice(1).filter(i => !fits(i));
+        for (let t = 0; t < 3 && keep.length; t++) {
+          assign(sorted(keep));
+          let changed = false;
+          S.markers.forEach(m => { if (!fits(m.lane) && lads.has(m.lane) && m.ladderId !== lads.get(m.lane)) { m.ladderId = lads.get(m.lane); changed = true; } });
+          if (changed) App.matchMarkers(true);
+          const bad = keep.filter(i => !fits(i));
           if (!bad.length) break;
           keep = keep.filter(i => !bad.includes(i));
-          assign(sorted(keep));
+          S.markers = S.markers.filter(m => keep.includes(m.lane));
         }
       }
       S.markers.forEach(m => { if (!S.lanes[m.lane].name) S.lanes[m.lane].name = 'M'; });
@@ -911,16 +965,17 @@
   };
 
   // match all markers jointly; manually placed bands are kept as anchors
-  App.matchMarkers = function (fresh) {
+  App.matchMarkers = function (fresh, subset) {
     const S = App.S, outer = App._peakCrop, c = outer || App.bandStrip();
-    const ms = S.markers.filter(m => G.Ladders.get(m.ladderId) && S.lanes[m.lane]);
-    S.markers.forEach(m => { if (!ms.includes(m)) m.bands = []; });
+    const targets = subset || S.markers;
+    const ms = targets.filter(m => G.Ladders.get(m.ladderId) && S.lanes[m.lane]);
+    targets.forEach(m => { if (!ms.includes(m)) m.bands = []; });
     if (!ms.length) return;
     App._peakCrop = c;
     try {
       const input = ms.map(m => {
         const lad = G.Ladders.get(m.ladderId);
-        const anchors = fresh ? [] : m.bands.filter(b => b.manual && lad.sizes.includes(b.bp)).map(b => ({ k: lad.sizes.indexOf(b.bp), y: b.y - S.crop.y }));
+        const anchors = fresh ? [] : m.bands.filter(b => b.manual && !b.excluded && lad.sizes.includes(b.bp)).map(b => ({ k: lad.sizes.indexOf(b.bp), y: b.y - S.crop.y }));
         return { peaks: App.lanePeaks(m.lane), sizes: lad.sizes, anchors };
       });
       const res = E.matchMulti(input, c.h, App.gelKind());
@@ -930,8 +985,9 @@
         m.bands = lad.sizes.map((bp, k) => {
           const p = prev.get(bp);
           return {
-            bp, y: r[k].y + S.crop.y, matched: r[k].matched, manual: !!r[k].anchored,
-            show: p && !fresh ? p.show : true, ref: lad.ref.includes(bp)
+            bp, y: r[k].y + S.crop.y, matched: p && !fresh && p.excluded ? false : r[k].matched, manual: !!r[k].anchored,
+            show: p && !fresh ? p.show : !!(r[k].matched || r[k].anchored), ref: lad.ref.includes(bp),
+            ...(p && !fresh && p.excluded ? { excluded: true } : {})
           };
         });
         m.score = r.score;
@@ -942,12 +998,49 @@
     } finally { App._peakCrop = outer || null; }   // a caller's cached strip stays for its next steps
   };
 
+  // A user-requested crop pass automates both stages while respecting explicit marker/sample choices.
+  // Import detection stays independent; it has no confirmed choices to preserve yet.
+  App.detectMarkersInCrop = function () {
+    const S=App.S,r=App.laneRange();if(!r)return 0;
+    const inside=m=>m.lane>=r[0]&&m.lane<=r[1], previous=S.markers.slice(),names=S.lanes.map(l=>l.name);
+    const protectedOnes=previous.filter(m=>inside(m)&&(m.userAssigned||m.ladderLocked||m.bands.some(b=>b.manual))&&!S.lanes[m.lane].markerExcluded);
+    App.autoMarkers();
+    const found=S.markers.filter(m=>!protectedOnes.some(p=>Math.abs(p.lane-m.lane)<=1));
+    found.forEach(m=>{
+      const old=previous.find(p=>p.lane===m.lane&&p.ladderId===m.ladderId);if(!old)return;
+      m.bands=m.bands.map(b=>{const p=old.bands.find(p=>p.bp===b.bp);return p?{...b,show:p.show,...(p.excluded?{excluded:true,show:false,matched:false}:{})}:b;});
+    });
+    S.markers=previous.filter(m=>!inside(m)).concat(protectedOnes,found).sort((a,b)=>a.lane-b.lane);
+    const targets=S.markers.filter(inside);App.matchMarkers(false,targets);
+    const priorLanes=new Set(previous.map(m=>m.lane)),now=new Set(S.markers.map(m=>m.lane));
+    S.lanes.forEach((l,i)=>{l.name=priorLanes.has(i)&&names[i]==='M'&&!now.has(i)?'':names[i];if(now.has(i)&&!l.name)l.name='M';});
+    return targets.length;
+  };
+  App.redetectCrop = function () {
+    const n=App.redetectLanesInCrop();
+    if(n)App.detectMarkersInCrop();
+    return {lanes:n,markers:App.S.markers.filter(m=>{const r=App.laneRange();return r&&m.lane>=r[0]&&m.lane<=r[1];}).length};
+  };
+  App.alignMarker = function (mi) {
+    const m=App.S.markers[mi];if(!m)return;
+    m.userAssigned=true;App.matchMarkers(false,[m]);
+  };
+  App.removeMarker = function (mi) {
+    const S=App.S,m=S.markers[mi];if(!m)return;
+    if(S.lanes[m.lane]){S.lanes[m.lane].markerExcluded=true;if(S.lanes[m.lane].name==='M')S.lanes[m.lane].name='';}
+    S.markers.splice(mi,1);
+  };
+  App.removeMarkerBand = function (mi,bp) {
+    const m=App.S.markers[mi],b=m&&m.bands.find(b=>b.bp===bp);if(!b)return;
+    m.userAssigned=true;Object.assign(b,{show:false,manual:false,matched:false,excluded:true});App.matchMarkers(false,[m]);
+  };
+
   // hide labels that would collide in the final figure; keep reference bands first
   App.thinMarkerLabels = function (m, keepHidden) {
     const S = App.S, st = S.style;
     const scale = (App.gelWidthMm() * G.Render.MM) / Math.max(1, App.visibleWidthPx());
     const minGap = (st.markerPt || st.fontPt) * 1.05 / scale; // in image px
-    const B = m.bands.filter(b => b.y >= S.crop.y && b.y <= S.crop.y + S.crop.h && (!keepHidden || b.show));
+    const B = m.bands.filter(b => !b.excluded && (b.show || b.matched || b.manual) && b.y >= S.crop.y && b.y <= S.crop.y + S.crop.h && (!keepHidden || b.show));
     const order = B.slice().sort((a, b) => (b.ref - a.ref) || ((b.matched || b.manual) - (a.matched || a.manual)) || (b.bp % 1000 === 0) - (a.bp % 1000 === 0));
     const kept = [];
     order.forEach(b => { if (kept.every(k => Math.abs(k.y - b.y) >= minGap)) kept.push(b); });
@@ -986,8 +1079,6 @@
     // frame the crop on the lanes that carry bands, edges half-way between lanes
     const loaded = App.loadedLaneRange();
     if (loaded) App.setLaneRange(loaded[0], loaded[1]);
-    const grid = App.laneRange();
-    if (S.laneLinked !== false && grid) App.resizeLaneGrid(grid[1] - grid[0] + 1);
     T('marker');
     App.guessGelType();
     App.autoMarkers();
@@ -1289,7 +1380,9 @@
     if (tl.length && r[0] + tl.length - 1 !== r[1]) { App.setLaneRange(r[0], Math.min(S.lanes.length - 1, r[0] + tl.length - 1)); r = App.laneRange(); }
     const abs = k => Math.min(S.lanes.length - 1, r[0] + k);
     tl.forEach((l, k) => { const i = abs(k); S.lanes[i].name = l.name || ''; S.lanes[i].hidden = !!l.hidden; });
-    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto' }) : null)).filter(Boolean);
+    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto', userAssigned: true, ladderLocked: true }) : null)).filter(Boolean);
+    // Applying a saved marker choice is explicit, just like choosing its lane/model in the UI.
+    mk.forEach(m => { delete S.lanes[m.lane].markerExcluded; });
     if (mk.length) S.markers = mk;
     const ptOf = o => (o && +o.pt > 0 ? { pt: +o.pt } : {});   // per-item font size, when the style has one
     S.groups = (t.groups || []).map(g => Object.assign({ from: abs(g.from), to: abs(g.to), text: g.text || '' }, ptOf(g)));
