@@ -36,6 +36,8 @@ Click **Try the example** to explore the tool. For future sessions, open the sam
 
 ## Save, update and share
 
+**Dev interaction preview:** the lane count above the image applies immediately. Drag the ↔ end guides for even spacing, or a middle guide to shift the grid. Naming, bulk paste and Fonts & sizes are above the figure. Review bands / ladder guide compares the actual lane with a schematic: select a size, then click its real band. Model browsing is a preview until you apply it; schematic spacing is never used as calibration.
+
 **Recent projects.** Use the top bar or **File → Recent projects**; on a phone, use **⋯ → Recent projects**. Images and edits are cached automatically without replacing the previous project when you import another gel. Rename, delete or restore a project, including its other exposures. This is browser-local storage, not a permanent backup: clearing site data removes it. If caching fails, save a project file. A `.gelfig` contains the selected exposure and annotations; keep other exposure files separately.
 
 **Save progress:** before closing, choose **File → Save project**. The `.gelfig` file contains your original image and annotations. Next time choose **File → Open project**. Your browser's “Save page” command does not save your figure-editing session.

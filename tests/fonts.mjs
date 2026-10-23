@@ -30,7 +30,7 @@ export async function fontChecks(browser, base, root, engine) {
       assert.deepEqual(await p.locator('#fontFamily option').evaluateAll(os=>os.map(o=>o.value)),names);
       const widths=[];
       for(const name of names){
-        await p.locator('#fontFamily').selectOption(name);
+        await p.evaluate(()=>document.getElementById('fontFamily').closest('details').open=true); await p.locator('#fontFamily').selectOption(name);
         const r=await p.evaluate(name=>{
           const checks=[];
           for(const mode of ['wrap','shrink','none']){
@@ -102,7 +102,7 @@ export async function fontChecks(browser, base, root, engine) {
         assert(![...entries.keys()].some(n=>/^ppt\/fonts\//.test(n)));assert(!entries.get('ppt/presentation.xml').toString().includes('embeddedFontLst'));
         const id=name.replaceAll(' ','-');fs.writeFileSync(path.join(dir,id+'.pptx'),bytes);fs.writeFileSync(path.join(dir,id+'.svg'),f.svg);
       }
-      await p.locator('#fontFamily').selectOption('Times New Roman');
+      await p.evaluate(()=>document.getElementById('fontFamily').closest('details').open=true); await p.locator('#fontFamily').selectOption('Times New Roman');
       await p.locator('#preview > svg').screenshot({path:path.join(dir,'times-preview.png')});
       assert.deepEqual(errors,[]);assert.deepEqual(fontRequests,[]);
     });
@@ -112,7 +112,7 @@ export async function fontChecks(browser, base, root, engine) {
         const q=await mctx.newPage();let network=0;await q.route(/^https?:/,r=>{network++;r.abort();});
         await q.goto(pathToFileURL(path.join(root,'dist','GelFigure.html')).href+'?demo=1&lang=zh');
         await q.waitForFunction(()=>document.title.startsWith('READY '),null,{timeout:120000});
-        await q.locator('#mNav [data-view="panel"]').tap();await q.evaluate(()=>document.getElementById('fontFamily').closest('details').open=true);
+        await q.locator('#mNav [data-view="fig"]').tap();await q.evaluate(()=>document.getElementById('fontFamily').closest('details').open=true);
         await q.locator('#fontFamily').selectOption('Times New Roman');
         const info=await q.evaluate(()=>({font:App.S.style.fontFamily,svg:App.buildFigure(false).fontFamily,w:innerWidth,sw:document.documentElement.scrollWidth}));
         assert.equal(info.font,'Times New Roman');assert.equal(info.svg,'Times New Roman');assert.equal(info.w,info.sw);assert.equal(network,0);

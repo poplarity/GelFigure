@@ -96,7 +96,7 @@
       // even spacing with an explicit count
       const markersAfterRedetect = App.S.markers.map(m => [m.lane + 1, m.ladderId]);
       document.getElementById('cropLaneN').value = good.length;
-      document.getElementById('btnEvenCrop').click();
+      document.getElementById('cropLaneN').dispatchEvent(new Event('change'));
       const after2 = G.UI.figLanes().map(i => App.S.lanes[i].x);
       const err2 = after2.length === good.length ? Math.max(...after2.map((x, k) => Math.abs(x - good[k]))) : null;
       const outsideAfter = App.S.lanes.filter(l => l.x < App.S.crop.x || l.x > App.S.crop.x + App.S.crop.w).map(l => Math.round(l.x));
@@ -302,7 +302,7 @@
       App.S.markers = [];
       App.commit();
       document.getElementById('cropLaneN').value = G.UI.figLanes().length;
-      document.getElementById('btnEvenCrop').click();
+      document.getElementById('cropLaneN').dispatchEvent(new Event('change'));
       R.crowded.markersAfterEven = App.S.markers.length;
 
       // a purification gel: lysate lanes that some ladder fits on its own must still fail the
@@ -327,7 +327,7 @@
       App.S.lanes[r[0]].x = good[0]; App.S.lanes[r[1]].x = good[n - 1];
       App.sortLanesIfNeeded(); App.commit();
       document.getElementById('cropLaneN').value = n;
-      document.getElementById('btnEvenCrop').click();
+      document.getElementById('cropLaneN').dispatchEvent(new Event('change'));
       const after = G.UI.figLanes().map(i => App.S.lanes[i].x);
       R.endsEven = { n, got: after.length, maxErr: after.length === n ? +Math.max(...after.map((x, k) => Math.abs(x - good[k]))).toFixed(1) : null };
       // the corrupted lanes above dropped the marker on purpose; find it again for the next steps

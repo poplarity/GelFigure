@@ -4,6 +4,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- 参考 BlotFigure 重做泳道操作：默认等距联动，拖首尾实时均分，拖中间整体平移；原图上方改条数立即生效，支持 1–60 条。保留关闭联动 / Alt 单独微调，旧项目打开时不重新排布。
+- 名称编辑、批量粘贴、字体与字号集中到成图；直接点击 Marker 数字可改字号、单位、标签位置和显示条带。
+- Marker 改为引导点选泳道；新增“实际泳道＋标准图例”核对窗口。型号可先预览再应用，选大小后点实际条带补标，支持吸附和拖动。图例明确为示意，参考带颜色不冒充真实染料颜色。
+
+### Changed
+- Linked lane guides with immediate count changes, live end-handle alignment, group translation and optional independent adjustment. Resizing preserves retained lane identities, conditions and marker anchors; alignment does not rediscover removed markers. Existing projects keep saved geometry.
+- Figure-side naming, bulk paste and typography controls, including clickable marker labels with persistent visibility controls. Phone users can adjust count and drag guides on the same Image tab.
+- Guided marker-lane picking and an offline ladder-reference workbench. Catalogue previews are separate from applying a ladder; calibration always uses the real source image. Reference diagrams are generated from existing size/reference-band data and are never included in exports.
+
+### Validation
+- Interaction coverage includes linked dragging, count/annotation identity, undo, IME, direct typography, explicit marker picking, reference previews and manual anchors, phone layout and offline operation. Private DNA/protein regression images retain the previous gel-type, lane-count and marker-identification results.
+
 ## [0.6.9] - 2026-10-23
 
 Local project history with automatic caching and safe recovery.

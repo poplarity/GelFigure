@@ -110,7 +110,7 @@
       rotation: 0,
       levels: { black: 0, white: 1, gamma: 1, invert: p.invert != null ? p.invert : false },
       crop: { x: 0, y: 0, w: img.width, h: img.height },
-      lanes: [], laneHalfW: 10,
+      lanes: [], laneHalfW: 10, laneLinked: true,
       gelType: null,          // 'dna' | 'protein'; decided from the image below, the user can override
       markers: [],
       groups: [], conditions: [], arrows: [],
@@ -499,6 +499,67 @@
     return { n, fromEnds: true, pitch: p };
   };
 
+  // Interactive grid: the crop selects the affected wells, including intentionally hidden lanes.
+  // Keep the source pixels and annotation identities unchanged while the guide lines move.
+  App.laneGrid = function () {
+    const S = App.S, r = App.laneRange();
+    return { range: r, xs: S.lanes.map(l => l.x), pitch: S.lanePitch, half: S.laneHalfW };
+  };
+  App.restoreLaneGrid = function (base) {
+    App.S.lanes.forEach((l, i) => { l.x = base.xs[i]; });
+    App.S.lanePitch = base.pitch; App.S.laneHalfW = base.half;
+  };
+  App.dragLane = function (i, x, base, single) {
+    const S = App.S; base = base || App.laneGrid();
+    if (!S.lanes[i]) return;
+    const r = base.range, width = App.ensureRot().w;
+    if (single || S.laneLinked === false || !r || i < r[0] || i > r[1]) {
+      const lo = i ? base.xs[i - 1] + 0.5 : 0, hi = i + 1 < base.xs.length ? base.xs[i + 1] - 0.5 : width;
+      S.lanes[i].x = E.clamp(x, lo, hi); return;
+    }
+    const a = r[0], b = r[1], c = S.crop, n = b - a + 1;
+    let left = base.xs[a], right = base.xs[b];
+    const minGap = Math.min(1, c.w / Math.max(1, n));
+    if (n > 1 && i === a) left = E.clamp(x, c.x, right - minGap * (n - 1));
+    else if (n > 1 && i === b) right = E.clamp(x, left + minGap * (n - 1), c.x + c.w);
+    else {
+      const dx = E.clamp(x - base.xs[i], c.x - left, c.x + c.w - right);
+      left += dx; right += dx;
+    }
+    const pitch = n > 1 ? (right - left) / (n - 1) : base.pitch;
+    for (let k = a; k <= b; k++) S.lanes[k].x = n > 1 ? left + (k - a) * pitch : left;
+    if (n > 1) { S.lanePitch = pitch; S.laneHalfW = Math.max(1, pitch * 0.3); }
+  };
+  App.resizeLaneGrid = function (count) {
+    const S = App.S, r = App.laneRange(), old = S.lanes;
+    const n = E.clamp(Math.round(count || 1), 1, 60), a = r ? r[0] : old.filter(l => l.x < S.crop.x).length;
+    const z = r ? r[1] + 1 : a, m = z - a;
+    let left = m > 1 ? old[a].x : S.crop.x + S.crop.w / (2 * n);
+    let right = m > 1 ? old[z - 1].x : S.crop.x + S.crop.w * (1 - 1 / (2 * n));
+    if (n === 1) left = right = m ? (old[a].x + old[z - 1].x) / 2 : S.crop.x + S.crop.w / 2;
+    const from = new Array(n).fill(-1);
+    if (m && n >= m) for (let k = 0; k < m; k++) from[m === 1 ? Math.floor((n - 1) / 2) : Math.round(k * (n - 1) / (m - 1))] = a + k;
+    else if (m) for (let k = 0; k < n; k++) from[k] = a + (n === 1 ? Math.floor((m - 1) / 2) : Math.round(k * (m - 1) / (n - 1)));
+    const order = Array.from({ length: a }, (_, i) => i).concat(from, Array.from({ length: old.length - z }, (_, i) => z + i));
+    const remap = new Map(); order.forEach((o, i) => { if (o >= 0) remap.set(o, i); });
+    const pitch = n > 1 ? (right - left) / (n - 1) : S.lanePitch || S.crop.w;
+    S.lanes = order.map((o, i) => {
+      const l = o >= 0 ? { ...old[o] } : { name: '', hidden: false };
+      if (i >= a && i < a + n) l.x = left + (i - a) * (n > 1 ? pitch : 0);
+      return l;
+    });
+    const removed = S.markers.filter(mk => !remap.has(mk.lane)).length;
+    S.markers = S.markers.filter(mk => remap.has(mk.lane)).map(mk => ({ ...mk, lane: remap.get(mk.lane) }));
+    S.conditions.forEach(c => { const v = c.values; c.values = order.map(o => o >= 0 ? v[o] || '' : ''); });
+    S.groups = S.groups.flatMap(g => {
+      const kept = [...remap.keys()].filter(i => i >= Math.min(g.from, g.to) && i <= Math.max(g.from, g.to)).map(i => remap.get(i));
+      return kept.length ? [{ ...g, from: Math.min(...kept), to: Math.max(...kept) }] : [];
+    });
+    S.lanePitch = pitch; S.laneHalfW = Math.max(1, pitch * 0.3); S.laneLinked = true;
+    App.selLane = remap.has(App.selLane) ? remap.get(App.selLane) : -1;
+    return { n, removedMarkers: removed };
+  };
+
   // indices of lanes whose centre lies inside the crop
   App.laneRange = function () {
     const S = App.S, c = S.crop, idx = [];
@@ -566,7 +627,9 @@
     S.lanes.push({ x, name: '', hidden: false });
     const order = S.lanes.map((l, i) => i).sort((a, b) => S.lanes[a].x - S.lanes[b].x);
     App.reorderLanes(order);
-    return S.lanes.findIndex(l => l.x === x);
+    const added = S.lanes.findIndex(l => l.x === x), r = App.laneRange();
+    if (S.laneLinked !== false && r) App.resizeLaneGrid(r[1] - r[0] + 1);
+    return added;
   };
 
   App.removeLane = function (i) {
@@ -579,6 +642,8 @@
     S.markers = S.markers.filter(m => m.lane !== i);
     S.markers.forEach(m => { m.lane = shift(m.lane); });
     App.fixIndices();
+    const r = App.laneRange();
+    if (S.laneLinked !== false && r) App.resizeLaneGrid(r[1] - r[0] + 1);
   };
 
   // apply permutation (order[newIdx] = oldIdx) to lanes and every index that references lanes
@@ -881,7 +946,7 @@
   App.thinMarkerLabels = function (m, keepHidden) {
     const S = App.S, st = S.style;
     const scale = (App.gelWidthMm() * G.Render.MM) / Math.max(1, App.visibleWidthPx());
-    const minGap = st.fontPt * 1.05 / scale; // in image px
+    const minGap = (st.markerPt || st.fontPt) * 1.05 / scale; // in image px
     const B = m.bands.filter(b => b.y >= S.crop.y && b.y <= S.crop.y + S.crop.h && (!keepHidden || b.show));
     const order = B.slice().sort((a, b) => (b.ref - a.ref) || ((b.matched || b.manual) - (a.matched || a.manual)) || (b.bp % 1000 === 0) - (a.bp % 1000 === 0));
     const kept = [];
@@ -921,6 +986,8 @@
     // frame the crop on the lanes that carry bands, edges half-way between lanes
     const loaded = App.loadedLaneRange();
     if (loaded) App.setLaneRange(loaded[0], loaded[1]);
+    const grid = App.laneRange();
+    if (S.laneLinked !== false && grid) App.resizeLaneGrid(grid[1] - grid[0] + 1);
     T('marker');
     App.guessGelType();
     App.autoMarkers();
@@ -1027,7 +1094,7 @@
       conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt })),
       groups,
       markers: S.markers.filter(m => remap.has(m.lane) && !S.lanes[m.lane].hidden).map(m => Object.assign({}, m, {
-        lane: remap.get(m.lane),
+        lane: remap.get(m.lane), src: S.markers.indexOf(m),
         bands: m.bands.map(b => Object.assign({}, b, { y: b.y - cy }))
       })),
       arrows: S.arrows.map((a, k) => Object.assign({}, a, { y: a.y - cy, k, label: App.arrowLabel(a) })).filter(a => a.y >= 0 && a.y <= S.crop.h),

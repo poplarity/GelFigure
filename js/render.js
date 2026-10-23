@@ -356,15 +356,16 @@
       const shown = shownBands(mk);
       let maxTw = 0;
       shown.forEach(b => {
+        const attrs = `data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="${mk.bands.indexOf(b)}"`;
         const y = b.y * sc, label = G.Ladders.fmt(b.bp, mk.unit);
         const tw = measure(label, mp); maxTw = Math.max(maxTw, tw);
         if (side === 'left') {
           if (!off) els.push(`<line x1="${f(-tick - 1)}" y1="${f(y)}" x2="${f(-1)}" y2="${f(y)}" stroke="#000" stroke-width="${f(lw)}"/>`);
-          els.push(textEl(label, -tick - 2.5 - off, y + mp * 0.35, mp, 'end'));
+          els.push(ed(attrs, textEl(label, -tick - 2.5 - off, y + mp * 0.35, mp, 'end')));
           grow(-tick - 2.5 - off - tw, y - mp, 0, y + mp);
         } else {
           if (!off) els.push(`<line x1="${f(W + 1)}" y1="${f(y)}" x2="${f(W + 1 + tick)}" y2="${f(y)}" stroke="#000" stroke-width="${f(lw)}"/>`);
-          els.push(textEl(label, W + tick + 2.5 + off, y + mp * 0.35, mp, 'start'));
+          els.push(ed(attrs, textEl(label, W + tick + 2.5 + off, y + mp * 0.35, mp, 'start')));
           grow(W, y - mp, W + tick + 2.5 + off + tw, y + mp);
         }
       });
@@ -377,7 +378,7 @@
       if (unitText && shown.length) {
         const ux = side === 'left' ? -tick - 2.5 - off : W + tick + 2.5 + off;
         const uy = unitRowY;
-        els.push(textEl(unitText, ux, uy, mp, side === 'left' ? 'end' : 'start'));
+        els.push(ed(`data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="-1"`, textEl(unitText, ux, uy, mp, side === 'left' ? 'end' : 'start')));
         grow(side === 'left' ? ux - unitW : ux, uy - mp * 1.2, side === 'left' ? 0 : ux + unitW, uy + mp * 0.3);
       }
       extent[side] = tick + 2.5 + off + Math.max(maxTw, unitW);

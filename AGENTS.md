@@ -32,6 +32,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 | `ui.js` | `UI` | side panel, top bar, coach line, live preview, export buttons |
 | `figedit.js` | `FigEdit` | editing on the figure: inline text editor + size bar, popovers, tool modes |
 | `mobile.js` | `Mobile` | phone layout and touch: bottom bar, export / more / result sheets, selection bar, photo downscaling |
+| `marker-ui.js` | `MarkerUI` | explicit marker-lane picking, real-lane/reference workbench and direct marker-label typography |
 | `history-ui.js` | `HistoryUI` | responsive recent-project dialog, rename/delete, cache status and save-file fallback |
 | `uitest.js` | — | interface self-test, loaded only with `?uitest=1` |
 
@@ -42,6 +43,8 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 **State (`App.S`, serialisable JSON).** `file`, `rotation`, `levels`, `crop`, `lanes[{x, name, hidden}]`, `markers[{lane, ladderId, unit, side, bands}]`, `groups`, `conditions`, `arrows`, `boxes`, `brackets`, `labels`, `style` (defaults: `defaultStyle()` in `app.js`). Things to know:
 - Lane x, band y, arrow y … are in **rotated-image pixels (absolute)**, so changing the crop never moves annotations. Rotation remaps them (`App.setRotation`).
 - **Lanes are numbered by well across the whole gel**; the crop only selects which wells appear. Names are never lost when the range changes.
+- `laneLinked` defaults to true for new inputs. `laneGrid` captures an immutable drag baseline, `dragLane` scales the in-crop grid from its endpoints or translates it from a middle lane, and `restoreLaneGrid` cancels the whole gesture. `resizeLaneGrid` keeps retained lane metadata through a one-to-one ordered mapping and remaps groups/conditions/markers; it must never call automatic marker discovery. Hidden wells still count. Old project restoration must not regularize existing positions. Count controls are above the raw image; names/bulk paste and typography are above the figure.
+- Marker references are schematic SVGs built from the existing catalogue, not vendor photographs or measured migration. Previewing a model must not change state until applied. Manual anchors come from clicking/dragging the actual lane preview; hiding a label preserves calibration. `renderState` carries marker `src` indices for preview hit targets so cropped-out markers never shift the editing target. Editor-only groups and references must not enter exports.
 - Font sizes: `style.fontPt`, optional `style.lanePt` / `style.markerPt`, and an optional `pt` on each group, condition row, arrow, box, bracket and side text (`null`/absent = follow `fontPt`).
 - Figure font: `style.fontFamily` (default `Arial`), restricted to `Render.fontNames`. `Render.fontName()` validates names; `Render.fontStack()` supplies the system fallback chain. `Render.measure(text, pt, bold, family)` / `wrapText(text, pt, width, family)` take an optional font argument, defaulting to Arial. `Render.build` binds every measurement to the figure font, and returns `fontFamily` for PPTX runs/themes. No fonts are downloaded or embedded; never claim that a missing local font renders identically on another device.
 - Marker-unit headings are anchored beside the gel's top edge, independently of lane names, groups and conditions. Do not reserve a whole blank header row above the gel: keep the usual condition baseline and add clearance only for actual crop-edge/large-font conflicts. Left/right units share a baseline; `style.unitHeader` still toggles them.
@@ -79,6 +82,7 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 - `tests/unit-header.mjs` — fixed marker-unit positions, compact condition spacing, visible text bounds across fonts/sizes, crop-edge collision handling and SVG/PPTX agreement. Synthetic examples go in ignored `test-results/unit-header/<engine>/`.
 - `tests/colour.mjs` — independent RGB/palette TIFF fixtures, RGB rotation, switching without altering analysis, colour PNG/TIFF/SVG/PPTX and uncropped exports, original bytes, project/style/undo/legacy behaviour, multi-exposure replacement and offline mobile delivery. Synthetic fixtures/exports live in ignored `test-results/colour/<engine>/`.
 - `tests/history.mjs` — real IndexedDB: separate projects/shared bytes, reload without re-detection, legacy draft migration, rename/IME, queued writes, atomic failures, all exposures/custom ladders, phone layout and offline history. Synthetic screenshots go in ignored `test-results/history/<engine>/`.
+- `tests/workflow.mjs` — linked lane gestures/counts/undo, annotation identity, figure-side text/typography, explicit marker picking, catalogue preview vs application, real-image anchors and responsive/offline controls. Synthetic screenshots go in ignored `test-results/workflow/<engine>/`.
 - New behaviour gets a check. CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests; for `dev`, trigger it by hand: `gh workflow run ci.yml --ref dev`.
 - **Real gels are not in the repo** and must never be committed (unpublished data). The maintainer keeps them, with a small regression harness, outside the repository. If they are not available on your machine, say so when you change detection code and ask the maintainer to run them.
 
@@ -106,7 +110,6 @@ Branches: `dev` (work), `main` (= live site), `release/x.y.z` (the previous `mai
 
 - `render.js` `parseRuns` drops an unpaired `*` (`WT*` prints `WT`). BlotFigure (sibling project) solved it with Markdown-style flanking rules.
 - "Reset everything" clears the undo history; it could be undoable instead.
-- Desktop `.mode-banner` is `white-space: nowrap`; long English hints clip at ~1366 px wide.
 - No `beforeunload` warning (only autosaved drafts protect unsaved work).
 - Export wording: when the gel's own resolution is below the export dpi (e.g. "600 dpi PNG, gel itself 366 dpi"), users read it as a failed export. Proposed: say "file is 600 dpi, the gel part is 366 dpi" and offer a one-click gel width for a true 600 dpi.
 - The phone layout has only been tested in emulation (Playwright iPhone / Pixel / WeChat user agent), not on real devices.

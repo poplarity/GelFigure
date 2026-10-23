@@ -26,6 +26,7 @@
         : L('在左侧原图上按住拖出一个矩形，框住要强调的条带', 'On the image on the left, drag a rectangle around the bands to highlight'))
       : m === 'bracket' ? (phone() ? L('在原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'Drag from top to bottom on the image over the region the bracket covers (smear, oligomers …)')
         : L('在左侧原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'On the image on the left, drag from top to bottom over the region the bracket covers (smear, oligomers …)'))
+      : m === 'marker-lane' ? L('点原图中的 Marker 泳道，或点成图上的泳道名；选中后可核对型号和条带', 'Click the marker lane on the image, or its name on the figure; then review the ladder and bands')
       : m === 'lane' ? L('点一下要加泳道的位置（红框内）', 'Tap where the new lane goes (inside the red box)') : '';
     $('btnAddArrow').classList.toggle('on', m === 'arrow');
     $('btnAddGroup').classList.toggle('on', m === 'group');
@@ -105,6 +106,8 @@
     $('fedSize').textContent = curSize() + ' pt';
     $('fedReset').classList.toggle('hidden', !own);
     $('fedBr').classList.toggle('hidden', edit.kind !== 'group');
+    $('fedMarker').classList.toggle('hidden', edit.kind !== 'lane');
+    if (edit.kind === 'lane') $('fedMarker').textContent = S().markers.some(m => m.lane === edit.id) ? L('Marker 设置', 'Marker settings') : L('设为 Marker', 'Use as marker');
     $('fedHint').textContent = edit.kind === 'group' && !coarse.matches ? L('Shift+Enter 换行', 'Shift+Enter: new line') : '';
   }
   function placeBar() {
@@ -180,6 +183,7 @@
     barPress = false;
     if (!b || !edit) return;
     const k = b.dataset.fz;
+    if (k === 'marker') { const i = edit.id; closeEd(false); G.MarkerUI.assignLane(i); return; }
     if (k === '+' || k === '-') setSize(curSize() + (k === '+' ? 0.5 : -0.5));
     else if (k === 'reset') setSize(null);
     else if (k === 'br') { fed.setRangeText('\n', fed.selectionStart, fed.selectionEnd, 'end'); fed.dispatchEvent(new Event('input')); }
@@ -320,6 +324,7 @@
     if (!S()) return;
     const g = e.target.closest('[data-edit]');
     if (!g) return;
+    if (App.mode === 'marker-lane' && g.dataset.edit === 'lane') { e.preventDefault(); G.MarkerUI.chooseLane(+g.dataset.src); return; }
     if (g.dataset.edit === 'lane') { press = { src: +g.dataset.src, x: e.clientX, y: e.clientY, moved: false, end: +g.dataset.src, touch: e.pointerType === 'touch' }; e.preventDefault(); }
   });
   function makeGroup(a, b) {
@@ -361,6 +366,7 @@
     const g = e.target.closest('[data-edit]');
     if (!g) { if (App.mode === 'arrow') G.UI.toast(L('请点在凝胶图像上的条带', 'Click a band on the gel image')); return; }
     const kind = g.dataset.edit;
+    if (kind === 'marker') { G.MarkerUI.labelPopover(+g.dataset.marker, +g.dataset.band, g); return; }
     if (kind === 'group') openEd('group', +g.dataset.k);
     else if (kind === 'condname') openEd('condname', +g.dataset.r);
     else if (kind === 'cond') {
@@ -369,13 +375,14 @@
       App.commit();
     } else if (kind === 'arrow') arrowPopover(+g.dataset.k, g);
     else if (kind === 'box' || kind === 'bracket' || kind === 'label') { App.selAnno = { kind, k: +g.dataset.k }; annoPopover(kind, +g.dataset.k, g); G.Editor.draw(); }
-    else if (kind === 'gel' && App.mode === 'arrow') {
+    else if (kind === 'gel' && (App.mode === 'arrow' || App.mode === 'marker-lane')) {
       // map the click on the composed gel image back to raw-image coordinates
       const rect = g.getBoundingClientRect(), gel = App._lastGel, c = S().crop;
       const fx = (e.clientX - rect.left) / rect.width, fy = (e.clientY - rect.top) / rect.height;
       const px = fx * gel.canvas.width;
       const seg = gel.segs.find(s => px >= s.off && px <= s.off + (s.px1 - s.px0)) || gel.segs[0];
-      App.placeArrow(c.x + seg.px0 + (px - seg.off), c.y + fy * c.h);
+      const x = c.x + seg.px0 + (px - seg.off);
+      if (App.mode === 'marker-lane') G.MarkerUI.pickAt(x); else App.placeArrow(x, c.y + fy * c.h);
     }
   });
 

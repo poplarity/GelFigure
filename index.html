@@ -148,29 +148,7 @@
         </div>
         <p class="hint" data-en="Or drag the red box on the image. Changing the range never loses lane names.">也可以直接在原图上拖红框。换范围不会丢泳道名。</p>
 
-        <div class="lane-fix">
-          <div class="lane-fix-title" data-en="Lane lines wrong? Two ways to fix:">泳道线没对齐？两种修正方法：</div>
-          <div class="lane-fix-step">
-            <span class="step-n">A</span>
-            <div class="step-body">
-              <div class="step-row"><b data-en="Equal spacing between the end lanes">首尾泳道等间距</b></div>
-              <p class="hint" data-en-html="On the image, drag the <b>leftmost</b> and <b>rightmost</b> lane lines onto the centres of those lanes, enter the number of lanes, then apply — the lanes in between are spaced evenly.">在原图上把<b>最左</b>和<b>最右</b>两条泳道线拖到对应泳道的中心，填上泳道总数，点"对齐"——中间的泳道会均匀排开。</p>
-              <div class="step-row">
-                <span class="inline-label" data-en="Lanes">泳道数</span>
-                <input type="number" id="cropLaneN" min="2" max="60" class="num" style="width:54px">
-                <button class="btn sm primary" id="btnEvenCrop" data-en="Align">对齐</button>
-              </div>
-            </div>
-          </div>
-          <div class="lane-fix-step">
-            <span class="step-n">B</span>
-            <div class="step-body">
-              <div class="step-row"><b data-en="Detect again">重新自动识别</b>
-                <button class="btn sm" id="btnRedetectCrop" data-en="Detect">识别</button></div>
-              <p class="hint" data-en="Looks only at the image inside the red box; lanes outside it are not touched.">只看红框内的图像重新找泳道，框外泳道不受影响。</p>
-            </div>
-          </div>
-        </div>
+        <p class="hint" data-en="Set the lane count above the image, then drag the two end lines. Names are edited on the figure.">在原图上方设置泳道数，再拖首尾线对齐；名称在成图上直接填写。</p>
 
         <div class="suggest hidden" id="emptyBar">
           <div id="emptyText"></div>
@@ -178,7 +156,7 @@
         </div>
 
         <details class="adv" id="laneAdv">
-          <summary><span data-en="Each lane: remove / rename / adjust">逐条泳道：剪除 / 改名 / 微调</span><span class="h3-note" id="laneCountNote"></span></summary>
+          <summary><span data-en="Lane visibility and advanced tools">泳道显示与高级操作</span><span class="h3-note" id="laneCountNote"></span></summary>
           <div id="laneList" class="list"></div>
           <p class="hint d-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the image: drag a lane line sideways, double-click to add a lane, select one and press <code>Delete</code> / <code>⌫</code> to delete it, <code>H</code> to cut / restore it.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。原图上：左右拖动泳道线；双击空白处加泳道；选中后按 <code>Delete</code> 或 <code>⌫</code> 删除；按 <code>H</code> 剪除/恢复。</p>
           <p class="hint m-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the Image tab: tap a lane line or its number to select it — the bar below nudges, cuts or deletes it; drag it sideways; double-tap inside the red box (or “+ Lane”) to add one.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。在「原图」页：点泳道线或上方的泳道号选中，底部按钮可微调、剪除、删除；也可以直接左右拖；在红框内双击（或点“＋ 泳道”）加泳道。</p>
@@ -198,21 +176,13 @@
         </details>
       </section>
 
-      <!-- names -->
-      <section class="sec">
-        <div class="sec-head"><span class="sec-n">3</span><span data-en="Lane names">泳道名称</span><span class="sec-status" id="stNames"></span></div>
-        <p class="lead d-only" data-en-html="<b>Click a lane name</b> on the figure to type it; Enter jumps to the next. Or paste a whole row of names here:">直接在右侧成图上<b>点击泳道名</b>输入，回车跳到下一条。也可以把一整行名称粘贴到这里：</p>
-        <p class="lead m-only" data-en-html="On the Figure tab, <b>tap a lane number</b> and type; the keyboard’s Next key moves on. Or paste a whole row of names here:">在「成图」页<b>点泳道号</b>输入，键盘上的“下一项”跳到下一条。也可以把一整行名称粘贴到这里：</p>
-        <textarea id="laneBulk" rows="2" placeholder="M, WT, KO-1, NTC …（逗号、Tab、换行都行，可直接从 Excel 复制一行）" data-en-placeholder="M, WT, KO-1, NTC … (commas, tabs or new lines; a row copied from Excel works)"></textarea>
-        <p class="hint" data-en-html="Filled into the lanes in the figure from left to right. <code>*lacZ*</code> becomes italic.">按从左到右的顺序填入出图范围内的泳道。<code>*lacZ*</code> 写成斜体。</p>
-      </section>
-
       <!-- marker -->
       <section class="sec">
-        <div class="sec-head"><span class="sec-n">4</span>Marker<span class="sec-status" id="stMarker"></span></div>
+        <div class="sec-head"><span class="sec-n">3</span>Marker<span class="sec-status" id="stMarker"></span></div>
+        <p class="lead" data-en="Choose the marker lane, check the ladder reference, then correct any bands that need it.">先选 Marker 泳道，再对照型号图例核对条带。</p>
         <div id="markerList"></div>
         <div class="field inline">
-          <button class="btn sm" id="btnAddMarker" data-en="+ Add marker lane">+ 添加 Marker 泳道</button>
+          <button class="btn sm" id="btnAddMarker" data-en="Pick a marker lane">点选 Marker 泳道</button>
           <button class="btn sm ghost" id="btnAutoMarkers" data-en="Re-detect">重新识别</button>
         </div>
         <details class="adv" id="favAdv">
@@ -232,7 +202,7 @@
 
       <!-- annotations -->
       <section class="sec">
-        <div class="sec-head"><span class="sec-n">5</span><span data-en="Annotations">标注</span> <span class="h3-note" data-en="optional">可选</span></div>
+        <div class="sec-head"><span class="sec-n">4</span><span data-en="Annotations">标注</span> <span class="h3-note" data-en="optional">可选</span></div>
         <div class="tools">
           <button class="tool" id="btnAddGroup"><span class="ti">⎴</span><span data-en="Group line">分组横线</span><small class="d-only" data-en="Drag across lane names on the figure">在成图上拖过几个泳道名</small><small class="m-only" data-en="Tap the first and last lane names">依次点首尾两个泳道名</small></button>
           <button class="tool" id="btnAddArrow"><span class="ti">◀</span><span data-en="Target band">目标条带</span><small data-en="Click a band; its size is estimated">点一下条带，自动标大小</small></button>
@@ -247,32 +217,13 @@
       <!-- layout -->
       <section class="sec">
         <details class="adv flush">
-          <summary class="sec-head as-summary"><span class="sec-n">6</span><span data-en="Layout">版式</span> <span class="h3-note" id="stLayout"></span></summary>
+          <summary class="sec-head as-summary"><span class="sec-n">5</span><span data-en="Layout">版式</span> <span class="h3-note" id="stLayout"></span></summary>
           <div class="field inline">
             <label class="switch"><input type="checkbox" id="autoWidth" checked><span data-en="Auto width">宽度自动</span></label>
             <label class="inline-label"><span data-en="Gel width">凝胶宽</span> <input type="number" id="gelW" min="10" max="180" step="1" class="num"> mm</label>
             <select id="widthPreset" style="width:auto" title="期刊栏宽（成图总宽，含标签）" data-en-title="Journal column width (total figure width, labels included)"><option value="" data-en="Column…">栏宽…</option><option value="85" data-en="Single column 85 mm">单栏 85 mm</option><option value="120" data-en="1.5 columns 120 mm">1.5 栏 120 mm</option><option value="180" data-en="Double column 180 mm">双栏 180 mm</option></select>
           </div>
           <div class="dpiline" id="dpiLine"></div>
-          <div class="field">
-            <label for="fontFamily" data-en="Figure font">成图字体</label>
-            <select id="fontFamily" aria-describedby="fontNote">
-              <option value="Arial" data-en="Arial (default)">Arial（默认）</option>
-              <option value="Times New Roman" data-en="Times New Roman">Times New Roman（新罗马）</option>
-              <option value="Helvetica">Helvetica</option>
-              <option value="Calibri">Calibri</option>
-              <option value="Cambria">Cambria</option>
-            </select>
-            <p class="hint" id="fontNote" data-en="Uses fonts on your device; nothing is downloaded or embedded. Missing fonts use a substitute. SVG/PPTX recipients also need the selected font.">使用设备已有字体，不下载、不内嵌。缺少时会使用替代字体；SVG/PPTX 接收方也需相应字体。</p>
-          </div>
-          <div class="field inline">
-            <label class="inline-label"><span data-en="Size">字号</span> <input type="number" id="fontPt" min="4" max="14" step="0.5" class="num"> pt</label>
-            <label class="inline-label"><span data-en="Line">线宽</span> <input type="number" id="lineW" min="0.25" max="2" step="0.25" class="num"> pt</label>
-          </div>
-          <div class="field inline">
-            <label class="inline-label"><span data-en="Lane names">泳道名</span> <input type="number" id="lanePt" min="4" max="14" step="0.5" class="num"> pt</label>
-            <label class="inline-label"><span data-en="Marker labels">Marker 标签</span> <input type="number" id="markerPt" min="4" max="14" step="0.5" class="num"> pt</label>
-          </div>
           <div class="field inline">
             <label class="inline-label"><span data-en="Group text too wide">分组文字放不下时</span>
               <select id="groupFit" style="width:auto"><option value="wrap" data-en="Wrap to the line">自动换行</option><option value="shrink" data-en="Shrink the font">缩小字号</option><option value="none" data-en="Keep one line">保持一行</option></select></label>
@@ -315,6 +266,14 @@
         <button class="btn sm ghost m-only" id="btnAddLaneM" title="在原图上点一下加一条泳道" data-en-title="Tap the image to add a lane" data-en="+ Lane">＋ 泳道</button>
         <span class="zoomlabel" id="zoomLabel"></span>
       </div>
+      <div id="rawGridTools" class="lane-grid-control raw-grid-tools hidden">
+        <div class="raw-grid-row"><label for="cropLaneN" data-en="Lanes">泳道数</label>
+          <div class="lane-count-stepper"><button class="btn sm" id="laneCountMinus" title="减少一条" data-en-title="One fewer lane" aria-label="减少一条泳道">−</button><input type="number" id="cropLaneN" min="1" max="60" class="num" title="框内总道数，含 Marker 和空道" data-en-title="Total lanes inside the crop, including marker and empty lanes"><button class="btn sm" id="laneCountPlus" title="增加一条" data-en-title="One more lane" aria-label="增加一条泳道">＋</button></div>
+          <label class="switch"><input id="laneLinked" type="checkbox" checked><span data-en="Link spacing">等距联动</span></label>
+          <details class="grid-help"><summary data-en="More">更多</summary><div><p class="hint" data-en="The count includes marker and empty lanes. Drag a middle line to shift the whole grid. Turn off linking or hold Alt to adjust one lane. Cropping keeps existing annotations.">条数包含 Marker 和空道。拖中间泳道可整体平移；关闭联动或按 Alt 可单独微调。裁切保留已有标注。</p><button class="btn sm" id="btnRedetectCrop" data-en="Detect lanes inside crop">框内重新识别泳道</button></div></details>
+        </div>
+        <p class="hint grid-caption" data-en="Count marker and empty lanes too. Drag ↔ end lines; the middle follows immediately.">条数含 Marker 和空道；拖 ↔ 首尾线，中间实时均分。</p>
+      </div>
       <div id="expoStrip" class="expo hidden"></div>
       <div id="editorBox" tabindex="0">
         <canvas id="editor"></canvas>
@@ -334,6 +293,35 @@
         <span class="flex"></span>
         <button class="btn sm ghost m-only" id="btnFigZoom">放大</button>
         <span class="zoomlabel" id="figSize"></span>
+      </div>
+      <div id="figureTools" class="figure-tools hidden" role="toolbar" aria-label="成图编辑" data-en-title="Figure editing">
+        <button class="btn sm" id="btnEditNames" data-en="Edit names">填写泳道名</button><button class="btn sm ghost" id="btnBulkNames" data-en="Paste names">批量粘贴</button>
+        <span class="h3-note" id="stNames"></span>
+        <details id="figureTextMenu" class="figure-text-menu"><summary data-en="Fonts & sizes">字体与字号</summary><div class="figure-text-fields">          <div class="field">
+            <label for="fontFamily" data-en="Figure font">成图字体</label>
+            <select id="fontFamily" aria-describedby="fontNote">
+              <option value="Arial" data-en="Arial (default)">Arial（默认）</option>
+              <option value="Times New Roman" data-en="Times New Roman">Times New Roman（新罗马）</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Calibri">Calibri</option>
+              <option value="Cambria">Cambria</option>
+            </select>
+            <p class="hint" id="fontNote" data-en="Uses fonts on your device; nothing is downloaded or embedded. Missing fonts use a substitute. SVG/PPTX recipients also need the selected font.">使用设备已有字体，不下载、不内嵌。缺少时会使用替代字体；SVG/PPTX 接收方也需相应字体。</p>
+          </div>
+          <div class="field inline">
+            <label class="inline-label"><span data-en="Size">字号</span> <input type="number" id="fontPt" min="4" max="14" step="0.5" class="num"> pt</label>
+            <label class="inline-label"><span data-en="Line">线宽</span> <input type="number" id="lineW" min="0.25" max="2" step="0.25" class="num"> pt</label>
+          </div>
+          <div class="field inline">
+            <label class="inline-label"><span data-en="Lane names">泳道名</span> <input type="number" id="lanePt" min="4" max="14" step="0.5" class="num"> pt</label>
+            <label class="inline-label"><span data-en="Marker labels">Marker 标签</span> <input type="number" id="markerPt" min="4" max="14" step="0.5" class="num"> pt</label>
+          </div>
+</div></details>
+      </div>
+      <div id="figureNames" class="figure-names hidden">
+        <label for="laneBulk" data-en="Names from left to right (paste a row from Excel)">按从左到右粘贴泳道名（可复制 Excel 的一行）</label>
+        <textarea id="laneBulk" rows="2" placeholder="M, WT, KO-1, NTC" data-en-placeholder="M, WT, KO-1, NTC"></textarea>
+        <div class="inline"><span class="hint" data-en="Tabs, commas or new lines. *lacZ* is italic.">Tab、逗号或换行分隔；*lacZ* 表示斜体。</span><button class="btn sm primary" id="btnBulkApply" data-en="Fill names">填入名称</button><button class="btn sm ghost" id="btnBulkClose" data-en="Close">收起</button></div>
       </div>
       <div id="previewBox">
         <div id="preview"></div>
@@ -420,6 +408,7 @@
   <button data-fz="-" title="小一点" data-en-title="Smaller">A−</button><span class="fed-size" id="fedSize"></span><button data-fz="+" title="大一点" data-en-title="Larger">A+</button>
   <button data-fz="reset" id="fedReset" data-en="Default">默认</button>
   <button data-fz="br" id="fedBr" data-en="↵ New line">↵ 换行</button>
+  <button data-fz="marker" id="fedMarker" data-en="Marker…">Marker…</button>
   <span class="fed-hint" id="fedHint"></span>
 </div>
 <div id="warnings"></div>
@@ -453,8 +442,8 @@
   <h3>Fastest way to a figure</h3>
   <ol>
     <li>Drop the gel image — straightening, cropping, lanes, markers and contrast are automatic. Several exposures of one gel can be dropped together; the best is chosen.</li>
-    <li><b>Click a lane name</b> on the figure and type; Enter jumps to the next (or paste a whole row on the left).</li>
-    <li>Check the marker ladder on the left.</li>
+    <li><b>Click a lane name</b> on the figure and type; Enter jumps to the next. “Paste names” above the figure accepts a whole row.</li>
+    <li>Use “Review bands / ladder guide” to compare the actual marker lane with a reference.</li>
     <li>“Export PNG” at the top right. A pre-flight check points out problems first.</li>
   </ol>
   <h3>Common tasks</h3>
@@ -464,9 +453,10 @@
     <li><b>Group line</b>: drag from one lane name to another on the figure.</li>
     <li><b>Target band arrow</b>: click “Target band”, then the band. The size is estimated from the marker; values outside the ladder are marked ≈.</li>
     <li><b>+ / − rows</b>: add a row, then click cells on the figure to cycle + / − / empty.</li>
-    <li><b>Lane lines off</b>: drag the leftmost and rightmost lane lines onto their lanes, enter the lane count and click “Align” — the lanes between are spaced evenly. Select a lane and press <code>Delete</code> or <code>⌫</code> to delete it.</li>
+    <li><b>Lane lines off</b>: set the count above the image, then drag the ↔ end lines; the middle follows in real time. Drag a middle line to shift the grid. Turn off “Link spacing” or Alt-drag to adjust one lane. Counts include marker and empty lanes; changes can be undone.</li>
+    <li><b>Text sizes</b>: use “Fonts &amp; sizes” above the figure, or click a name or marker number directly. Marker label checkboxes stay open and hiding a label keeps its calibration.</li>
     <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
-    <li><b>A marker band is wrong</b>: drag its yellow line on the image; the others re-fit around it.</li>
+    <li><b>A marker band is wrong</b>: open the ladder guide, select a size in the reference, then click its real band in the lane preview. Yellow lines can be dragged; Alt disables snapping. Browsing ladder models changes nothing until “Use this ladder”. The reference is a schematic, not measured migration.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
   </ul>
   <h3>Image integrity</h3>
@@ -485,8 +475,8 @@
   <h3>最快的出图方式</h3>
   <ol>
     <li>拖入胶图 —— 转正、裁切、泳道、Marker、对比度全部自动完成。同一块胶的多张曝光可以一起拖进来，自动挑最好的一张。</li>
-    <li>在右侧成图上<b>点泳道名</b>输入，回车自动跳到下一条（也可在左侧一次粘贴一整行名称）。</li>
-    <li>核对左侧 Marker 型号是否正确。</li>
+    <li>在右侧成图上<b>点泳道名</b>输入，回车自动跳到下一条；也可用成图上方的“批量粘贴”一次填入整行。</li>
+    <li>点“核对条带 / 型号图例”，对照实际泳道核对 Marker。</li>
     <li>右上角"导出 PNG"。导出前会自动检查常见问题。</li>
   </ol>
   <h3>常用操作</h3>
@@ -496,9 +486,10 @@
     <li><b>分组横线</b>：在成图上从一个泳道名拖到另一个泳道名。</li>
     <li><b>目标条带箭头</b>：点"目标条带"，再点那条带；大小按 Marker 估算，超出 Marker 范围会标 ≈。</li>
     <li><b>+ / − 条件行</b>：加一行后，在成图上点格子即可在 + / − / 空 之间切换。</li>
-    <li><b>泳道线没对齐</b>：把最左、最右两条泳道线拖到对应泳道中心，填泳道数点"对齐"，中间泳道自动等间距。选中泳道按 <code>Delete</code> 或 <code>⌫</code> 删除。</li>
+    <li><b>泳道线没对齐</b>：在原图上方填写条数，拖 ↔ 首尾线，中间实时均分；拖中间线可整体平移。关闭“等距联动”或按 Alt 拖动可单独微调。数量包含 Marker 和空道，修改可撤销。</li>
+    <li><b>字号</b>：成图上方“字体与字号”统一设置，也可直接点名称或 Marker 数字调整；Marker 显示勾选不会自动收起，隐藏标签仍保留校准点。</li>
     <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
-    <li><b>Marker 条带不对</b>：在原图上上下拖那条黄线，其余条带会围绕它重新匹配。</li>
+    <li><b>Marker 条带不对</b>：打开型号图例，先选右侧大小，再点左侧实际条带；黄线可拖动，Alt 可关闭吸附。切换型号先预览，点“使用此型号”才应用。图例是示意，不是真实迁移位置。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
   </ul>
   <h3>图像规范</h3>
@@ -542,6 +533,7 @@
 <script src="js/ui.js"></script>
 <script src="js/figedit.js"></script>
 <script src="js/mobile.js"></script>
+<script src="js/marker-ui.js"></script>
 <script src="js/history-ui.js"></script>
 </body>
 </html>

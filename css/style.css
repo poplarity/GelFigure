@@ -54,7 +54,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- buttons & inputs ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-sm);
-  border: 1px solid #d3d8de; background: #fff; color: var(--text); cursor: pointer; white-space: nowrap; transition: .12s; }
+  border: 1px solid #d3d8de; background: #fff; color: var(--text); cursor: pointer; white-space: nowrap; transition: background-color .12s, border-color .12s, color .12s; }
 .btn:hover { border-color: #b9c1ca; background: #fbfcfd; }
 .btn:active { transform: translateY(1px); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -65,7 +65,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #panel .btn.ghost:hover, .col-head .btn.ghost:hover { background: #f2f4f7; color: var(--text); }
 .btn.sm { padding: 4px 9px; font-size: 12.3px; }
 .btn.big { padding: 9px 14px; font-size: 13.5px; }
-input[type=number], input[type=text], select, textarea { border: 1px solid #d3d8de; border-radius: var(--r-sm); padding: 5px 8px; background: #fff; width: 100%; transition: .12s; }
+input[type=number], input[type=text], select, textarea { border: 1px solid #d3d8de; border-radius: var(--r-sm); padding: 5px 8px; background: #fff; width: 100%; transition: border-color .12s, box-shadow .12s; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 input[type=range] { flex: 1; min-width: 80px; width: 100%; -webkit-appearance: none; height: 4px; border-radius: 3px; background: #dfe3e8; outline: none; box-shadow: none; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1.5px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.2); cursor: pointer; }
@@ -227,7 +227,7 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .splice-box { margin-top: 10px; padding: 9px 11px; border-radius: var(--r); background: #f6f8fb; }
 .splice-box .seg { margin-top: 6px; }
 .tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-.tool { border: 1px solid var(--line); background: #fff; border-radius: var(--r); padding: 8px 6px; cursor: pointer; text-align: center; font-size: 12.3px; transition: .12s; }
+.tool { border: 1px solid var(--line); background: #fff; border-radius: var(--r); padding: 8px 6px; cursor: pointer; text-align: center; font-size: 12.3px; transition: background-color .12s, border-color .12s, color .12s; }
 .tool:hover { border-color: var(--accent); background: var(--accent-bg); }
 .tool.on { border-color: var(--accent); background: var(--accent); color: #fff; }
 .tool.on small { color: rgba(255,255,255,.8); }
@@ -293,6 +293,74 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .history-footer { margin-top: 18px; }
 .history-empty { padding: 24px 8px; color: var(--muted); }
 .history-error { padding: 10px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); }
+.lane-grid-control { padding: 12px; margin: 12px 0; background: var(--accent-bg); border: 1px solid #d9e5fb; border-radius: 10px; }
+.lane-count-stepper { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; }
+.lane-count-stepper .num { width: 58px; text-align: center; }
+.lane-grid-control .hint { margin: 9px 0; }
+.raw-grid-tools { flex: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; margin: 0; padding: 8px 12px; background: #fff; z-index: 35; }
+.raw-grid-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.raw-grid-row .lane-count-stepper { margin-left: 0; }
+.raw-grid-tools .grid-caption { font-size: 11.5px; margin: 5px 0 0; }
+.grid-help { position: relative; margin-left: auto; font-size: 12px; }
+.grid-help summary { cursor: pointer; color: var(--accent); padding: 5px; }
+.grid-help > div { position: absolute; top: 100%; right: 0; width: min(260px, calc(100vw - 20px)); padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); z-index: 64; }
+.lane-name-link { flex: 1; min-width: 0; border: 0; background: none; color: var(--accent); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.figure-tools { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--line); z-index: 36; }
+.figure-tools .h3-note { margin-right: auto; }
+.figure-tools .btn.ghost, .figure-names .btn.ghost, .marker-label-pop .btn.ghost { color: var(--muted); }
+.figure-tools .btn.ghost:hover, .figure-names .btn.ghost:hover, .marker-label-pop .btn.ghost:hover { background: var(--accent-bg); color: var(--accent); }
+.figure-text-menu { position: relative; }
+.figure-text-menu summary { cursor: pointer; border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; list-style: none; }
+.figure-text-menu summary::after { content: ' ▾'; color: var(--muted); }
+.figure-text-menu[open] summary { background: var(--accent-bg); color: var(--accent); }
+.figure-text-fields { position: absolute; right: 0; top: calc(100% + 6px); width: min(320px, calc(100vw - 24px)); max-height: 65vh; overflow: auto; background: #fff; padding: 16px; border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); z-index: 62; }
+.figure-names { flex: none; padding: 12px; background: #fff; border-bottom: 1px solid var(--line); }
+.figure-names textarea { margin: 7px 0; }
+.figure-names .inline { flex-wrap: wrap; }
+.figure-names .hint { flex: 1; }
+.marker-actions { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+.marker-lane-select { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+.marker-lane-select select { flex: 1; min-width: 0; }
+.marker-guide-body { width: min(680px, calc(100% - 24px)); max-width: 680px; padding: 20px 24px; }
+.marker-guide-top { display: flex; align-items: flex-end; gap: 12px; margin: 12px 0; }
+.marker-guide-top label { flex: 1; }
+.marker-guide-top select, #markerGuideModel { margin-top: 4px; }
+.marker-guide-instruction { padding: 10px 12px; border-radius: 8px; background: var(--accent-bg); color: #1b4b91; line-height: 1.6; }
+.marker-model-apply { display: flex; gap: 12px; align-items: center; background: var(--warn-bg); padding: 9px; border-radius: 8px; }
+.marker-model-apply span { flex: 1; font-size: 12px; }
+.marker-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; }
+.marker-compare > div { min-width: 0; text-align: center; }
+.marker-compare-title { font-weight: 600; margin-bottom: 8px; }
+#markerLanePreview { display: block; width: 100%; max-width: 160px; height: auto; margin: 0 auto; cursor: crosshair; touch-action: none; border-radius: 6px; }
+.marker-reference-scroll { max-height: 340px; overflow: auto; }
+.ladder-reference { width: 150px; max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.ladder-reference [data-size] { cursor: pointer; outline-offset: -2px; }
+.ladder-reference [data-size]:hover rect:first-child, .ladder-reference [data-size]:focus rect:first-child { fill: #dbeafe; }
+.marker-guide-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 40px; margin: 12px 0; }
+.marker-guide-body .actions, .marker-label-pop .actions { display: flex; align-items: center; gap: 8px; }
+.marker-guide-body .actions .primary { margin-left: auto; }
+.marker-label-pop { position: fixed; z-index: 85; width: min(300px, calc(100vw - 16px)); max-height: calc(100dvh - 72px); overflow: auto; padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 35px #17223530; }
+.marker-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.marker-pop-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; font-size: 12px; }
+.marker-pop-bands { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-height: 220px; overflow: auto; margin: 10px 0; }
+.marker-pop-bands label { border-radius: 5px; padding: 4px; }
+.marker-pop-bands .selected { background: var(--accent-bg); }
+#preview [data-edit="marker"] { cursor: pointer; }
+#preview [data-edit="marker"]:hover text { fill: var(--accent); }
+.mode-banner { white-space: normal; max-width: calc(100% - 24px); align-items: center; }
+.mode-banner > span { min-width: 0; }
+.mode-banner > button { flex: none; }
+@media (max-width: 600px) {
+  .figure-tools { gap: 4px; padding: 6px 8px; }
+  .figure-tools .btn { padding: 5px 7px; }
+  .figure-text-menu summary { min-height: 34px; display: flex; align-items: center; font-size: 12px; }
+  .marker-guide-top { flex-wrap: wrap; }
+  .marker-guide-body .marker-compare { gap: 8px; padding: 8px; }
+  .marker-guide-body .hint { font-size: 11.5px; }
+  .marker-guide-body .actions { flex-wrap: wrap; }
+  #markerLanePreview { max-width: 137px; }
+  .marker-reference-scroll { max-height: 290px; }
+}
 #historyDlg.working .library-card, #historyDlg.working #historyRetry { pointer-events: none; opacity: .65; }
 @media (max-width: 600px) {
   .library-card { flex-wrap: wrap; gap: 10px; }

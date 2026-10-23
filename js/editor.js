@@ -87,21 +87,24 @@
     ctx.font = '600 11px -apple-system, Segoe UI, Arial, sans-serif';
     ctx.textAlign = 'center';
     const mkLanes = new Set(S.markers.map(m => m.lane));
+    const gridRange = App.laneRange();
     S.lanes.forEach((l, i) => {
       const p = toScr(l.x, c.y), sel = i === App.selLane, hov = hover && hover.type === 'lane' && hover.i === i;
       const isM = mkLanes.has(i), out = l.x < c.x || l.x > c.x + c.w;
       ctx.globalAlpha = out ? 0.45 : 1;
       if (sel) { ctx.fillStyle = 'rgba(47,111,235,.10)'; ctx.fillRect(p.x - half * view.s, a.y, 2 * half * view.s, b.y - a.y); }
       ctx.strokeStyle = l.hidden ? 'rgba(255,90,90,.85)' : sel ? '#2f6feb' : isM ? 'rgba(236,178,0,.9)' : 'rgba(47,111,235,.55)';
-      ctx.lineWidth = sel || hov ? 2.2 : 1.2;
+      const end = S.laneLinked !== false && gridRange && (i === gridRange[0] || i === gridRange[1]);
+      ctx.lineWidth = sel || hov || end ? 2.2 : 1.2;
       ctx.setLineDash(l.hidden ? [5, 4] : isM ? [] : [6, 4]);
       ctx.beginPath(); ctx.moveTo(p.x, a.y); ctx.lineTo(p.x, b.y); ctx.stroke();
       ctx.setLineDash([]);
+      if (end) { ctx.fillStyle = '#2f6feb'; [a.y, b.y].forEach(y => { ctx.beginPath(); ctx.arc(p.x, y, 4, 0, Math.PI * 2); ctx.fill(); }); }
       // name chip above the crop
       const nb = S.lanes.length > 1 ? Math.abs((S.lanes[i + 1] || S.lanes[i - 1]).x - l.x) * view.s : 999;
-      let lab = String(i + 1);
+      let lab = String(i + 1) + (end ? ' ↔' : isM ? ' M' : '');
       if (l.name) {
-        const full = lab + ' ' + trunc(l.name.replace(/\*/g, ''), 12);
+        const full = isM && l.name === 'M' && !end ? lab : lab + ' ' + trunc(l.name.replace(/\*/g, ''), 12);
         if (sel || ctx.measureText(full).width + 12 < nb) lab = full;
       }
       const tw = ctx.measureText(lab).width + 12;
@@ -268,7 +271,7 @@
     if (!d || !d.moved || !App.S) return;
     const S = App.S, h = d.h;
     if (h.type === 'crop' || h.type === 'cropmove') S.crop = d.crop0;
-    else if (h.type === 'lane' && S.lanes[h.i]) S.lanes[h.i].x = d.x0;
+    else if (h.type === 'lane' && d.grid0) App.restoreLaneGrid(d.grid0);
     else if (h.type === 'band' && d.band0) Object.assign(S.markers[h.m].bands[h.i], d.band0);
     else if (h.type === 'arrow' && S.arrows[h.i]) S.arrows[h.i].y = d.y0;
     else if ((h.type === 'boxmove' || h.type === 'boxsize') && S.boxes[h.i]) Object.assign(S.boxes[h.i], d.orig);
@@ -284,6 +287,7 @@
     if (p.y < c.y || p.y > c.y + c.h) return;
     if (mode === 'arrow') { if (App.placeArrow) App.placeArrow(p.x, p.y); return; }
     if (p.x < c.x || p.x > c.x + c.w) return;
+    if (mode === 'marker-lane') { G.MarkerUI.pickAt(p.x); return; }
     App.selLane = App.addLane(p.x); App.selArrow = -1;
     if (G.FigEdit) G.FigEdit.setMode(null);
     App.commit();
@@ -309,7 +313,7 @@
     }
     if (pinch) return;
     const p = toImg(sx, sy);
-    if (App.mode === 'arrow' || App.mode === 'lane') {
+    if (App.mode === 'arrow' || App.mode === 'lane' || App.mode === 'marker-lane') {
       // a mouse click acts at once; a finger may still pan or pinch first, so it acts on a clean tap
       if (touch) drag = { h: { type: 'pan' }, tap: App.mode, sx, sy, p0: p, moved: false, view0: Object.assign({}, view), touch };
       else tapAction(App.mode, p);
@@ -329,7 +333,7 @@
     const h = hitTest(sx, sy, e.shiftKey, touch ? HIT_TOUCH : HIT);
     drag = { h, sx, sy, p0: p, crop0: Object.assign({}, App.S.crop), moved: false, view0: Object.assign({}, view), touch };
     App.selAnno = null;
-    if (h.type === 'lane') { App.selLane = h.i; App.selArrow = -1; drag.x0 = App.S.lanes[h.i].x; App.emit('select'); }
+    if (h.type === 'lane') { App.selLane = h.i; App.selArrow = -1; drag.x0 = App.S.lanes[h.i].x; drag.grid0 = App.laneGrid(); App.emit('select'); }
     else if (h.type === 'arrow') { App.selArrow = h.i; App.selLane = -1; drag.y0 = App.S.arrows[h.i].y; App.emit('select'); }
     else if (h.type === 'boxmove' || h.type === 'boxsize') { App.selAnno = { kind: 'box', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = Object.assign({}, App.S.boxes[h.i]); }
     else if (h.type === 'brend' || h.type === 'brmove') { App.selAnno = { kind: 'bracket', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = Object.assign({}, App.S.brackets[h.i]); }
@@ -371,7 +375,7 @@
         cv.style.cursor = 'crosshair'; draw();
         return;
       }
-      if (App.mode === 'box' || App.mode === 'bracket' || App.mode === 'lane') { cv.style.cursor = 'crosshair'; return; }
+      if (App.mode === 'box' || App.mode === 'bracket' || App.mode === 'lane' || App.mode === 'marker-lane') { cv.style.cursor = 'crosshair'; return; }
       const h = hitTest(sx, sy, e.shiftKey);
       const changed = JSON.stringify(h) !== JSON.stringify(hover);
       hover = h; cv.style.cursor = cursorFor(h);
@@ -405,7 +409,7 @@
       }
       S.crop = { x: Math.round(x0), y: Math.round(y0), w: Math.round(x1 - x0), h: Math.round(y1 - y0) };
     } else if (h.type === 'lane') {
-      S.lanes[h.i].x = Math.max(0, Math.min(rot.w, drag.x0 + dx));
+      App.dragLane(h.i, drag.x0 + dx, drag.grid0, e.altKey);
     } else if (h.type === 'band') {
       const b = S.markers[h.m].bands[h.i];
       b.y = Math.max(0, Math.min(rot.h, drag.y0 + dy)); b.manual = true; b.matched = false;
@@ -434,6 +438,7 @@
     }
     if (!d.moved) {
       if (d.tap) { if (App.mode === d.tap) tapAction(d.tap, d.p0); return; }
+      if (d.h.type === 'band' && G.MarkerUI) { G.MarkerUI.open(d.h.m, d.h.i); return; }
       if ((d.h.type === 'boxmove' || d.h.type === 'boxsize' || d.h.type === 'brend' || d.h.type === 'brmove') && App.openAnno) {
         App.openAnno(d.h.type.startsWith('box') ? 'box' : 'bracket', d.h.i);
         draw(); return;
@@ -515,7 +520,7 @@
       e.preventDefault();
     }
     if (App.selLane >= 0 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-      App.S.lanes[App.selLane].x += (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 5 : 1);
+      App.dragLane(App.selLane, App.S.lanes[App.selLane].x + (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 5 : 1), null, e.altKey);
       App.commit(); e.preventDefault();
     }
   });

@@ -340,29 +340,35 @@
   // user chose for a marker that is still at (about) the same position
   function relaneMarkers(fn) {
     const st = S();
-    const had = st.markers.length;
     const n = fn();
-    /* Lanes moved, so the markers were carried across by position. Only look for marker lanes again
-     * when none survived — re-detecting every time would bring back a marker the user has just
-     * removed because it was detected on the wrong lane. */
-    if (st.markers.length) App.matchMarkers(true);
-    else if (had) App.autoMarkers();
+    // Refit surviving markers around their manual anchors; never recreate a removed marker here.
+    if (st.markers.length) App.matchMarkers(false);
     return n;
   }
   $('btnRedetectCrop').onclick = done(() => {
-    const n = relaneMarkers(() => App.redetectLanesInCrop());
-    toast(n ? L(`框内识别出 ${n} 条泳道`, `Found ${n} lanes in the box`) : L('框内没识别到泳道，可以填条数后点"等间距排布"', 'No lanes found in the box; enter the number and click "Space evenly"'));
+    const n = relaneMarkers(() => { const count = App.redetectLanesInCrop(); if (count && S().laneLinked !== false) App.resizeLaneGrid(count); return count; });
+    toast(n ? L(`框内识别出 ${n} 条泳道，可拖动首尾线对齐`, `Found ${n} lanes; drag the end lines to align`) : L('框内没识别到泳道，请直接填写泳道数', 'No lanes found; enter the lane count directly'));
   });
-  const evenCrop = done(() => {
-    let res = null;
-    relaneMarkers(() => { res = App.evenLanesBetweenEnds(+$('cropLaneN').value || 0); return res.n; });
-    toast(res.fromEnds
-      ? L(`已按最左、最右两条泳道等间距排布 ${res.n} 条泳道（间距 ${Math.round(res.pitch)} px）`, `${res.n} lanes spaced evenly between the outermost two (pitch ${Math.round(res.pitch)} px)`)
-      : L(`框内只有一条泳道，已在红框内等间距排布 ${res.n} 条`, `Only one lane was in the box; spaced ${res.n} lanes evenly across the box`));
-  });
+  function setGridCount(n) {
+    if (!S()) return;
+    if (!Number.isFinite(n) || n < 1) { const r = App.laneRange(); $('cropLaneN').value = r ? r[1] - r[0] + 1 : 1; return; }
+    G.FigEdit && G.FigEdit.flush();
+    const res = App.resizeLaneGrid(n); App.commit();
+    if (res.removedMarkers) toast(L('减少条数移除了对应的 Marker，Ctrl/⌘+Z 可撤销', 'Reducing the count removed a marker; Ctrl/⌘+Z undoes it'));
+  }
   G.UI_relane = relaneMarkers;
-  $('btnEvenCrop').onclick = evenCrop;
-  $('cropLaneN').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); evenCrop(); } });
+  $('cropLaneN').addEventListener('change', e => setGridCount(+e.target.value));
+  $('cropLaneN').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
+  $('laneCountMinus').onclick = () => setGridCount(Math.max(1, +$('cropLaneN').value - 1));
+  $('laneCountPlus').onclick = () => setGridCount(Math.min(60, +$('cropLaneN').value + 1));
+  function gridLabels() {
+    $('laneCountMinus').setAttribute('aria-label', L('减少一条泳道', 'One fewer lane'));
+    $('laneCountPlus').setAttribute('aria-label', L('增加一条泳道', 'One more lane'));
+    $('figureTools').setAttribute('aria-label', L('成图编辑', 'Figure editing'));
+  }
+  gridLabels(); G.I18N.onChange(gridLabels);
+  $('laneLinked').onchange = done(e => { S().laneLinked = e.target.checked; if (e.target.checked) App.resizeLaneGrid(+$('cropLaneN').value); });
+  document.addEventListener('pointerdown', e => { const d = document.querySelector('.grid-help'); if (!d.contains(e.target)) d.open = false; });
 
   // empty lanes inside the range: suggest cutting them (never done silently)
   const ignoredEmpty = new Set();
@@ -417,7 +423,17 @@
     const n = Math.min(names.length, lanes.length);
     toast(L(`已填入 ${n} 个泳道名`, `Filled in ${n} lane name${n > 1 ? 's' : ''}`));
   }
-  $('laneBulk').addEventListener('change', applyBulk);
+  $('btnEditNames').onclick = () => {
+    if (!S()) return;
+    if (G.Mobile && isPhone()) G.Mobile.setView('fig');
+    const lanes = figLanes(), i = lanes.find(i => !S().lanes[i].name.trim()) ?? lanes[0];
+    if (i != null) G.FigEdit.openEd('lane', i);
+  };
+  $('btnBulkNames').onclick = () => { $('figureNames').classList.toggle('hidden'); if (!$('figureNames').classList.contains('hidden')) $('laneBulk').focus(); };
+  $('btnBulkClose').onclick = () => $('figureNames').classList.add('hidden');
+  $('btnBulkApply').onclick = () => { if (S()) { applyBulk(); $('figureNames').classList.add('hidden'); } };
+  document.addEventListener('pointerdown', e => { if (!$('figureTextMenu').contains(e.target)) $('figureTextMenu').open = false; });
+  $('figureTextMenu').addEventListener('keydown', e => { if (e.key === 'Escape' && !e.isComposing) { e.stopPropagation(); $('figureTextMenu').open = false; $('figureTextMenu').querySelector('summary').focus(); } });
   $('laneBulk').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); applyBulk(); } });
 
   /* ---------- 4 markers ---------- */
@@ -426,16 +442,7 @@
     const n = S().markers.length;
     toast(n ? L(`找到 ${n} 个 Marker 泳道`, `Found ${n} marker lane${n > 1 ? 's' : ''}`) : L('出图范围内没找到明显的 Marker 泳道', 'No clear marker lane in the figure range'));
   });
-  $('btnAddMarker').onclick = done(() => {
-    const used = new Set(S().markers.map(m => m.lane));
-    const cand = figLanes().filter(i => !used.has(i));
-    const sel = App.selLane >= 0 && !used.has(App.selLane) ? App.selLane : cand[0];
-    if (sel == null) { toast(L('出图范围内没有空闲泳道', 'No free lane in the figure range')); return; }
-    S().markers.push(App.newMarker(sel, (S().markers[0] || {}).ladderId));
-    S().markers.sort((a, b) => a.lane - b.lane);
-    if (!S().lanes[sel].name) S().lanes[sel].name = 'M';
-    App.matchMarkers(true);
-  });
+  $('btnAddMarker').onclick = () => { if (S()) G.MarkerUI.pickLane(); };
   $('btnSaveLadder').onclick = () => {
     const name = $('customName').value.trim();
     const sizes = $('customSizes').value.split(/[,，\s]+/).map(Number).filter(v => v > 0);
@@ -506,7 +513,9 @@
           ${out ? `<span class="h3-note">${L('不在出图范围', 'outside the figure')}</span>` : sc != null ? `<span class="mk-score${sc < 60 ? ' low' : ''}">${sc < 60 ? L('吻合度低，请核对型号', 'Poor fit — check the ladder') : L('吻合 ', 'Fit ') + sc + '%'}</span>` : ''}
           <button class="star${G.Ladders.isFavorite(m.ladderId) ? '' : ' off'}" data-f="fav" title="${L('把这个型号设为/取消常用（常用型号在自动识别时优先）', 'Add this ladder to / remove it from favourites (preferred during detection)')}">★</button>
           <button class="x" data-f="del" title="${L('不作为 Marker', 'Not a marker')}">×</button></div>
-        <select data-f="ladder">${ladderOptions(all, m.ladderId)}</select>
+        <div class="marker-actions"><button class="btn sm primary" data-f="guide">${L('核对条带 / 型号图例', 'Review bands / ladder guide')}</button><button class="btn sm ghost" data-f="move">${L('换泳道', 'Change lane')}</button></div>
+        <label class="marker-lane-select">${L('所在泳道', 'Marker lane')}<select data-f="lane">${st.lanes.map((l,i) => laneOpt(i,m.lane)).join('')}</select></label>
+        <select data-f="ladder" aria-label="${L('Marker 型号', 'Ladder model')}">${ladderOptions(all, m.ladderId)}</select>
         <div class="row2">
           <select data-f="side"><option value="auto">${L('标签：自动分侧', 'Labels: auto side')}</option><option value="left">${L('标签在左', 'Labels left')}</option><option value="right">${L('标签在右', 'Labels right')}</option></select>
           <select data-f="unit">${App.gelKind() === 'protein'
@@ -524,6 +533,9 @@
     $('markerList').querySelectorAll('.mk-card').forEach(card => {
       const m = st.markers[+card.dataset.mi], q = f => card.querySelector(`[data-f="${f}"]`);
       q('side').value = m.side; q('unit').value = m.unit;
+      q('guide').onclick = () => G.MarkerUI.open(+card.dataset.mi);
+      q('move').onclick = () => G.MarkerUI.pickLane(+card.dataset.mi);
+      q('lane').onchange = e => { if (!G.MarkerUI.assignLane(+e.target.value, +card.dataset.mi)) e.target.value = String(m.lane); };
       q('ladder').addEventListener('change', done(e => { m.ladderId = e.target.value; m.bands = []; App.prefLadder = m.ladderId; App.matchMarkers(false); }));
       q('side').addEventListener('change', done(e => { m.side = e.target.value; }));
       q('unit').addEventListener('change', done(e => { m.unit = e.target.value; App.prefUnit = m.unit; }));
@@ -544,17 +556,12 @@
       const out = !r || i < r[0] || i > r[1];
       return `<div class="item${i === App.selLane ? ' sel' : ''}${out ? ' out' : ''}">
         <span class="idx" data-pick="${i}" title="${L('选中这条泳道（之后可按 Delete / ⌫ 删除）', 'Select this lane (then Delete / ⌫ removes it)')}">${i + 1}</span>
-        <input type="text" data-i="${i}" value="${esc(l.name)}" placeholder="${isMarkerLane(i) ? 'M' : L('名称', 'Name')}">
+        <button class="lane-name-link" data-edit-lane="${i}" title="${L('在成图中编辑', 'Edit on the figure')}">${esc(l.name || (isMarkerLane(i) ? 'M' : '—'))}</button>
         ${empty.has(i) ? `<span class="tag" title="${L('几乎没有条带', 'almost no bands')}">${L('空', 'empty')}</span>` : ''}
         <label class="switch" title="${L('取消 = 从成图剪除（自动加拼接间隙）；选中泳道后按 H 也可切换', 'Untick = remove from the figure (splice gap added); or select the lane and press H')}"><input type="checkbox" data-h="${i}" ${l.hidden ? '' : 'checked'}>${L('显示', 'Show')}</label>
         <button class="x" data-del="${i}" title="${L('删除这条泳道（误识别时用）', 'Delete this lane (if it was detected by mistake)')}">×</button></div>`;
     }).join('');
-    $('laneList').querySelectorAll('input[type=text]').forEach(inp => {
-      const i = +inp.dataset.i;
-      inp.addEventListener('input', live(e => { st.lanes[i].name = e.target.value; }));
-      inp.addEventListener('change', done());
-      inp.addEventListener('focus', () => { App.selLane = i; G.Editor.draw(); });
-    });
+    $('laneList').querySelectorAll('[data-edit-lane]').forEach(b => b.onclick = () => { if (G.Mobile && isPhone()) G.Mobile.setView('fig'); G.FigEdit.openEd('lane', +b.dataset.editLane); });
     $('laneList').querySelectorAll('[data-h]').forEach(inp => inp.addEventListener('change', e => {
       if (toggleLaneHidden(+inp.dataset.h, !e.target.checked)) App.commit(); else e.target.checked = true;
     }));
@@ -565,6 +572,7 @@
     $('laneList').querySelectorAll('[data-del]').forEach(b => b.onclick = done(() => { App.removeLane(+b.dataset.del); App.selLane = -1; toast(L('已删除泳道（Ctrl+Z 可撤销）', 'Lane deleted (Ctrl+Z to undo)')); }));
     $('laneCountNote').textContent = L(`${st.lanes.length} 孔`, `${st.lanes.length} wells`);
     if (document.activeElement !== $('cropLaneN')) $('cropLaneN').value = r ? r[1] - r[0] + 1 : '';
+    $('laneLinked').checked = st.laneLinked !== false;
     // range selects
     const opts = sel => st.lanes.map((l, i) => laneOpt(i, sel)).join('');
     $('rangeA').innerHTML = opts(r ? r[0] : 0);
@@ -803,6 +811,9 @@
   App.on(what => {
     if (!S()) return;
     if (what === 'loaded') {
+      $('figureTools').classList.remove('hidden'); $('figureNames').classList.add('hidden');
+      $('rawGridTools').classList.remove('hidden');
+      requestAnimationFrame(() => { G.Editor.resize(); G.Editor.fitCrop(); });
       $('emptyState').classList.add('hidden'); $('draftBox').classList.add('hidden'); $('sections').classList.remove('hidden');
       histCache = null; renderExposures();
       // lanes that had to be re-spaced because neighbours ran together: worth a look before naming
@@ -826,7 +837,7 @@
   window.addEventListener('resize', () => { if (S()) { updatePreview(); drawHisto(); } });
 
   G.UI = {
-    toast, updatePreview, figLanes, range, esc, flushPending, archiveCurrent, offerDraft, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
+    toast, updatePreview, figLanes, range, esc, flushPending, archiveCurrent, offerDraft, ladderOptions, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
     figZoom: () => figZoom,
     setFigZoom(z) { figZoom = z; if (S()) updatePreview(); }
   };

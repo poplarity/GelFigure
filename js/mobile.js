@@ -61,7 +61,7 @@
   });
   // tools that need the image or the figure take you there
   const TOOL_VIEW = { btnAddArrow: 'raw', btnAddBox: 'raw', btnAddBracket: 'raw', btnAddGroup: 'fig', btnAddCond: 'fig', btnAddLabel: 'fig',
-    btnEvenCrop: 'raw', btnRedetectCrop: 'raw', btnAutoLanes: 'raw' };
+    btnRedetectCrop: 'raw', btnAutoLanes: 'raw' };
   Object.entries(TOOL_VIEW).forEach(([id, v]) => $(id).addEventListener('click', () => {
     if (!phone() || !S()) return;
     if (/^btnAdd(Arrow|Box|Bracket|Group)$/.test(id) && !App.mode) return;   // the tool was switched off
@@ -225,7 +225,7 @@
     const step = () => {
       const l = S() && S().lanes[App.selLane];
       if (!l) return;
-      l.x = Math.max(0, Math.min(App.rot.w, l.x + dir * Math.max(0.5, 1 / G.Editor.zoom())));
+      App.dragLane(App.selLane, l.x + dir * Math.max(0.5, 1 / G.Editor.zoom()));
       G.Editor.draw(); App.refresh();
     };
     window.addEventListener('pointerup', stop); window.addEventListener('pointercancel', stop);
@@ -238,7 +238,7 @@
   // the banner sits just under the visible pane's header (the coach line above it varies in height)
   function placeBannerTop() {
     if (!phone() || banner.classList.contains('hidden')) { banner.style.top = ''; return; }
-    const head = document.querySelector(view() === 'fig' ? '#figCol .col-head' : '#rawCol .col-head');
+    const head = document.querySelector(view() === 'fig' ? '#figureTools' : '#rawGridTools');
     const r = head && head.getBoundingClientRect();
     banner.style.top = r && r.height ? Math.round(r.bottom + 6) + 'px' : '';
   }

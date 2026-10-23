@@ -4,9 +4,9 @@ Available since **v0.6.7**, online and in the single-file offline HTML.
 
 **v0.6.7 起可用**，网页版和单文件离线版都支持。
 
-**字体选择（v0.6.8 起）：**「版式 → 成图字体」可选 Arial、新罗马、Helvetica、Calibri、Cambria，PPTX 文本及主题会记录所选字体名称。系统未提供该字体时，浏览器和 PowerPoint 可能各自使用替代字体；不嵌入字体文件。
+**字体选择（v0.6.8 起）：**「成图字体」可选 Arial、新罗马、Helvetica、Calibri、Cambria（dev 界面入口位于成图上方「字体与字号」），PPTX 文本及主题会记录所选字体名称。系统未提供该字体时，浏览器和 PowerPoint 可能各自使用替代字体；不嵌入字体文件。
 
-**Font selection (v0.6.8+):** Layout → Figure font selects Arial, Times New Roman, Helvetica, Calibri or Cambria. PPTX text and its theme reference the chosen face. A missing font may be substituted differently by the browser and PowerPoint; no font files are embedded.
+**Font selection (v0.6.8+):** Figure font selects Arial, Times New Roman, Helvetica, Calibri or Cambria (in the dev interface, use Fonts & sizes above the figure). PPTX text and its theme reference the chosen face. A missing font may be substituted differently by the browser and PowerPoint; no font files are embedded.
 
 **原色显示 / original colour (v0.6.8+):** PPTX 内的图片跟随「保留原色／灰度」选择。原色模式保留颜色，不使用灰度对比度、反色和 Gamma；仍可在 PPT 中调整裁切。Pictures follow the selected appearance. Original-colour mode retains source colours without grayscale levels/inversion/gamma, and still supports native recropping.
 

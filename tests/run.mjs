@@ -18,6 +18,7 @@ import { fontChecks } from './fonts.mjs';
 import { unitHeaderChecks } from './unit-header.mjs';
 import { colourChecks } from './colour.mjs';
 import { historyChecks } from './history.mjs';
+import { workflowChecks } from './workflow.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -120,6 +121,9 @@ async function runIn(name, base) {
     const history = await historyChecks(browser, base, ROOT, name);
     out.results.push(...history);
     if (history.some(r => r[0] === 'FAIL')) out.ok = false;
+    const workflow = await workflowChecks(browser, base, ROOT, name);
+    out.results.push(...workflow);
+    if (workflow.some(r => r[0] === 'FAIL')) out.ok = false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];
