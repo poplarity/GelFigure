@@ -81,7 +81,7 @@
       <p class="hint d-only" data-en="You can drop several exposures of the same gel at once; the best one is picked automatically.">可以一次拖入同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
       <p class="hint m-only" data-en="You can pick several exposures of the same gel at once; the best one is chosen automatically.">可以一次选择同一块胶的多张不同曝光，自动挑出最合适的一张。</p>
       <p class="privacy" data-en="Images are processed only in this browser and never uploaded.">图片只在本机浏览器处理，不会上传。</p>
-      <p class="hint storage-note hidden" data-en="Browser storage is unavailable. You can still edit and export; preferences and custom ladders stay in this tab only. Save a project before closing.">浏览器存储不可用，仍可编辑和导出；偏好与自定义 Marker 仅在本页暂存，关闭前请保存项目。</p>
+      <p class="hint storage-note hidden" data-en="Preference storage is unavailable; editing and export still work. Check the separate marker-library cache status. Save a project before closing.">偏好存储不可用，仍可编辑和导出；Marker 库是否保存成功请看其缓存状态。关闭前请保存项目。</p>
     </div>
 
     <div id="sections" class="hidden">
@@ -94,7 +94,7 @@
             <button data-gel="dna" data-en="DNA (bp)">DNA 胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button>
           </div>
           <p class="hint" id="gelTypeWhy"></p>
-          <p class="hint storage-note hidden" data-en="Browser storage is unavailable. You can still edit and export; preferences and custom ladders stay in this tab only. Save a project before closing.">浏览器存储不可用，仍可编辑和导出；偏好与自定义 Marker 仅在本页暂存，关闭前请保存项目。</p>
+          <p class="hint storage-note hidden" data-en="Preference storage is unavailable; editing and export still work. Check the separate marker-library cache status. Save a project before closing.">偏好存储不可用，仍可编辑和导出；Marker 库是否保存成功请看其缓存状态。关闭前请保存项目。</p>
         </div>
         <div class="field">
           <label data-en="Image appearance">图像显示</label>
@@ -192,13 +192,20 @@
           <div id="favList" class="list"></div>
           <label class="switch"><input type="checkbox" id="onlyFav"><span data-en="Use only these (falls back to all if none fits)">只用勾选的型号（都不吻合时自动回退全库）</span></label>
         </details>
-        <details class="adv">
+        <details class="adv" id="customLadderAdv">
           <summary data-en="Custom ladder">自定义 Ladder</summary>
           <div class="field"><input type="text" id="customName" placeholder="名称" data-en-placeholder="Name"></div>
           <div class="field"><input type="text" id="customSizes" placeholder="条带大小，逗号分隔：5000,3000,2000,1000,500（DNA 胶填 bp，蛋白胶填 kDa）" data-en-placeholder="Band sizes, comma separated: 5000,3000,2000,1000,500 (bp for DNA gels, kDa for protein)"></div>
           <button class="btn sm" id="btnSaveLadder" data-en="Save and use">保存并使用</button>
           <div id="customList" class="list"></div>
         </details>
+        <p class="hint" id="ladderCacheStatus" role="status" aria-live="polite"></p>
+        <div class="field inline" style="flex-wrap:wrap">
+          <button class="btn sm ghost" id="btnBackupLadders" data-en="Back up marker library">备份 Marker 库</button>
+          <button class="btn sm ghost" id="btnImportLadders" data-en="Import marker library">导入 Marker 库</button>
+          <input type="file" id="ladderLibraryInput" accept=".json,application/json" hidden>
+        </div>
+        <p class="hint" data-en="Custom models and favourites are cached together. A different browser or offline HTML file may use separate storage; back up the library to move it. Backups contain models and favourites only, not images.">自定义型号与常用收藏一起缓存。换浏览器或换离线 HTML 文件可能使用不同缓存，可通过备份迁移；备份仅含型号和收藏，不含图片。</p>
       </section>
 
       <!-- annotations -->
@@ -516,6 +523,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/tiff.js"></script>
 <script src="js/colour.js"></script>
+<script src="js/ladder-cache.js"></script>
 <script src="js/ladders.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/render.js"></script>

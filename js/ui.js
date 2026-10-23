@@ -161,7 +161,7 @@
   // an open popover is built in the old language: finish it first
   $('btnLang').onclick = () => { if (G.FigEdit) G.FigEdit.closePop(); G.I18N.set(G.I18N.lang === 'en' ? 'zh' : 'en'); };
   G.I18N.onChange(() => {
-    renderFavs(); renderExposures();
+    renderFavs(); renderExposures(); ladderStatus();
     if (S()) App.emit('change');
     else offerDraft();
   });
@@ -421,17 +421,42 @@
     toast(n ? L(`找到 ${n} 个 Marker 泳道`, `Found ${n} marker lane${n > 1 ? 's' : ''}`) : L('出图范围内没找到明显的 Marker 泳道', 'No clear marker lane in the figure range'));
   });
   $('btnAddMarker').onclick = () => { if (S()) G.MarkerUI.pickLane(); };
-  $('btnSaveLadder').onclick = () => {
+  $('btnSaveLadder').onclick = async () => {
     const name = $('customName').value.trim();
-    const sizes = $('customSizes').value.split(/[,，\s]+/).map(Number).filter(v => v > 0);
-    const unit = App.gelKind() === 'protein' ? 'kDa' : 'bp';
-    if (!name || sizes.length < 2) { alert(L('请输入名称和至少 2 个条带大小', 'Enter a name and at least 2 band sizes')); return; }
-    const lad = G.Ladders.saveCustom(name, sizes, App.gelKind());
-    if (!G.Ladders.isFavorite(lad.id)) G.Ladders.toggleFavorite(lad.id);   // new custom ladders start as favourites
-    if (S() && S().markers.length) { S().markers[0].ladderId = lad.id; App.matchMarkers(true); App.commit(); }
-    renderFavs();
-    toast(L(`已保存自定义 Ladder（单位 ${unit}，已加入常用）`, `Custom ladder saved in ${unit} (added to favourites)`));
+    const sizes = $('customSizes').value.trim().split(/[,，\s]+/).map(Number),state=S(),kind=App.gelKind();
+    $('btnSaveLadder').disabled=true;
+    try{
+      await G.Ladders.ready;const lad=G.Ladders.saveCustom(name,sizes,kind);
+      if(!G.Ladders.isFavorite(lad.id))G.Ladders.toggleFavorite(lad.id);
+      if(state&&state===S()&&state.markers.length){const m=state.markers[0];m.ladderId=lad.id;m.bands=[];m.ladderLocked=true;App.alignMarker(0);App.commit();}
+      renderFavs();const saved=await G.Ladders.flush();
+      toast(saved?L('Marker 已存入本机库并加入常用，下次打开仍可选择','Marker saved locally and added to favourites; available next time'):
+        L('Marker 本次可用，但未能存入本机；请点“备份 Marker 库”保存','Marker available for this session but not cached; use Back up marker library'),saved?3200:6500);
+    }catch(e){toast(e.message,4500);}finally{$('btnSaveLadder').disabled=false;}
   };
+  $('btnBackupLadders').onclick=async()=>{await G.Ladders.ready;G.Export.download(new Blob([JSON.stringify(G.Ladders.backup(),null,2)],{type:'application/json'}),'GelFigure_markers.json');};
+  $('btnImportLadders').onclick=()=>$('ladderLibraryInput').click();
+  $('ladderLibraryInput').onchange=async e=>{
+    const f=e.target.files[0];e.target.value='';if(!f)return;
+    try{
+      if(f.size>2*1024*1024)throw new Error(L('Marker 库文件不能超过 2 MB','Marker library file must be at most 2 MB'));
+      await G.Ladders.ready;const n=G.Ladders.importLibrary(JSON.parse(await f.text())),saved=await G.Ladders.flush();renderFavs();if(S())renderMarkers();
+      toast(saved?L(`已导入并保存 ${n} 个新型号，原有型号保留`,`${n} new models imported and saved; existing models kept`):
+        L('已导入，但本机缓存不可用，请保留备份文件','Imported, but local caching is unavailable; keep the backup file'),5000);
+    }catch(e){toast(L('导入失败：','Import failed: ')+e.message,5000);}
+  };
+  function ladderStatus(){
+    const status=G.Ladders.cacheStatus;
+    $('ladderCacheStatus').textContent=status==='saved'?L('已保存在此浏览器，下次打开可用','Saved in this browser; available next time'):
+      status==='memory'?L('未能写入本机缓存，仅本次可用。请备份 Marker 库。','Local cache unavailable; this session only. Back up the marker library.'):
+      status==='loading'?L('正在读取本机 Marker 库…','Loading local marker library…'):L('正在保存 Marker 库…','Saving marker library…');
+    $('ladderCacheStatus').classList.toggle('warn-text',status==='memory');
+  }
+  let ladderRefresh=0;
+  window.addEventListener('gelfigure-ladders',()=>{
+    ladderStatus();cancelAnimationFrame(ladderRefresh);ladderRefresh=requestAnimationFrame(()=>{renderFavs();if(S()&&!$('markerList').contains(document.activeElement))renderMarkers();});
+  });
+  ladderStatus();
   /* favourites: biased first in auto-detection, listed first in menus */
   $('onlyFav').checked = !!App.prefs().onlyFavLadders;
   $('onlyFav').addEventListener('change', e => {

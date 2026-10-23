@@ -5,6 +5,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 **中文摘要**
+- 新导入图片默认灰度处理，仍可手动切换「保留原色」；项目、历史记录和样式恢复其已保存的显示模式。
+- 自定义 Marker 独立本地缓存：手动新增及从项目、模板导入的型号和常用收藏，下次打开可继续使用；旧缓存自动迁移。常规存储失败时使用 IndexedDB 备用缓存，真实显示保存状态；支持备份、导入整个 Marker 库，不含胶图。同名 DNA 与蛋白型号不再互相覆盖，导入冲突保留两份定义。
 - Marker 标签面板和条带大小面板可拖动标题移开，兼容鼠标和触屏；同一项目内再次打开保留位置，窗口变化时自动保持在屏幕内，也可聚焦标题后用方向键移动。
 - 原图双击仅打开已有 Marker 泳道的编辑面板；普通泳道和空白处双击不再新增。电脑、手机均有“＋ 泳道”入口，单击放置；校准模式仍可单击条带选大小。
 - 参考 BlotFigure 重做泳道操作：默认等距联动，拖首尾实时均分，拖中间整体平移；左侧改条数立即生效，支持 1–60 条，手机在“设置”页。出图范围直接拖红框，移除左侧孔号范围选择。保留关闭联动 / Alt 单独微调，旧项目打开时不重新排布。
@@ -13,6 +15,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Marker 改为引导点选泳道；“识别此泳道”只对齐当前所选型号，不影响其他 Marker。参考卡留在原图旁，不再打开大对话框；型号先预览再应用，选大小后点实际条带补标，也可先点实际条带再选大小。图例明确为示意，参考带颜色不冒充真实染料颜色。
 
 ### Changed
+- New image imports and exposure sets start in grayscale. Original-colour display remains available; projects, history and templates retain their saved display mode.
+- Custom marker definitions and favourites now use an independent local library with an IndexedDB fallback, legacy migration and explicit save status. Detection waits for restored models. Portable JSON backup/import carries the whole custom catalogue and favourite IDs without images; import validates and merges without overwriting existing definitions. Same-name DNA/protein models coexist and changed definitions get distinct IDs.
 - Draggable marker-label and band-size panels: move the title with a mouse or touch, or focus it and use arrow keys. Positions persist while editing the same project, stay within the visible viewport on resize/keyboard changes, and never enter figure state or exports.
 - Double-click/double-tap an existing marker lane on the raw image to open its editor. Samples and gaps no longer add lanes; the explicit + Lane tool is available on desktop and phones. Single-band clicks open size controls only in calibration mode, leaving the image stable for double-clicking elsewhere.
 - Linked lane guides with immediate count changes, live end-handle alignment, group translation and optional independent adjustment. Resizing preserves retained lane identities, conditions and marker anchors; alignment does not rediscover removed markers. Existing projects keep saved geometry.

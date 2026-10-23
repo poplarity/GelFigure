@@ -316,6 +316,7 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .marker-actions { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
 .marker-lane-select { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
 .marker-lane-select select { flex: 1; min-width: 0; }
+#ladderCacheStatus.warn-text { color: var(--warn); }
 .marker-reference-card { position: absolute; top: 10px; right: 10px; z-index: 4; width: 170px; max-height: calc(100% - 20px); overflow: auto; padding: 9px; background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow); font-size: 11.5px; }
 .marker-ref-head { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 .marker-ref-head button { background: none; border: 0; font-size: 19px; line-height: 1; color: var(--muted); cursor: pointer; padding: 3px; }

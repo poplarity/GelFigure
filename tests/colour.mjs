@@ -77,12 +77,15 @@ export async function colourChecks(browser,base,root,engine){
       window.colourSource={name:'synthetic-colour.tif',buffer};await App.load(window.colourSource);
       return btoa(s);
     });fs.writeFileSync(path.join(dir,'synthetic-colour.tif'),Buffer.from(source,'base64'));
-    await check('colour: default original display; switching keeps detection, crop and annotations',async()=>{
+    await check('colour: new imports default to grayscale; switching keeps detection, crop and annotations',async()=>{
       const r=await p.evaluate(()=>{
         const S=App.S,fl=App.figureLanes();S.lanes[fl[1]].name='Sample';S.groups=[{from:fl[1],to:fl.at(-1),text:'Synthetic protein gel'}];S.arrows=[{y:S.crop.y+S.crop.h*.5,text:'Target',size:false}];
         S.levels={black:.2,white:.7,gamma:2,invert:true};App.commit();
         const geometry=()=>JSON.stringify({rotation:App.S.rotation,crop:App.S.crop,lanes:App.S.lanes,markers:App.S.markers,groups:App.S.groups,arrows:App.S.arrows});
-        const before=geometry(),data=App.src.data,mode=App.isColour();App.setRotation(0);const beforeRotation=geometry();App.commit();App.renderFull();
+        const before=geometry(),data=App.src.data,mode=App.S.displayMode;App.renderFull();
+        const initial=App.fullCanvas.getContext('2d').getImageData(0,0,App.src.w,App.src.h).data;let initialGray=true;
+        for(let i=0;i<initial.length;i+=388)if(initial[i]!==initial[i+1]||initial[i+1]!==initial[i+2])initialGray=false;
+        App.setDisplayMode('colour');const switchedWithoutEdits=geometry()===before;App.setRotation(0);const beforeRotation=geometry();App.commit();App.renderFull();
         const id=App.fullCanvas.getContext('2d').getImageData(0,0,App.src.w,App.src.h).data;let difference=0;
         for(let i=0;i<App.src.w*App.src.h;i+=97)for(let c=0;c<3;c++)difference=Math.max(difference,Math.abs(id[i*4+c]-App.sourceRGB[i*3+c]));
         const palette=App.displayInfo(),hints=Export.legendHints(App.S),clip=App.bandClipFrac();
@@ -90,9 +93,9 @@ export async function colourChecks(browser,base,root,engine){
         for(let i=0;i<g.length;i+=388)if(g[i]!==g[i+1]||g[i+1]!==g[i+2])gray=false;
         const kept=geometry()===beforeRotation&&data===App.src.data,lv=JSON.stringify(App.S.levels);
         document.querySelector('[data-display="colour"]').click();App.renderFull();
-        return {mode,difference,gray,kept,colourBack:App.isColour(),lvKept:JSON.stringify(App.S.levels)===lv,palette,hints,clip,hidden:document.getElementById('grayAdjustments').classList.contains('hidden'),log:Export.processingLog(App.S).display};
+        return {mode,initialGray,switchedWithoutEdits,difference,gray,kept,colourBack:App.isColour(),lvKept:JSON.stringify(App.S.levels)===lv,palette,hints,clip,hidden:document.getElementById('grayAdjustments').classList.contains('hidden'),log:Export.processingLog(App.S).display};
       });
-      assert(r.mode);assert.equal(r.difference,0);assert(r.gray&&r.kept&&r.colourBack&&r.lvKept&&r.hidden);assert.equal(r.clip,0);assert.equal(r.log.mode,'original-colour');assert(!r.hints.some(t=>t.includes('non-linear')||t.includes('inverted')));
+      assert.equal(r.mode,'gray');assert(r.initialGray&&r.switchedWithoutEdits);assert.equal(r.difference,0);assert(r.gray&&r.kept&&r.colourBack&&r.lvKept&&r.hidden);assert.equal(r.clip,0);assert.equal(r.log.mode,'original-colour');assert(!r.hints.some(t=>t.includes('non-linear')||t.includes('inverted')));
     });
     await check('colour: PNG/TIFF/SVG/PPTX and uncropped output retain RGB',async()=>{
       const r=await p.evaluate(async()=>{
@@ -129,12 +132,12 @@ export async function colourChecks(browser,base,root,engine){
     await check('colour: same-size exposure switching replaces colour pixels without losing names',async()=>{
       const r=await p.evaluate(async()=>{
         const a=window.colourSource,d=await TIFF.decode(a.buffer),rgb=d.rgb.map(v=>255-v),b={name:'colour-b.tif',buffer:Export.encodeTiffRGB(rgb,d.width,d.height,300,'Synthetic')};
-        await App.loadMany([a,b]);App.S.lanes[0].name='Keep name';App.setDisplayMode('colour');App.commit();const next=1-App.expIdx;
+        await App.loadMany([a,b]);const defaultGray=!App.isColour();App.S.lanes[0].name='Keep name';App.setDisplayMode('colour');App.commit();const next=1-App.expIdx;
         const target=await TIFF.decode(App.exposures[next].buffer);await App.switchExposure(next);App.setRotation(0);App.renderFull();
         const pixels=App.fullCanvas.getContext('2d').getImageData(0,0,App.src.w,App.src.h).data;
         let diff=0;for(let i=0;i<target.rgb.length/3;i+=131)for(let c=0;c<3;c++)diff=Math.max(diff,Math.abs(pixels[i*4+c]-target.rgb[i*3+c]));
-        return {kept:App.S.lanes[0].name==='Keep name',mode:App.isColour(),diff};
-      });assert(r.kept&&r.mode);assert.equal(r.diff,0);
+        return {defaultGray,kept:App.S.lanes[0].name==='Keep name',mode:App.isColour(),diff};
+      });assert(r.defaultGray&&r.kept&&r.mode);assert.equal(r.diff,0);
     });
     await check('colour: offline phone can switch modes and export a colour TIFF',async()=>{
       const mctx=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});

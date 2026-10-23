@@ -100,6 +100,7 @@ export async function historyChecks(browser, base, root, engine) {
         ctx.putImageData(pixels, 0, 0);
         const blob = await new Promise(r => c.toBlob(r, 'image/png'));
         await App.load({ name: 'synthetic_blue.png', buffer: await blob.arrayBuffer() });
+        App.setDisplayMode('colour'); // history must restore an explicitly chosen colour mode
         App.S.style.fontFamily = 'Cambria'; App.S.labels.push({ text: 'Coomassie', pos: 'left', pt: 9 });
         App.S.crop.y += 3; App.S.crop.h -= 6; App.commit(); await App.saveDraft();
         return { id: App.projectId, state: App.snapshot(), bytes: await App.sha256(App.sourceRGB.buffer), source: App.S.file.sha256 };

@@ -86,6 +86,7 @@
   // ---------- loading ----------
   // read + decode one input (File or {name, buffer})
   App.readInput = async function (file) {
+    await G.Ladders.ready; // cached custom models/favourites must be available before detection
     const buffer = file.buffer || await file.arrayBuffer();
     const img = await G.TIFF.decodeBuffer(buffer, file.name);
     return { name: file.name, buffer, img, sha256: await App.sha256(buffer) };
@@ -106,7 +107,7 @@
     App.S = {
       file: { name: input.name, bits: img.bits, dpi: img.dpi, actualMax: img.actualMax, sha256: input.sha256, size: input.buffer.byteLength },
       bright: E.detectBright(App.src),
-      displayMode: img.rgb ? 'colour' : 'gray',
+      displayMode: 'gray',
       rotation: 0,
       levels: { black: 0, white: 1, gamma: 1, invert: p.invert != null ? p.invert : false },
       crop: { x: 0, y: 0, w: img.width, h: img.height },
@@ -1434,6 +1435,7 @@
     return (await gz(json)) || new Blob([json], { type: 'application/json' });
   };
   App.openProject = async function (buffer) {
+    await G.Ladders.ready;
     const u = new Uint8Array(buffer, 0, 2);
     const text = u[0] === 0x1f && u[1] === 0x8b ? await gz(new Blob([buffer]), true) : new TextDecoder().decode(buffer);
     const P = JSON.parse(text);

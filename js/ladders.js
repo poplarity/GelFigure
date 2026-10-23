@@ -92,29 +92,40 @@
   const unitOf = (l) => (kindOf(l) === 'protein' ? 'kDa' : 'bp');
   const unitOfKind = k => (k === 'protein' ? 'kDa' : 'bp');
 
-  const CUSTOM_KEY = 'gelfig.customLadders', FAV_KEY = 'gelfig.favLadders';
-  function loadCustom() {
-    try { return JSON.parse(G.PrefStorage.getItem(CUSTOM_KEY) || '[]').map(l => Object.assign({ custom: true }, l, { kind: kindOf(l) })); } catch (e) { return []; }
+  function cleanDef(l){
+    if(!l||typeof l.id!=='string'||!/^[-\w.:]{1,120}$/.test(l.id)||BY_ID.has(l.id)||typeof l.name!=='string'||!l.name.trim()||l.name.length>200||!Array.isArray(l.sizes)||l.sizes.length>100)return null;
+    if(l.sizes.some(v=>typeof v!=='number'||!Number.isFinite(v)||v<=0||v>1e9))return null;
+    const sizes=[...new Set(l.sizes)].sort((a,b)=>b-a);if(sizes.length<2)return null;
+    return {id:l.id,name:l.name.trim(),sizes,ref:Array.isArray(l.ref)?[...new Set(l.ref)].filter(v=>sizes.includes(v)):[],kind:kindOf(l),custom:true};
   }
+  function cleanLibrary(v){
+    if(!v||v.version!==1||!Array.isArray(v.custom)||!Array.isArray(v.favorites))return null;
+    const custom=v.custom.map(cleanDef);if(custom.some(l=>!l)||new Set(custom.map(l=>l.id)).size!==custom.length)return null;
+    const ids=new Set([...BY_ID.keys(),...custom.map(l=>l.id)]);
+    return {version:1,custom,favorites:[...new Set(v.favorites)].filter(id=>ids.has(id)),updatedAt:Number.isFinite(v.updatedAt)&&v.updatedAt>=0?v.updatedAt:0};
+  }
+  const cache=G.LadderCache,ready=cache.start(cleanLibrary);
+  const loadCustom=()=>cache.data.custom;
+  const newId=()=> 'custom_'+(G.crypto?.randomUUID?G.crypto.randomUUID():Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
+  const sameDef=(a,b)=>kindOf(a)===kindOf(b)&&a.name===b.name&&JSON.stringify(a.sizes)===JSON.stringify(b.sizes)&&JSON.stringify(a.ref||[])===JSON.stringify(b.ref||[]);
   function saveCustom(name, sizes, kind) {
-    const list = loadCustom().filter(l => l.name !== name);
-    // a size entered twice would leave one band that can never be matched
-    const lad = { id: 'custom_' + Date.now(), name, sizes: [...new Set(sizes)].sort((a, b) => b - a), ref: [], custom: true, kind: kind === 'protein' ? 'protein' : 'dna' };
-    list.push(lad);
-    G.PrefStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+    const lad=cleanDef({id:newId(),name,sizes,kind,ref:[]});
+    if(!lad)throw new Error(G.L('请输入名称和至少 2 个不同的有效条带大小','Enter a name and at least 2 distinct valid band sizes'));
+    const same=loadCustom().find(l=>sameDef(l,lad));if(same)return same;
+    // Adding a new definition must not silently delete another gel type or break old projects.
+    const base=lad.name;let n=2;while(loadCustom().some(l=>kindOf(l)===lad.kind&&l.name===lad.name))lad.name=base+' ('+(n++)+')';
+    cache.change({type:'put',ladder:lad});
     return lad;
   }
   // register a ladder definition carried by a template / project (keeps its id); true if it was new
   function importDef(def) {
-    if (!def || !def.id || !Array.isArray(def.sizes) || get(def.id)) return false;
-    const list = loadCustom();
-    list.push({ id: def.id, name: def.name || def.id, sizes: [...new Set(def.sizes)].sort((a, b) => b - a), ref: def.ref || [], custom: true, kind: def.kind === 'protein' ? 'protein' : 'dna' });
-    G.PrefStorage.setItem(CUSTOM_KEY, JSON.stringify(list));
+    if (!def || get(def.id)) return false;
+    const lad=cleanDef({...def,name:def.name||def.id});if(!lad)return false;
+    cache.change({type:'put',ladder:lad});
     return true;
   }
   function removeCustom(id) {
-    G.PrefStorage.setItem(CUSTOM_KEY, JSON.stringify(loadCustom().filter(l => l.id !== id)));
-    setFavorites(favorites().filter(f => f !== id));
+    cache.change({type:'remove',id});
   }
   // all(kind): only that gel type; no argument: everything
   function all(kind) { const l = L.concat(loadCustom()); return kind ? l.filter(x => kindOf(x) === kind) : l; }
@@ -124,13 +135,12 @@
 
   // "my ladders": ordered favourites, built-in and custom alike
   function favorites() {
-    try { return JSON.parse(G.PrefStorage.getItem(FAV_KEY) || '[]').filter(id => get(id)); } catch (e) { return []; }
+    return cache.data.favorites.filter(id=>get(id));
   }
-  function setFavorites(ids) { G.PrefStorage.setItem(FAV_KEY, JSON.stringify([...new Set(ids)])); }
+  function setFavorites(ids) { cache.change({type:'favorites',ids:[...new Set(ids)].filter(id=>get(id))}); }
   function isFavorite(id) { return favorites().includes(id); }
   function toggleFavorite(id) {
-    const f = favorites();
-    setFavorites(f.includes(id) ? f.filter(x => x !== id) : f.concat([id]));
+    if(!get(id))return false;cache.change({type:'favorite',id,on:!isFavorite(id)});
     return isFavorite(id);
   }
   // favourites first (in their order), then the rest; optionally restricted to one gel type
@@ -139,6 +149,18 @@
     return f.concat(all(kind).filter(l => !f.some(x => x.id === l.id)));
   }
   function favoritesOf(kind) { return favorites().map(get).filter(l => l && kindOf(l) === kind); }
+  function backup(){return {gelfigureMarkerLibrary:1,version:1,custom:defsFor(loadCustom().map(l=>l.id)),favorites:favorites()};}
+  function importLibrary(value){
+    const v=value?.gelfigureMarkerLibrary===1&&cleanLibrary(value);
+    if(!v)throw new Error(G.L('不是有效的 GelFigure Marker 库文件','Not a valid GelFigure marker library file'));
+    const remap=new Map();let count=0;
+    v.custom.forEach(def=>{
+      const same=loadCustom().find(l=>sameDef(l,def));if(same){remap.set(def.id,same.id);return;}
+      const lad={...def,id:get(def.id)?newId():def.id};cache.change({type:'put',ladder:lad});remap.set(def.id,lad.id);count++;
+    });
+    v.favorites.map(id=>remap.get(id)||id).forEach(id=>{if(get(id))cache.change({type:'favorite',id,on:true});});
+    return count;
+  }
 
   // number formatting by unit; v is the size in the unit's own base (bp for DNA, kDa for protein).
   // Like 'kb', 'kDa' is a bare number: the unit goes in the column header (rendered as "(kDa)").
@@ -152,6 +174,7 @@
 
   G.Ladders = {
     all, get, saveCustom, importDef, removeCustom, defsFor, favorites, favoritesOf, setFavorites,
-    isFavorite, toggleFavorite, ordered, fmt, kindOf, unitOf, unitOfKind
+    isFavorite, toggleFavorite, ordered, fmt, kindOf, unitOf, unitOfKind,
+    ready, flush:()=>cache.flush(), backup, importLibrary, get cacheStatus(){return cache.status;}
   };
 })(window);
