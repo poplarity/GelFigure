@@ -22,6 +22,19 @@ export async function markerWorkflowChecks(browser,base,root,engine){
    assert.equal(await p.locator('#rangeA,#rangeB,#btnRangeAuto').count(),0);
    assert.equal(await p.locator('#btnRedetectCrop').evaluate(e=>e.closest('details')),null);assert(await p.locator('#btnRedetectCrop').isVisible());
   });
+  await check('double click opens the correct marker editor; ordinary lanes/gaps do nothing',async()=>{
+   const saved=await p.evaluate(()=>[App.snapshot(),App.hist.length]);
+   const points=await p.evaluate(()=>{
+    const S=App.S,m=S.markers[0],sample=UI.figLanes().find(i=>!S.markers.some(m=>m.lane===i)),r=document.getElementById('editor').getBoundingClientRect();
+    const q=(x,y)=>{const p=Editor.toScr(x,y);return {x:r.left+p.x,y:r.top+p.y};};
+    return {sample:q(S.lanes[sample].x,S.crop.y+S.crop.h*.45),gap:q((S.lanes[sample].x+S.lanes[sample+1].x)/2,S.crop.y+S.crop.h*.45),marker:q(S.lanes[m.lane].x,S.crop.y+S.crop.h*.45),band:q(S.lanes[m.lane].x,m.bands.find(b=>b.show).y),lane:m.lane};
+   });
+   for(const key of ['sample','gap']){const q=points[key];await p.mouse.dblclick(q.x,q.y);assert(!(await p.locator('#markerLabelPop').isVisible()));}
+   for(const key of ['marker','band']){const q=points[key];await p.mouse.dblclick(q.x,q.y);assert(await p.locator('#markerLabelPop').isVisible());assert((await p.locator('#markerLabelPop .marker-pop-grip').textContent()).includes(String(points.lane+1)));await p.locator('#markerPopClose').click();}
+   assert.deepEqual(await p.evaluate(()=>[App.snapshot(),App.hist.length]),saved);
+   assert(await p.locator('#btnAddLaneM').isVisible());await p.locator('#btnAddLaneM').click();await p.mouse.click(points.gap.x,points.gap.y);
+   assert.equal(await p.evaluate(()=>App.S.lanes.length),JSON.parse(saved[0]).lanes.length+1);await p.evaluate(()=>App.undo());
+  });
   await check('combined crop detection preserves marker identity and never writes M onto a sample',async()=>{
    const r=await p.evaluate(()=>{
     const before=App.snapshot(),det=Engine.detectLanes,auto=App.autoMarkers,match=App.matchMarkers;let calls=0;
@@ -94,6 +107,26 @@ export async function markerWorkflowChecks(browser,base,root,engine){
    assert(await p.evaluate(({mi,bp})=>{const b=App.S.markers[mi].bands.find(b=>b.bp===bp);return b.excluded&&!b.show&&!b.matched&&!b.manual;},{mi:info.mi,bp}));
    await p.locator('#markerDeleteOne').press('Control+z');assert(await p.evaluate(({mi,bp})=>!App.S.markers[mi].bands.find(b=>b.bp===bp).excluded,{mi:info.mi,bp}));
   });
+  await check('marker panels drag by their title without editing the gel and retain their position',async()=>{
+   await p.locator('#preview [data-edit="marker"]').first().click();
+   const saved=await p.evaluate(()=>[App.snapshot(),App.hist.length]),pop=p.locator('#markerLabelPop');
+   const r=await pop.boundingBox(),grip=await pop.locator('.marker-pop-grip').boundingBox(),x=grip.x+30,y=grip.y+15;
+   await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x+420-r.x,y+120-r.y,{steps:6});await p.mouse.up();
+   const moved=await pop.boundingBox();assert(Math.abs(moved.x-420)<2&&Math.abs(moved.y-120)<2);
+   assert.deepEqual(await p.evaluate(()=>[App.snapshot(),App.hist.length]),saved);
+   await p.locator('#markerPopPt').fill('8.5');await p.locator('#markerPopPt').press('Tab');
+   await p.locator('#markerPopUnit').selectOption('kb');
+   const cb=pop.locator('[data-visible-size]:not(:disabled)').first(),was=await cb.isChecked();await cb.click();assert.equal(await cb.isChecked(),!was);
+   assert.equal(await p.evaluate(()=>App.S.style.markerPt),8.5);
+   assert.deepEqual(await pop.boundingBox(),moved,'editing fields must not move the panel');
+   await p.locator('#markerPopClose').click();await p.locator('#preview [data-edit="marker"]').first().click();
+   const reopened=await pop.boundingBox();assert(Math.abs(reopened.x-moved.x)<2&&Math.abs(reopened.y-moved.y)<2);
+   await pop.locator('.marker-pop-grip').press('ArrowLeft');assert(Math.abs((await pop.boundingBox()).x-moved.x+5)<2);
+   await p.screenshot({path:path.join(dir,'dragged-panel.png')});
+   await p.setViewportSize({width:390,height:600});
+   await p.waitForFunction(()=>{const r=document.getElementById('markerLabelPop').getBoundingClientRect();return r.x>=7&&r.y>=7&&r.right<=innerWidth-7&&r.bottom<=innerHeight-7;});
+   await p.locator('#markerPopClose').click();await p.setViewportSize({width:1500,height:1000});
+  });
   await check('a deleted band is not recreated by combined lane and marker detection',async()=>{
    const r=await p.evaluate(()=>{
     const before=App.snapshot();try{
@@ -155,6 +188,24 @@ export async function markerWorkflowChecks(browser,base,root,engine){
     if(width===390)await p.screenshot({path:path.join(dir,'phone-reference.png')});await p.locator('#markerReferenceClose').click();
    }
    await p.setViewportSize({width:1500,height:1000});await p.evaluate(()=>{document.getElementById('panel').scrollTop=0;});await p.screenshot({path:path.join(dir,'desktop.png')});
+  });
+  await check('touch title drags stay on screen, cancel cleanly, and band-size controls also move',async()=>{
+   await p.setViewportSize({width:390,height:844});await p.locator('#mNav [data-view="fig"]').click();
+   await p.locator('#preview [data-edit="marker"]').first().click();const before=await p.evaluate(()=>App.snapshot());
+   const touchDrag=async(sel,dx,dy,cancel=false)=>p.evaluate(({sel,dx,dy,cancel})=>{
+    const pop=document.querySelector(sel),handle=pop.querySelector('.marker-pop-grip'),r=handle.getBoundingClientRect(),x=r.left+30,y=r.top+15;
+    const send=(el,type,x,y)=>el.dispatchEvent(new PointerEvent(type,{pointerId:51,pointerType:'touch',button:0,isPrimary:true,clientX:x,clientY:y,bubbles:true,cancelable:true}));
+    send(handle,'pointerdown',x,y);send(window,'pointermove',x+dx,y+dy);send(window,cancel?'pointercancel':'pointerup',x+dx,y+dy);
+    const at=pop.getBoundingClientRect();send(window,'pointermove',x+dx+50,y+dy+50);
+    return {x:at.x,y:at.y,right:at.right,bottom:at.bottom,ended:!pop.classList.contains('is-dragging')&&pop.getBoundingClientRect().x===at.x};
+   },{sel,dx,dy,cancel});
+   let r=await touchDrag('#markerLabelPop',-900,-900,true);assert(r.ended&&r.x===8&&r.y===8);
+   r=await touchDrag('#markerLabelPop',900,900);assert(r.ended&&r.right<=382&&r.bottom<=836);
+   assert.equal(await p.evaluate(()=>App.snapshot()),before);await p.locator('#markerPopClose').click();
+   await p.evaluate(()=>{const m=App.S.markers[0],i=m.bands.findIndex(b=>b.show);MarkerUI.editBand(0,i);});
+   r=await touchDrag('#markerBandPop',-900,-900);assert(r.ended&&r.x===8&&r.y===8);
+   await p.locator('#markerBandClose').click();await p.locator('#markerReferenceClose').click();
+   assert.equal(await p.evaluate(()=>App.snapshot()),before);await p.setViewportSize({width:1500,height:1000});
   });
   await check('no unhandled errors in the marker workflow',async()=>assert.deepEqual(errors,[]));
  }finally{await ctx.close();}

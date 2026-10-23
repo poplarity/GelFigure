@@ -75,9 +75,19 @@ export async function mobileChecks(browser, base, engine) {
       await p.evaluate(() => Editor.fitCrop());
       return Math.abs(k - 2.5) < 0.05 && same ? true : { k, same };
     });
-    await check('phone: double tap adds a lane; the selection bar deletes it; ↺ undoes', async () => {
+    await check('phone: double tap edits only existing markers; samples and gaps never add lanes',async()=>{
+      const before=await p.evaluate(()=>App.snapshot()),g=await gapPoint();await tapTwice(g.x,g.y,10);
+      const noGap=!(await p.isVisible('#markerLabelPop'));
+      const points=await p.evaluate(()=>{const S=App.S,m=S.markers[0],sample=UI.figLanes().find(i=>!S.markers.some(m=>m.lane===i)),r=document.getElementById('editor').getBoundingClientRect();return [sample,m.lane].map(i=>{const q=Editor.toScr(S.lanes[i].x,S.crop.y+S.crop.h*.45);return {x:r.left+q.x,y:r.top+q.y};});});
+      await tapTwice(points[0].x,points[0].y,12);const noSample=!(await p.isVisible('#markerLabelPop'));
+      await tapTwice(points[1].x,points[1].y,14);const marker=await p.isVisible('#markerLabelPop');
+      if(marker)await p.locator('#markerPopClose').tap();
+      const same=await p.evaluate(before=>App.snapshot()===before,before);return noGap&&noSample&&marker&&same?true:{noGap,noSample,marker,same};
+    });
+    await check('phone: explicit add, selection-bar delete and undo preserve lane count', async () => {
       const n0 = await lanes(), g = await gapPoint();
-      await tapTwice(g.x, g.y, 10);
+      await p.locator('#btnAddLaneM').tap();
+      await touch('pointerdown',18,g.x,g.y);await touch('pointerup',18,g.x,g.y);
       const added = (await lanes()) - n0, bar = await p.isVisible('#selBar');
       await p.locator('#selBtns [data-s="del"]').tap();
       const deleted = (await lanes()) === n0;

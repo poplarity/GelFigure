@@ -55,6 +55,10 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 
 **Phone layout.** The phone query `(max-width: 900px), (max-height: 520px) and (pointer: coarse)` exists twice — in `css/style.css` and as `phoneMq` in `ui.js`; keep them identical. `mobile.js` only adds a layer on top of the desktop code (it forwards to the desktop buttons); phone work must not change desktop behaviour or the engine.
 
+Marker label/band-size popovers move via their title handle (pointer capture or keyboard arrows). Their positions stay in `MarkerUI` memory for the current project, outside `App.S`, undo and exports. Clamp against the visual viewport, including keyboard/resize changes; use fractional DOM bounds so panels stay fully visible. Closing, pointer cancellation and window blur end an active drag. Body controls and scrolling must not start a panel drag.
+
+Double-clicks/taps on the raw canvas open the label editor only for existing, visible marker lanes (including their number chips/bands). Sample lanes and gaps never add lanes. The + Lane button is shared by desktop and phones; explicit tools keep their single-click behaviour. Outside calibration mode, single band clicks select their lane without opening or zooming anything. Touch double-tap recognition requires the same marker and project; drags, pinch, cancellation and loads clear the pending tap.
+
 ## Rules that keep the project healthy
 
 - **Image integrity first.** Linear, whole-image adjustments only by default; nothing removed silently (cut lanes get a splice mark and a log entry); anything that changes how the data looks is recorded in the processing log. Exports are never upscaled-and-passed-off: the gel's effective dpi is reported separately from the export dpi.

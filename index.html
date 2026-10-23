@@ -159,8 +159,8 @@
         <details class="adv" id="laneAdv">
           <summary><span data-en="Lane visibility and advanced tools">泳道显示与高级操作</span><span class="h3-note" id="laneCountNote"></span></summary>
           <div id="laneList" class="list"></div>
-          <p class="hint d-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the image: drag a lane line sideways, double-click to add a lane, select one and press <code>Delete</code> / <code>⌫</code> to delete it, <code>H</code> to cut / restore it.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。原图上：左右拖动泳道线；双击空白处加泳道；选中后按 <code>Delete</code> 或 <code>⌫</code> 删除；按 <code>H</code> 剪除/恢复。</p>
-          <p class="hint m-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the Image tab: tap a lane line or its number to select it — the bar below nudges, cuts or deletes it; drag it sideways; double-tap inside the red box (or “+ Lane”) to add one.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。在「原图」页：点泳道线或上方的泳道号选中，底部按钮可微调、剪除、删除；也可以直接左右拖；在红框内双击（或点“＋ 泳道”）加泳道。</p>
+          <p class="hint d-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. Drag lane lines to align. Double-click an existing marker lane to edit it; other lanes do nothing. Use “+ Lane” above the image to add one. Select a lane and press <code>Delete</code> / <code>⌫</code> to delete it, <code>H</code> to cut / restore it.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。拖动泳道线对齐；双击已有 Marker 泳道打开编辑，普通泳道双击不操作。新增请点原图上方“＋ 泳道”；选中后按 <code>Delete</code> 或 <code>⌫</code> 删除，按 <code>H</code> 剪除/恢复。</p>
+          <p class="hint m-only" data-en-html="<b>Show</b> unticked = the lane is cut out of the figure. On the Image tab: tap a lane line or number to select it — the bar below nudges, cuts or deletes it. Double-tap an existing marker lane to edit it; use “+ Lane” to add a lane.">取消 <b>显示</b> = 把这条泳道从成图里剪掉。在「原图」页点泳道线或泳道号选中，底部按钮可微调、剪除、删除。双击已有 Marker 泳道打开编辑；新增请点“＋ 泳道”。</p>
           <div class="splice-box" id="spliceBox">
             <div class="step-row"><b data-en="Where lanes were cut">剪掉泳道后的拼接处</b></div>
             <p class="hint" data-en="Journals require a visible mark where lanes from the same gel were cut out and the rest joined. Choose how it looks:">期刊规定：同一块胶剪掉中间泳道后再拼合，拼接处必须能看出来。选择标记方式：</p>
@@ -264,7 +264,7 @@
         <span class="flex"></span>
         <button class="btn sm ghost" id="fitFull" title="显示整张图" data-en-title="Show the whole image" data-en="Full">全图</button>
         <button class="btn sm ghost" id="fitCrop" title="放大到出图范围" data-en-title="Zoom to the figure area" data-en="Crop">范围</button>
-        <button class="btn sm ghost m-only" id="btnAddLaneM" title="在原图上点一下加一条泳道" data-en-title="Tap the image to add a lane" data-en="+ Lane">＋ 泳道</button>
+        <button class="btn sm ghost" id="btnAddLaneM" title="在原图上点一下加一条泳道" data-en-title="Click the image to add a lane" data-en="+ Lane">＋ 泳道</button>
         <span class="zoomlabel" id="zoomLabel"></span>
       </div>
       <div id="expoStrip" class="expo hidden"></div>
@@ -413,7 +413,7 @@
   <h3>On a phone</h3>
   <ul>
     <li>The bar at the bottom switches between <b>Image / Figure / Settings</b>; <b>Export</b> is at the bottom right. Undo and redo are ↺ ↻ at the top; ⋯ has open, save project and language.</li>
-    <li><b>Image</b>: pinch to zoom, drag to move. Tap a lane line or its number to select it — the bar that appears nudges, cuts or deletes it. Double-tap inside the red box (or “+ Lane”) to add a lane. Drag the red box edges for the range, a yellow line to correct a marker band.</li>
+    <li><b>Image</b>: pinch to zoom, drag to move. Tap a lane line or its number to select it — the bar that appears nudges, cuts or deletes it. Double-tap an existing marker lane to open its editor; ordinary lanes do nothing. Use “+ Lane” to add one. Drag the red box edges for the range, a yellow line to correct a marker band. Move marker panels by dragging their title.</li>
     <li><b>Figure</b>: tap a grey lane number and type; the keyboard’s Next key moves on. “Zoom in” makes small labels easier to hit. Group line: tap the first lane name, then the last.</li>
     <li><b>Export</b>: after a PNG is made, long-press the picture to save it to Photos or send it; “Share / Save” puts any file in Files or another app.</li>
     <li>Opened inside WeChat? Files cannot be downloaded there — tap ··· at the top right and open the page in your browser.</li>
@@ -421,7 +421,7 @@
   <h3>在手机上</h3>
   <ul>
     <li>底部切换<b>原图 / 成图 / 设置</b>，右下角是<b>导出</b>；顶部 ↺ ↻ 撤销 / 重做，⋯ 里有打开、保存项目和语言。</li>
-    <li><b>原图</b>：双指缩放、拖动。点泳道线或上方的泳道号选中，底部会出现微调、剪除、删除按钮；在红框内双击（或点“＋ 泳道”）加泳道；拖红框的边改出图范围，拖黄线修正 Marker 条带。</li>
+    <li><b>原图</b>：双指缩放、拖动。点泳道线或泳道号选中，底部可微调、剪除、删除；双击已有 Marker 泳道打开编辑，普通泳道双击不操作，新增请点“＋ 泳道”。拖红框改出图范围，拖黄线修正 Marker 条带。Marker 面板可按住标题拖动移开。</li>
     <li><b>成图</b>：点灰色泳道号输入名称，键盘上的“下一项”跳到下一条；小字看不清点“放大”。分组横线：依次点首尾两个泳道名。</li>
     <li><b>导出</b>：PNG 生成后长按图片即可存到相册或发给朋友；“分享 / 存储”可以把任何文件存到“文件”或发到其他 App。</li>
     <li>在微信里打开时无法下载文件：点右上角 ··· 选择“在浏览器打开”。</li>
@@ -448,7 +448,7 @@
     <li><b>+ / − rows</b>: add a row, then click cells on the figure to cycle + / − / empty.</li>
     <li><b>Lane lines off</b>: set the count on the left (Settings on phones), then drag the ↔ end lines; the middle follows in real time. Drag a middle line to shift the grid. Turn off “Link spacing” or Alt-drag to adjust one lane. Counts include marker and empty lanes; changes can be undone.</li>
     <li><b>Try detection again</b>: “Re-detect lanes + markers in crop” runs both stages inside the red frame, keeping confirmed marker choices and manual anchors. Removed marker roles are not re-added. Simply moving the crop does not reclassify lanes.</li>
-    <li><b>Text sizes / marker labels</b>: use “Fonts &amp; sizes” above the figure, or click a name or marker number directly. Marker controls stay open for show/hide and delete. Hiding preserves calibration; deleting removes the anchor too. Undo or re-position the band to restore a deleted mark.</li>
+    <li><b>Text sizes / marker labels</b>: use “Fonts &amp; sizes” above the figure, click a marker number, or double-click an existing marker lane on the raw image. Drag the panel title to move it aside. Marker controls stay open for show/hide and delete. Hiding preserves calibration; deleting removes the anchor too. Undo or re-position the band to restore a deleted mark.</li>
     <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
     <li><b>A marker band is wrong</b>: select its lane and model, then “Detect bands here” to align only that marker. Open “Calibrate / reference”, select a size and click its actual band on the original image; or click a band first to choose the size. Drag yellow lines to fine-tune (Alt disables snapping). Browsing reference models changes nothing until “Use this ladder”. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
@@ -482,7 +482,7 @@
     <li><b>+ / − 条件行</b>：加一行后，在成图上点格子即可在 + / − / 空 之间切换。</li>
     <li><b>泳道线没对齐</b>：在左侧填写条数（手机在“设置”页），拖 ↔ 首尾线，中间实时均分；拖中间线可整体平移。关闭“等距联动”或按 Alt 拖动可单独微调。数量包含 Marker 和空道，修改可撤销。</li>
     <li><b>重新识别</b>：“框内重新识别泳道和 Marker”一次完成两个步骤，保留手动确认的 Marker 和定位点，不重新添加已取消的 Marker；单纯拖裁切框不会重新分类。</li>
-    <li><b>字号 / Marker 显示</b>：成图上方“字体与字号”统一设置，也可直接点名称或 Marker 数字调整；Marker 小面板支持显示、隐藏和删除且不会自动收起。隐藏仍保留校准，删除同时移除定位点；可撤销或重新定位恢复。</li>
+    <li><b>字号 / Marker 显示</b>：成图上方“字体与字号”统一设置，也可点 Marker 数字或双击原图中已有的 Marker 泳道；面板可按住标题拖动移开。支持显示、隐藏和删除且不会自动收起。隐藏仍保留校准，删除同时移除定位点；可撤销或重新定位恢复。</li>
     <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
     <li><b>Marker 条带不对</b>：选好泳道和型号后点“识别此泳道”，只对齐这一个 Marker。打开“校准 / 图例”，先选大小再点原图上的实际条带，也可先点条带再选大小；拖黄线微调，Alt 关闭吸附。参考卡里切换型号先预览，点“使用此型号”才应用。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>

@@ -8,11 +8,13 @@
   const labels=document.createElement('div');labels.id='markerLabelPop';labels.className='marker-small-pop hidden';document.body.appendChild(labels);
   [picker,labels].forEach(p=>{p.setAttribute('role','dialog');p.setAttribute('aria-modal','false');});
   let active=null,moving=null,candidate='',applied='',selected=null,bandTarget=null,labelTarget=null;
+  // Floating-panel positions belong to this editing session, never to figure state or undo.
+  const popPositions=new Map();let popDrag=null;
   const current=()=>S()&&S().markers.includes(active)?active:null;
   const index=m=>S().markers.indexOf(m);
   const size=(bp,m)=>G.Ladders.fmt(bp,m?.unit==='kDa'?'kDa':'bp')+' '+(m?.unit==='kDa'?'kDa':'bp');
-  function closePicker(){picker.classList.add('hidden');bandTarget=null;}
-  function closeLabels(){labels.classList.add('hidden');labelTarget=null;}
+  function closePicker(){endPopDrag(picker);picker.classList.add('hidden');bandTarget=null;}
+  function closeLabels(){endPopDrag(labels);labels.classList.add('hidden');labelTarget=null;}
   function close(){active=null;selected=null;card.classList.add('hidden');closePicker();if(App.mode==='marker-band')G.FigEdit.setMode(null);}
   // The phone instruction banner changes height with language/selected band. Measure it rather
   // than hiding the card's close button or the top of the real lane behind a fixed offset.
@@ -27,7 +29,49 @@
   }
   const layoutObserver=new ResizeObserver(()=>{if(current())layout();});
   [$('editorBox'),$('modeBanner'),$('selBar')].forEach(el=>layoutObserver.observe(el));
-  function place(pop,rect){pop.classList.remove('hidden');const w=pop.offsetWidth,h=pop.offsetHeight;pop.style.left=E.clamp(rect.right+8,8,Math.max(8,innerWidth-w-8))+'px';pop.style.top=E.clamp(rect.top,54,Math.max(54,innerHeight-h-10))+'px';}
+  function movePop(pop,x,y,remember=false){
+    const v=window.visualViewport,left=(v?.offsetLeft||0)+8,top=(v?.offsetTop||0)+8;
+    const width=v?.width||innerWidth,height=v?.height||innerHeight;
+    pop.style.maxWidth=Math.max(1,width-16)+'px';pop.style.maxHeight=Math.max(1,height-16)+'px';
+    const r=pop.getBoundingClientRect();
+    const pos={x:E.clamp(x,left,Math.max(left,left+width-r.width-16)),y:E.clamp(y,top,Math.max(top,top+height-r.height-16))};
+    pop.style.left=pos.x+'px';pop.style.top=pos.y+'px';
+    if(remember)popPositions.set(pop,pos);
+  }
+  function place(pop,rect){
+    pop.classList.remove('hidden');const pos=popPositions.get(pop);
+    movePop(pop,pos?pos.x:rect.right+8,pos?pos.y:Math.max(54,rect.top),!!pos);
+  }
+  function popTitle(title){return `<button type="button" class="marker-pop-grip" title="${L('拖动移动；方向键微调','Drag to move; arrow keys nudge')}" aria-label="${esc(title)} · ${L('移动面板','Move panel')}">${esc(title)}</button>`;}
+  function endPopDrag(pop){
+    if(!popDrag||(pop&&popDrag.pop!==pop))return;const d=popDrag;popDrag=null;
+    d.pop.classList.remove('is-dragging');if(d.pop.hasPointerCapture(d.id))d.pop.releasePointerCapture(d.id);
+  }
+  [picker,labels].forEach(pop=>{
+    pop.addEventListener('pointerdown',e=>{
+      const handle=e.target.closest('.marker-pop-grip');if(!handle||e.button!==0||popDrag)return;
+      e.preventDefault();e.stopPropagation();handle.focus({preventScroll:true});
+      const r=pop.getBoundingClientRect();popDrag={pop,id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+      pop.classList.add('is-dragging');try{pop.setPointerCapture(e.pointerId);}catch(_){} // synthetic/ended pointers have no capture
+    });
+    pop.addEventListener('lostpointercapture',()=>endPopDrag(pop));
+    pop.addEventListener('keydown',e=>{
+      if(e.isComposing||!e.target.closest('.marker-pop-grip'))return;
+      const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(!d)return;
+      e.preventDefault();const r=pop.getBoundingClientRect(),step=e.shiftKey?20:5;movePop(pop,r.left+d[0]*step,r.top+d[1]*step,true);
+    });
+  });
+  window.addEventListener('pointermove',e=>{
+    const d=popDrag;if(!d||d.id!==e.pointerId)return;if(e.cancelable)e.preventDefault();
+    movePop(d.pop,d.left+e.clientX-d.x,d.top+e.clientY-d.y,true);
+  },{passive:false});
+  ['pointerup','pointercancel'].forEach(type=>window.addEventListener(type,e=>{if(popDrag?.id===e.pointerId)endPopDrag();}));
+  window.addEventListener('blur',()=>endPopDrag());
+  function keepPopsVisible(){[picker,labels].forEach(pop=>{if(!pop.classList.contains('hidden')){const r=pop.getBoundingClientRect();movePop(pop,r.left,r.top,popPositions.has(pop));}});}
+  window.addEventListener('resize',()=>{endPopDrag();keepPopsVisible();});
+  window.visualViewport?.addEventListener('resize',keepPopsVisible);
+  window.visualViewport?.addEventListener('scroll',keepPopsVisible);
+  const popObserver=new ResizeObserver(keepPopsVisible);[picker,labels].forEach(pop=>popObserver.observe(pop));
   function diagram(lad,m){
     const ks=lad.sizes,H=Math.max(200,ks.length*18),span=Math.max(1e-6,Math.log(ks[0])-Math.log(ks[ks.length-1]));
     let last=-20;const ys=ks.map(k=>(last=Math.max(10+(Math.log(ks[0])-Math.log(k))/span*H,last+15))),height=ys[ys.length-1]+16;
@@ -87,7 +131,7 @@
   }
   function bandPicker(m,y,oldBp){
     closeLabels();bandTarget={marker:m,state:S()};const lad=G.Ladders.get(m.ladderId);if(!lad)return;
-    picker.innerHTML=`<div class="marker-pop-head"><b>${L('这条带的大小','Band size')}</b><button class="btn sm ghost" id="markerBandClose" aria-label="${L('关闭','Close')}">×</button></div>
+    picker.innerHTML=`<div class="marker-pop-head">${popTitle(L('这条带的大小','Band size'))}<button class="btn sm ghost" id="markerBandClose" aria-label="${L('关闭','Close')}">×</button></div>
       <div class="marker-size-grid">${lad.sizes.map(bp=>`<button data-band-size="${bp}" class="${bp===oldBp?'selected ':''}${(lad.ref||[]).includes(bp)?'reference':''}">${bp}</button>`).join('')}</div>
       <p class="hint">${L('按所选型号标注；橙色为参考带。','Sizes from the selected ladder; orange = reference bands.')} ${m.unit==='kDa'?'kDa':'bp'}</p>
       ${oldBp!=null?`<div class="actions"><button class="btn sm" id="markerBandHide">${L('隐藏标签','Hide label')}</button><button class="btn sm danger" id="markerBandDelete">${L('删除标记','Delete mark')}</button></div>`:''}`;
@@ -104,7 +148,7 @@
   function editBand(mi,bi){const m=S()?.markers[mi],b=m?.bands[bi];if(!b)return;open(mi,null,false);bandPicker(m,b.y,b.bp);}
   function labelPopover(mi,bi,anchor){
     const m=S()?.markers[mi];if(!m)return;const at=(anchor||$('preview')).getBoundingClientRect();UI.flushPending();closePicker();closeLabels();const bp=m.bands[bi]?.bp;labelTarget={marker:m,state:S(),bp};
-    labels.innerHTML=`<div class="marker-pop-head"><b>${L('Marker · 泳道','Marker · lane')} ${m.lane+1}</b><button class="btn sm ghost" id="markerPopClose" aria-label="${L('关闭','Close')}">×</button></div>
+    labels.innerHTML=`<div class="marker-pop-head">${popTitle(L('Marker · 泳道','Marker · lane')+' '+(m.lane+1))}<button class="btn sm ghost" id="markerPopClose" aria-label="${L('关闭','Close')}">×</button></div>
       <label class="inline-label">${L('Marker 字号','Marker font')} <input id="markerPopPt" class="num" type="number" min="4" max="14" step="0.5" value="${S().style.markerPt||''}" placeholder="${S().style.fontPt}"> pt</label>
       ${bp!=null?`<div class="marker-selected-actions"><b>${esc(size(bp,m))}</b><button class="btn sm" id="markerHideOne">${L('隐藏标签','Hide label')}</button><button class="btn sm danger" id="markerDeleteOne">${L('删除标记','Delete mark')}</button></div>`:''}
       <div class="marker-pop-options"><label>${L('单位','Unit')}<select id="markerPopUnit">${(App.gelKind()==='protein'?['kDa']:['bp','kb','auto']).map(u=>`<option value="${u}">${u==='auto'?'bp / kb':u}</option>`).join('')}</select></label><label>${L('标签位置','Label side')}<select id="markerPopSide"><option value="auto">${L('自动','Auto')}</option><option value="left">${L('左','Left')}</option><option value="right">${L('右','Right')}</option></select></label></div>
@@ -127,7 +171,7 @@
     if($('markerHideOne')){const b=m.bands.find(b=>b.bp===labelTarget.bp);$('markerHideOne').textContent=b?.show?L('隐藏标签','Hide label'):L('显示标签','Show label');$('markerHideOne').disabled=!b||!!b.excluded;$('markerDeleteOne').disabled=!b||!!b.excluded;}
   }
   App.on(w=>{
-    if(w==='loaded'){close();closeLabels();moving=null;if(App.mode==='marker-lane')G.FigEdit.setMode(null);return;}
+    if(w==='loaded'){close();closeLabels();popPositions.clear();moving=null;if(App.mode==='marker-lane')G.FigEdit.setMode(null);return;}
     if(w==='change'){if(bandTarget&&(S()!==bandTarget.state||!S().markers.includes(bandTarget.marker)))closePicker();if(active){if(current())render();else close();}syncLabels();}
   });
   [picker,labels].forEach(pop=>pop.addEventListener('keydown',e=>{e.stopPropagation();if(e.isComposing)return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!['text','number'].includes(e.target.type)){e.preventDefault();e.shiftKey?App.redo():App.undo();return;}if(e.key==='Escape')pop===picker?closePicker():closeLabels();}));

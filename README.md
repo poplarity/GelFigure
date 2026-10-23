@@ -76,7 +76,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Live lane alignment**: change the count on the left (Settings on phones; include marker and empty lanes), then drag the two end guides; the middle follows evenly. Turn off linking or Alt-drag for an independent correction. The visible crop re-detection button finds both lanes and markers.
 - **Pre-flight check before export**: camera saturation, contrast clipping, effective resolution below 300 dpi, tiny fonts, extrapolated sizes, with one-click fixes.
 - **Reproducible**: project files (`.gelfig`) contain the original image and every setting; reusable style templates; local project history can restore work after a reload when browser storage is available.
-- **Works on a phone**: a bottom bar switches between Image, Figure and Settings; **Export** offers every format and resolution. Pinch to zoom the image, tap a lane to nudge, cut or delete it, double-tap to add one. An exported PNG opens as a picture you long-press to save to Photos (this also works inside WeChat, which cannot download files) or send through the share sheet.
+- **Works on a phone**: a bottom bar switches between Image, Figure and Settings; **Export** offers every format and resolution. Pinch to zoom the image, tap a lane to nudge, cut or delete it. Double-tap an existing marker lane to open its editor; add lanes explicitly with **+ Lane**. Marker panels can be moved by dragging the title. An exported PNG opens as a picture you long-press to save to Photos (this also works inside WeChat, which cannot download files) or send through the share sheet.
 - **Bilingual interface**: English and Chinese, switchable at any time. Figures are always in English.
 
 ## Versions

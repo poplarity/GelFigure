@@ -9,7 +9,7 @@
   let dpr = 1, drag = null, hover = null, spaceDown = false, gridOn = false;
   const HIT = 7, HIT_TOUCH = 16;   // screen px; a fingertip needs the larger one
   const coarse = matchMedia('(pointer: coarse)');
-  // fingers on the canvas (two = pinch-zoom), the last tap (two taps = add a lane), last pointer kind
+  // fingers on the canvas (two = pinch-zoom), the last marker tap, last pointer kind
   const touches = new Map();
   let pinch = null, lastTap = null, lastPtr = 'mouse';
 
@@ -258,6 +258,20 @@
     App.S.lanes.forEach((l, i) => { const d = Math.abs(l.x - x); if (d < bd) { bd = d; best = i; } });
     return best;
   }
+  function markerAt(sx,sy,h) {
+    if(!App.S||App.mode||spaceDown||!['lane','inside','band','crop'].includes(h?.type))return -1;
+    const S=App.S,p=toImg(sx,sy),i=h.type==='lane'?h.i:nearestLane(p.x),l=S.lanes[i],c=S.crop;
+    if(!l||l.hidden||l.x<c.x||l.x>c.x+c.w)return -1;
+    if(h.type!=='lane'&&(p.y<c.y||p.y>c.y+c.h||Math.abs(p.x-l.x)>S.laneHalfW*1.6))return -1;
+    // At phone zoom the generous crop-handle hit area can overlap an edge marker lane.
+    // For a stationary double tap, prefer the lane only when its centre is closer than the handle.
+    if(h.type==='crop'&&Math.min(...handles().map(([x,y])=>Math.hypot(p.x-x,p.y-y)))<=Math.abs(p.x-l.x))return -1;
+    return S.markers.findIndex(m=>m.lane===i);
+  }
+  function editLaneMarker(mi,sx,sy,h) {
+    const r=cv.getBoundingClientRect();App.selLane=App.S.markers[mi].lane;App.selArrow=-1;App.emit('select');
+    G.MarkerUI.labelPopover(mi,h?.type==='band'&&h.m===mi?h.i:-1,{getBoundingClientRect:()=>({right:r.left+sx,top:r.top+sy})});
+  }
 
   const CURSORS = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
   function cursorFor(h) {
@@ -302,6 +316,7 @@
   cv.addEventListener('pointerdown', (e) => {
     if (!App.S) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if(App.mode)lastTap=null;
     lastPtr = e.pointerType;
     box.focus({ preventScroll: true });
     try { cv.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
@@ -311,7 +326,7 @@
       touches.set(e.pointerId, { x: sx, y: sy });
       if (touches.size >= 2) {
         // second finger: pinch-zoom and two-finger pan instead of whatever the first one started
-        cancelDrag();
+        cancelDrag();lastTap=null;
         if (touches.size === 2) pinch = { d0: pinchDist(), m0: pinchMid(), view0: Object.assign({}, view) };
         e.preventDefault(); draw();
         return;
@@ -435,7 +450,7 @@
       if (pinch) { if (!touches.size) pinch = null; return; }
     }
     if (!drag) return;
-    if (cancelled) { cancelDrag(); draw(); return; }   // the browser took the gesture over
+    if (cancelled) { lastTap=null;cancelDrag(); draw(); return; }   // the browser took the gesture over
     const d = drag; drag = null;
     const S = App.S;
     if(d.state!==S)return;
@@ -447,28 +462,30 @@
       return;
     }
     if (!d.moved) {
-      if (d.tap) { if (App.mode === d.tap) tapAction(d.tap, d.p0,d.free); return; }
-      if (d.h.type === 'band' && G.MarkerUI) { G.MarkerUI.editBand(d.h.m, d.h.i); return; }
+      if (d.tap) { lastTap=null;if (App.mode === d.tap) tapAction(d.tap, d.p0,d.free); return; }
+      // In calibration mode a single tap edits a band. Otherwise it only selects the lane,
+      // leaving the image in place so a second click/tap can open its marker settings.
+      if (d.h.type === 'band' && G.MarkerUI) {
+        if(App.mode==='marker-band'){lastTap=null;G.MarkerUI.editBand(d.h.m,d.h.i);return;}
+        App.selLane=S.markers[d.h.m].lane;App.selArrow=-1;App.emit('select');draw();
+      }
       if ((d.h.type === 'boxmove' || d.h.type === 'boxsize' || d.h.type === 'brend' || d.h.type === 'brmove') && App.openAnno) {
         App.openAnno(d.h.type.startsWith('box') ? 'box' : 'bracket', d.h.i);
         draw(); return;
       }
-      // a finger has no double-click: two quick taps in the same spot add a lane there (at phone zoom
-      // the finger-sized lane hit zones cover most of the gap between lanes, so a lane counts too)
-      if (d.touch && (d.h.type === 'inside' || d.h.type === 'lane')) {
-        const now = performance.now();
-        if (lastTap && now - lastTap.t < 400 && Math.hypot(d.sx - lastTap.sx, d.sy - lastTap.sy) < 30) {
-          lastTap = null;
-          tapAction('lane', d.p0);
-          return;
-        }
-        lastTap = { t: now, sx: d.sx, sy: d.sy };
+      // Only two taps on the same existing marker open an editor; samples/gaps never add lanes.
+      if (d.touch) {
+        const now=performance.now(),mi=markerAt(d.sx,d.sy,d.h);
+        const twice=mi>=0&&lastTap?.state===S&&lastTap.mi===mi&&now-lastTap.t<400&&Math.hypot(d.sx-lastTap.sx,d.sy-lastTap.sy)<30;
+        lastTap=mi>=0&&!twice?{t:now,sx:d.sx,sy:d.sy,mi,state:S}:null;
+        if(twice){editLaneMarker(mi,d.sx,d.sy,d.h);return;}
       }
       if (d.h.type === 'inside') { App.selLane = d.pickLane; App.selArrow = -1; App.emit('select'); draw(); }
       if (d.h.type === 'pan') { App.selLane = -1; App.selArrow = -1; App.emit('select'); draw(); }
       cv.style.cursor = cursorFor(hover);
       return;
     }
+    lastTap=null;
     if (d.h.type === 'crop' || d.h.type === 'cropmove') { App.updateSaturation(); if (App.afterRangeChange) App.afterRangeChange(); }
     if (d.h.type === 'lane') { const moved = S.lanes[d.h.i]; App.sortLanesIfNeeded(); App.selLane = S.lanes.indexOf(moved); }
     if (d.h.type === 'band') { const m=S.markers[d.h.m];m.userAssigned=true;App.matchMarkers(false,[m]); }
@@ -480,15 +497,14 @@
 
   cv.addEventListener('dblclick', (e) => {
     // touch double taps are handled above; some browsers also synthesise a dblclick from them
-    if (!App.S || lastPtr === 'touch') return;
-    const r = cv.getBoundingClientRect(), p = toImg(e.clientX - r.left, e.clientY - r.top), c = App.S.crop;
-    if (p.x < c.x || p.x > c.x + c.w || p.y < c.y || p.y > c.y + c.h) return;
-    App.selLane = App.addLane(p.x);
-    App.commit();
+    if (!App.S || lastPtr === 'touch' || App.mode) return;
+    const r=cv.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,h=hitTest(sx,sy,e.shiftKey),mi=markerAt(sx,sy,h);
+    if(mi>=0){e.preventDefault();editLaneMarker(mi,sx,sy,h);}
   });
 
   cv.addEventListener('wheel', (e) => {
     if (!App.S) return;
+    lastTap=null;
     e.preventDefault();
     const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top;
     const k = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015));
@@ -543,7 +559,7 @@
 
   new ResizeObserver(resize).observe(box);
   App.on(w => {
-    if (w === 'loaded') { document.getElementById('dropHint').classList.add('hidden'); resize(); fitCrop(); }
+    if (w === 'loaded') { lastTap=null;cancelDrag();document.getElementById('dropHint').classList.add('hidden'); resize(); fitCrop(); }
     else draw();
   });
 

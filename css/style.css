@@ -329,7 +329,11 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .ladder-reference [data-size] { cursor: pointer; outline-offset: -2px; }
 .ladder-reference [data-size]:hover rect:first-child, .ladder-reference [data-size]:focus rect:first-child { fill: #dbeafe; }
 .marker-small-pop { position: fixed; z-index: 85; width: min(280px, calc(100vw - 16px)); max-height: calc(100dvh - 72px); overflow: auto; padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 30px #17223530; }
-.marker-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; gap: 6px; }
+.marker-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; gap: 6px; position: sticky; top: -12px; z-index: 1; background: #fff; }
+.marker-pop-grip { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; min-height: 32px; padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-align: left; cursor: grab; touch-action: none; user-select: none; }
+.marker-pop-grip::before { content: '⠿'; color: var(--faint); font-weight: 400; }
+.marker-pop-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.marker-small-pop.is-dragging .marker-pop-grip { cursor: grabbing; }
 .marker-pop-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; font-size: 12px; }
 .marker-pop-bands { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 160px; overflow: auto; margin: 8px 0; }
 .marker-pop-bands label { padding: 3px; }

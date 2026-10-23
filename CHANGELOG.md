@@ -5,12 +5,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 **中文摘要**
+- Marker 标签面板和条带大小面板可拖动标题移开，兼容鼠标和触屏；同一项目内再次打开保留位置，窗口变化时自动保持在屏幕内，也可聚焦标题后用方向键移动。
+- 原图双击仅打开已有 Marker 泳道的编辑面板；普通泳道和空白处双击不再新增。电脑、手机均有“＋ 泳道”入口，单击放置；校准模式仍可单击条带选大小。
 - 参考 BlotFigure 重做泳道操作：默认等距联动，拖首尾实时均分，拖中间整体平移；左侧改条数立即生效，支持 1–60 条，手机在“设置”页。出图范围直接拖红框，移除左侧孔号范围选择。保留关闭联动 / Alt 单独微调，旧项目打开时不重新排布。
 - “框内重新识别泳道和 Marker”直接展示，一次完成泳道和 Marker 识别；统一名称、分组、条件及 Marker 的对应关系，不再识别后强制重排位置。保留手动确认的型号和定位点，不重新添加已取消的 Marker。第一个候选也检查匹配覆盖率，未匹配到的预测条带默认不显示。
 - 名称编辑、批量粘贴、字体与字号集中到成图；直接点击 Marker 数字可改字号、单位、标签位置、显示/隐藏、删除标记或取消 Marker。隐藏保留校准；删除移除定位点，可撤销或重新定位。
 - Marker 改为引导点选泳道；“识别此泳道”只对齐当前所选型号，不影响其他 Marker。参考卡留在原图旁，不再打开大对话框；型号先预览再应用，选大小后点实际条带补标，也可先点实际条带再选大小。图例明确为示意，参考带颜色不冒充真实染料颜色。
 
 ### Changed
+- Draggable marker-label and band-size panels: move the title with a mouse or touch, or focus it and use arrow keys. Positions persist while editing the same project, stay within the visible viewport on resize/keyboard changes, and never enter figure state or exports.
+- Double-click/double-tap an existing marker lane on the raw image to open its editor. Samples and gaps no longer add lanes; the explicit + Lane tool is available on desktop and phones. Single-band clicks open size controls only in calibration mode, leaving the image stable for double-clicking elsewhere.
 - Linked lane guides with immediate count changes, live end-handle alignment, group translation and optional independent adjustment. Resizing preserves retained lane identities, conditions and marker anchors; alignment does not rediscover removed markers. Existing projects keep saved geometry.
 - Crop directly with the red frame; lane count and combined lane/marker re-detection are visible in the left panel (Settings on phones). Re-detection uses a single mapping for names, conditions, groups and marker roles, keeps confirmed image-coordinate anchors and does not force an additional grid redistribution. Moving the crop alone does not reclassify lanes.
 - Figure-side naming, bulk paste and typography, with compact marker popovers for font, units, persistent visibility, deleting a band mark and removing a marker role. Hidden labels keep calibration; deleted marks no longer supply anchors. Explicit removals survive subsequent crop detection.
