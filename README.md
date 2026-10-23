@@ -4,7 +4,7 @@
 
 **Turn a raw DNA or protein gel image into a publication-ready figure — in your browser, offline.**
 
-[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
+[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.9/GelFigure-v0.6.9.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -18,13 +18,13 @@
 
 **Download one file, open it in your browser, and start making your figure. No installation, ZIP extraction or GitHub account is needed.**
 
-1. **[Download GelFigure-v0.6.8.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.8/GelFigure-v0.6.8.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
+1. **[Download GelFigure-v0.6.9.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.9/GelFigure-v0.6.9.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
 2. **Double-click the downloaded file.** It opens in your browser. If a text editor opens instead, right-click → **Open with** → Firefox, Chrome, Edge or Safari.
 3. **Click “Choose file” and select your gel image.** Check the detected gel type, lanes and marker, click the lane names to edit them, then choose **Export PNG**.
 
 That one HTML file is the complete tool, including its layout and image-processing code. Keep it on your computer or send the same file to a colleague. Once downloaded, it works without an internet connection.
 
-**Get the right file:** choose the release attachment named **GelFigure-v0.6.8.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
+**Get the right file:** choose the release attachment named **GelFigure-v0.6.9.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
 
 **Keep your work:** use **File → Save project** before closing. On a phone it is under **⋯** (or **Export → Save project**). Your **.gelfig** file contains the original image and annotations; reopen it in GelFigure to continue.
 
@@ -56,7 +56,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Features
 
-**Dev branch preview: recent projects.** Open locally cached work from the top bar, File menu, or **⋯ → Recent projects** on a phone. Importing another gel keeps the previous project. Rename, delete or restore its crop, annotations, fonts, colours and all exposures without re-detection. The old single draft migrates automatically; storage failures are reported. History belongs to this browser and can disappear when site data is cleared. Save a `.gelfig` backup for the selected exposure and its annotations, and keep the other original exposure files separately. Cached images are not embedded in the downloaded HTML.
+**Recent projects.** Open locally cached work from the top bar, File menu, or **⋯ → Recent projects** on a phone. Importing another gel keeps the previous project. Rename, delete or restore its crop, annotations, fonts, colours and all exposures without re-detection. The old single draft migrates automatically; storage failures are reported. History belongs to this browser and can disappear when site data is cleared. Save a `.gelfig` backup for the selected exposure and its annotations, and keep the other original exposure files separately. Cached images are not embedded in the downloaded HTML.
 
 - **Fully automatic first draft**: straightening (±15°), crop, lane detection, ladder identification and size labels, linear contrast.
 - **DNA and protein gels**: the gel type is recognised on import (colour, band width, band count, migration curve) and the matching mode opens — ladder library, tolerances and units (bp / kDa). A switch at the top of the Image panel overrides the guess without losing names, groups or arrows.
@@ -73,19 +73,19 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Lane removal with splice marks**: select a lane and press `H`; a splice gap or line is added and recorded. Empty lanes are suggested for removal (never removed silently). `Delete` / `⌫` deletes a wrongly detected lane.
 - **Lane lines in two clicks**: if detection is off, drag the leftmost and rightmost lane lines onto their lanes and enter the lane count — the lanes in between are spaced evenly.
 - **Pre-flight check before export**: camera saturation, contrast clipping, effective resolution below 300 dpi, tiny fonts, extrapolated sizes, with one-click fixes.
-- **Reproducible**: project files (`.gelfig`) contain the original image and every setting; reusable style templates; an autosaved draft survives a page reload.
+- **Reproducible**: project files (`.gelfig`) contain the original image and every setting; reusable style templates; local project history can restore work after a reload when browser storage is available.
 - **Works on a phone**: a bottom bar switches between Image, Figure and Settings; **Export** offers every format and resolution. Pinch to zoom the image, tap a lane to nudge, cut or delete it, double-tap to add one. An exported PNG opens as a picture you long-press to save to Photos (this also works inside WeChat, which cannot download files) or send through the share sheet.
 - **Bilingual interface**: English and Chinese, switchable at any time. Figures are always in English.
 
 ## Versions
 
-The current version is **0.6.8** (original colour, system fonts and compact marker-unit headings). The 0.6 series adds protein gels, annotations, and mobile support. 0.6.3 ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use; 0.6.4 reworks the phone layout (bottom bar, export sheet with every format, long-press to save, touch editing); 0.6.5 keeps group labels from overlapping (wrap / shrink / one line), adds typed line breaks and a font size per label. 0.6.7 added editable PowerPoint export with adjustable image crops. Earlier versions are kept as tags and branches if you need to go back: `v0.6.7` ([`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)), `v0.6.6` ([`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)), `v0.6.5` ([`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)), `v0.6.4`, `v0.6.3`, `v0.6.2`, `v0.6.1`, `v0.6.0` and `v0.5.0`.
+The current version is **0.6.9** (local project history, automatic caching and recovery). The 0.6 series adds protein gels, annotations, and mobile support. 0.6.3 ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use; 0.6.4 reworks the phone layout (bottom bar, export sheet with every format, long-press to save, touch editing); 0.6.5 keeps group labels from overlapping (wrap / shrink / one line), adds typed line breaks and a font size per label. 0.6.7 added editable PowerPoint export with adjustable image crops. 0.6.8 added original colour, system fonts and compact marker-unit headings. Earlier versions are kept as tags and branches if you need to go back: `v0.6.8` ([`release/0.6.8`](https://github.com/poplarity/GelFigure/tree/release/0.6.8)), `v0.6.7` ([`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)), `v0.6.6` ([`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)), `v0.6.5` ([`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)), `v0.6.4`, `v0.6.3`, `v0.6.2`, `v0.6.1`, `v0.6.0` and `v0.5.0`.
 
 ## Privacy
 
 GelFigure is a static web page with no backend. Images are decoded and processed by JavaScript in your browser, and results are saved by your browser's own download mechanism.
 
-The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any other server** (it may only load its own files), so this is enforced by the browser, not just promised. Preferences, custom ladders and autosaved projects (including images and annotations; the dev branch keeps history and all exposures) stay in browser-local storage. Delete individual projects from Recent projects or clear the browser's site data. Cached data is not written into the downloaded HTML.
+The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any other server** (it may only load its own files), so this is enforced by the browser, not just promised. Preferences, custom ladders and autosaved projects (including images, annotations, history and all exposures) stay in browser-local storage. Delete individual projects from Recent projects or clear the browser's site data. Cached data is not written into the downloaded HTML.
 
 ## Supported input
 
@@ -147,13 +147,13 @@ Any other ladder can be added under **Marker → Custom ladder**; custom ladders
 
 Current Chrome, Edge, Firefox and Safari 16.4+ on Windows, macOS and Linux. The test suite runs in Chromium, Firefox and WebKit on every change.
 
-When the downloaded HTML is opened directly from disk, some browsers disable IndexedDB for local files; everything works except the autosaved draft. Use the online version or "Save project" if you need it.
+When the downloaded HTML is opened directly from disk, some browsers disable IndexedDB for local files; editing and export still work, but local project history may be unavailable. Use the online version or "Save project" if you need it.
 
 ## Known limitations
 
 If the page looks like plain text and unstyled buttons, its stylesheet has not loaded or page styles have been disabled. Reload with Ctrl+Shift+R (Command+Shift+R on macOS). For offline use, download the **single-file HTML** from [Releases](https://github.com/poplarity/GelFigure/releases/latest), or extract the **whole ZIP** and keep `css/` and `js/` beside `index.html`; the repository's `index.html` alone is not a standalone app.
 
-If browser storage is blocked or full, the app can still edit and export. Preferences and custom ladders stay in the current tab only; use **Save project** before closing. Automatic draft recovery also depends on the browser allowing IndexedDB.
+If browser storage is blocked or full, the app can still edit and export. Preferences and custom ladders stay in the current tab only; use **Save project** before closing. Local project history and automatic recovery depend on the browser allowing IndexedDB.
 
 - Automatic detection has been validated on DNA agarose gels, Coomassie-stained SDS-PAGE gels and synthetic gels. On a crowded protein gel whose lanes touch, lane detection can merge neighbours — set the lane count under **Lanes in figure** and the rest follows. If detection fails on your images, please [open an issue](https://github.com/poplarity/GelFigure/issues/new/choose).
 - Band quantification (densitometry) is not supported.

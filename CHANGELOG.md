@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.9] - 2026-10-23
+
+Local project history with automatic caching and safe recovery.
+
 **中文摘要**
 - 参考 BlotFigure 增加本机历史项目：自动缓存原图、全部标注和多张曝光，切换胶图时保留上一个项目；支持列表恢复、改名、删除和缓存状态提示。
 - 旧版单份草稿自动迁移，相同原图按 SHA-256 去重；缓存失败会提示保存项目文件，取消切换可继续编辑。桌面、手机和单文件离线版共用同一套实现。
@@ -239,7 +243,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.8...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.9...HEAD
+[0.6.9]: https://github.com/poplarity/GelFigure/compare/v0.6.8...v0.6.9
 [0.6.8]: https://github.com/poplarity/GelFigure/compare/v0.6.7...v0.6.8
 [0.6.7]: https://github.com/poplarity/GelFigure/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/poplarity/GelFigure/compare/v0.6.5...v0.6.6
