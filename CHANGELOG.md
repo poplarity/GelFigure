@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.10] - 2026-10-23
+
+Simpler lane and marker editing, persistent custom marker libraries, and grayscale imports.
+
 **中文摘要**
 - 新导入图片默认灰度处理，仍可手动切换「保留原色」；项目、历史记录和样式恢复其已保存的显示模式。
 - 自定义 Marker 独立本地缓存：手动新增及从项目、模板导入的型号和常用收藏，下次打开可继续使用；旧缓存自动迁移。常规存储失败时使用 IndexedDB 备用缓存，真实显示保存状态；支持备份、导入整个 Marker 库，不含胶图。同名 DNA 与蛋白型号不再互相覆盖，导入冲突保留两份定义。
@@ -270,7 +274,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.9...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.10...HEAD
+[0.6.10]: https://github.com/poplarity/GelFigure/compare/v0.6.9...v0.6.10
 [0.6.9]: https://github.com/poplarity/GelFigure/compare/v0.6.8...v0.6.9
 [0.6.8]: https://github.com/poplarity/GelFigure/compare/v0.6.7...v0.6.8
 [0.6.7]: https://github.com/poplarity/GelFigure/compare/v0.6.6...v0.6.7

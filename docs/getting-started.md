@@ -8,7 +8,7 @@
 
 ## 1. Download
 
-**[Download GelFigure-v0.6.9.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.9/GelFigure-v0.6.9.html)** and save it to your Desktop or Downloads folder.
+**[Download GelFigure-v0.6.10.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.10/GelFigure-v0.6.10.html)** and save it to your Desktop or Downloads folder.
 
 This is the complete tool, about 380 KB. The interface, styles and image-processing code are all inside the same file.
 
@@ -36,7 +36,7 @@ Click **Try the example** to explore the tool. For future sessions, open the sam
 
 ## Save, update and share
 
-**Dev interaction preview:** drag the red frame to crop; lane count and **Re-detect lanes + markers in crop** are on the left (Settings on phones). Re-detection runs both steps while keeping confirmed marker choices and manual anchors. Drag the ↔ end guides for even spacing, or a middle guide to shift the grid. Naming, bulk paste and Fonts & sizes are above the figure. Choose a marker lane and ladder, then **Detect bands here**. **Calibrate / reference** opens a small card beside the original image: select a size and click its real band, or click the band first to choose its size. Model browsing is a preview until applied; schematic spacing is not calibration. Click a figure marker number to change font, show/hide or delete a mark. Hiding preserves calibration; deleting removes the anchor. You can undo either action.
+**Lane and marker editing:** drag the red frame to crop; lane count and **Re-detect lanes + markers in crop** are on the left (Settings on phones). Re-detection runs both steps while keeping confirmed marker choices and manual anchors. Drag the ↔ end guides for even spacing, or a middle guide to shift the grid. Naming, bulk paste and Fonts & sizes are above the figure. Choose a marker lane and ladder, then **Detect bands here**. **Calibrate / reference** opens a small card beside the original image: select a size and click its real band, or click the band first to choose its size. Model browsing is a preview until applied; schematic spacing is not calibration. Click a figure marker number to change font, show/hide or delete a mark. Hiding preserves calibration; deleting removes the anchor. You can undo either action.
 
 **Recent projects.** Use the top bar or **File → Recent projects**; on a phone, use **⋯ → Recent projects**. Images and edits are cached automatically without replacing the previous project when you import another gel. Rename, delete or restore a project, including its other exposures. This is browser-local storage, not a permanent backup: clearing site data removes it. If caching fails, save a project file. A `.gelfig` contains the selected exposure and annotations; keep other exposure files separately.
 
