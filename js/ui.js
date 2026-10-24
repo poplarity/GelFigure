@@ -410,8 +410,23 @@
   $('btnBulkNames').onclick = () => { $('figureNames').classList.toggle('hidden'); if (!$('figureNames').classList.contains('hidden')) $('laneBulk').focus(); };
   $('btnBulkClose').onclick = () => $('figureNames').classList.add('hidden');
   $('btnBulkApply').onclick = () => { if (S()) { applyBulk(); $('figureNames').classList.add('hidden'); } };
-  document.addEventListener('pointerdown', e => { if (!$('figureTextMenu').contains(e.target)) $('figureTextMenu').open = false; });
-  $('figureTextMenu').addEventListener('keydown', e => { if (e.key === 'Escape' && !e.isComposing) { e.stopPropagation(); $('figureTextMenu').open = false; $('figureTextMenu').querySelector('summary').focus(); } });
+  function placeFigureMenus(){
+    const v=window.visualViewport,x=(v?.offsetLeft||0)+8,y=(v?.offsetTop||0)+8,w=v?.width||innerWidth,h=v?.height||innerHeight;
+    ['figureTextMenu','laneAngleMenu'].forEach(id=>{
+      if(!$(id).open)return;const field=$(id).querySelector('.figure-text-fields'),a=$(id).querySelector('summary').getBoundingClientRect();
+      field.style.maxHeight=Math.max(40,h-16)+'px';const r=field.getBoundingClientRect();
+      field.style.left=E.clamp(a.right-r.width,x,Math.max(x,x+w-r.width-16))+'px';
+      field.style.top=E.clamp(a.bottom+6,y,Math.max(y,y+h-r.height-16))+'px';
+    });
+  }
+  ['figureTextMenu','laneAngleMenu'].forEach(id=>{
+    $(id).addEventListener('toggle',placeFigureMenus);
+    document.addEventListener('pointerdown', e=>{if(!$(id).contains(e.target))$(id).open=false;});
+    $(id).addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.isComposing){e.stopPropagation();$(id).open=false;$(id).querySelector('summary').focus();}});
+  });
+  window.addEventListener('resize',placeFigureMenus);
+  window.visualViewport?.addEventListener('resize',placeFigureMenus);
+  window.visualViewport?.addEventListener('scroll',placeFigureMenus);
   $('laneBulk').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); applyBulk(); } });
 
   /* ---------- 4 markers ---------- */
@@ -625,7 +640,28 @@
   ['lanePt', 'markerPt'].forEach(id => $(id).addEventListener('change', done(e => { const v = +e.target.value; S().style[id] = e.target.value === '' || !(v > 0) ? null : E.clamp(v, 4, 14); })));
   $('groupFit').addEventListener('change', done(e => { S().style.groupFit = e.target.value; }));
   $('minFontPt').addEventListener('change', done(e => { S().style.minFontPt = E.clamp(+e.target.value || 5, 4, 10); }));
-  $('labelAngle').addEventListener('change', done(e => { S().style.labelAngle = e.target.value; }));
+  const anglePresets=['0','30','45','60','90'];
+  function angleControls(){
+    if(!S())return;const value=G.Render.labelAngle(S().style.labelAngle),auto=value==='auto';
+    const angle=auto?(lastFig?.angle||0):+value;
+    $('labelAngle').value=auto?'auto':anglePresets.includes(value)?value:'custom';
+    if(document.activeElement!==$('laneAngleNumber'))$('laneAngleNumber').value=angle;
+    $('laneAngleSlider').value=angle;
+    $('angleInfo').textContent=auto?L(`自动 · 当前 ${angle}°`,`Auto · currently ${angle}°`):L(`自定义 · ${angle}°`,`Manual · ${angle}°`);
+    const name=L('泳道名角度','Lane-name angle');$('laneAngleSlider').setAttribute('aria-label',name);$('laneAngleNumber').setAttribute('aria-label',name);
+  }
+  function setAngle(value,commit){
+    if(!S())return;const angle=G.Render.labelAngle(value);if(S().style.labelAngle===angle){angleControls();return;}
+    S().style.labelAngle=angle;commit?App.commit():App.refresh();
+  }
+  $('labelAngle').addEventListener('change',e=>setAngle(e.target.value==='custom'?String(lastFig?.angle||0):e.target.value,true));
+  $('laneAngleSlider').addEventListener('input',e=>setAngle(e.target.value,false));
+  $('laneAngleSlider').addEventListener('change',()=>{if(S()){App.commit();angleControls();}});
+  $('laneAngleNumber').addEventListener('change',e=>{
+    if(e.target.value.trim()===''||!Number.isFinite(+e.target.value)){angleControls();e.target.value=G.Render.labelAngle(S()?.style.labelAngle)==='auto'?(lastFig?.angle||0):S().style.labelAngle;return;}
+    const value=G.Render.labelAngle(e.target.value);e.target.value=value;setAngle(value,true);
+  });
+  $('laneAngleNumber').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();e.target.blur();}});
   ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
   $('panelLetter').addEventListener('change', done(e => { S().style.panelLetter = e.target.value.trim(); }));
   $('laneNumberMode').addEventListener('change', done(e => { S().style.laneNumberMode = e.target.value; }));
@@ -730,7 +766,7 @@
     updateClipLine(); updateDpiLine(); updateEmptyBar(); updateSpliceBox();
     $('gamma').value = st.levels.gamma; $('gammaUnlock').checked = st.levels.gamma !== 1; $('gamma').disabled = st.levels.gamma === 1 && !$('gammaUnlock').checked;
     $('autoWidth').checked = !!y.autoWidth; $('gelW').value = App.gelWidthMm(); $('gelW').disabled = !!y.autoWidth;
-    $('fontPt').value = y.fontPt; $('lineW').value = y.lineWidthPt; $('labelAngle').value = String(y.labelAngle);
+    $('fontPt').value = y.fontPt; $('lineW').value = y.lineWidthPt; angleControls();
     $('fontFamily').value = G.Render.fontName(y.fontFamily);
     ['lanePt', 'markerPt'].forEach(id => { $(id).value = y[id] || ''; $(id).placeholder = y.fontPt; });
     $('groupFit').value = y.groupFit || 'wrap'; $('minFontPt').value = y.minFontPt || 5;
@@ -794,7 +830,7 @@
     svg.removeAttribute('width'); svg.removeAttribute('height');
     svg.style.width = (f.w * k) + 'px'; svg.style.height = (f.h * k) + 'px';
     $('figSize').textContent = `${(f.w / G.Render.MM).toFixed(1)} × ${(f.h / G.Render.MM).toFixed(1)} mm`;
-    $('angleInfo').textContent = st.style.labelAngle === 'auto' ? L(`当前 ${f.angle}°`, `now ${f.angle}°`) : '';
+    angleControls();
     showWarnings(f.warnings);
     // legend suggestions are English: they go into the manuscript
     const hints = G.Export.legendHints(st);

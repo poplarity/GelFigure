@@ -17,7 +17,7 @@
     lanePt: null, markerPt: null, groupFit: 'wrap', minFontPt: 5
   });
 
-  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily) });
+  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily), labelAngle: G.Render.labelAngle(style && style.labelAngle) });
 
   const App = {
     S: null,            // serialisable state

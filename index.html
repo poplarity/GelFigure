@@ -238,13 +238,6 @@
             <label class="inline-label" id="minFontRow"><span data-en="not below">最小</span> <input type="number" id="minFontPt" min="4" max="10" step="0.5" class="num"> pt</label>
           </div>
           <p class="hint" data-en="Empty = the font size above. Every group line, +/− row, arrow, box and side text can also have its own size: click it on the figure. Group labels that still collide move up a row on their own.">留空 = 跟随上面的字号。每条分组、+/− 行、箭头、区域框、侧边文字也能单独设字号：在成图上点它即可。仍会相撞的分组文字会自动错开到上一行。</p>
-          <div class="field inline">
-            <label class="inline-label" data-en="Label angle">泳道名角度</label>
-            <select id="labelAngle" style="width:auto">
-              <option value="auto" data-en="Auto">自动</option><option value="0">0°</option><option value="45">45°</option><option value="60">60°</option><option value="90">90°</option>
-            </select>
-            <span class="h3-note" id="angleInfo"></span>
-          </div>
           <div class="field inline wrap">
             <label class="switch"><input type="checkbox" id="unitHeader" checked><span id="unitHeaderLbl" data-en="Marker units (bp)">Marker 单位 (bp)</span></label>
             <label class="switch"><input type="checkbox" id="laneNumbers"><span data-en="Lane numbers">泳道编号</span></label>
@@ -317,6 +310,19 @@
             <label class="inline-label"><span data-en="Marker labels">Marker 标签</span> <input type="number" id="markerPt" min="4" max="14" step="0.5" class="num"> pt</label>
           </div>
 </div></details>
+        <details id="laneAngleMenu" class="figure-text-menu">
+          <summary><span data-en="Name angle">泳道名角度</span></summary>
+          <div class="figure-text-fields lane-angle-fields">
+            <label for="labelAngle" data-en="Lane-name rotation">泳道名称旋转角度</label>
+            <select id="labelAngle" aria-describedby="angleNote"><option value="auto" data-en="Auto (default)">自动（默认）</option><option value="0" data-en="0° · horizontal">0° · 水平</option><option value="30">30°</option><option value="45">45°</option><option value="60">60°</option><option value="90" data-en="90° · vertical">90° · 竖直</option><option value="custom" data-en="Custom">自定义</option></select>
+            <div class="angle-adjust">
+              <input type="range" id="laneAngleSlider" min="0" max="90" step="1" value="0" aria-label="泳道名角度" data-en-title="Lane-name angle" title="泳道名角度">
+              <label class="inline-label"><input type="number" id="laneAngleNumber" class="num" min="0" max="90" step="1" value="0" aria-label="泳道名角度" data-en-title="Lane-name angle" title="泳道名角度">°</label>
+            </div>
+            <span class="h3-note" id="angleInfo" aria-live="polite"></span>
+            <p class="hint" id="angleNote" data-en="Auto keeps the existing spacing rule. Drag or type to set 0–90° for all lane names; select Auto to restore automatic layout.">自动沿用现有排版规则。拖动或输入可设置所有泳道名的 0–90° 角度；选回“自动”即可恢复自动排版。</p>
+          </div>
+        </details>
       </div>
       <div id="figureNames" class="figure-names hidden">
         <label for="laneBulk" data-en="Names from left to right (paste a row from Excel)">按从左到右粘贴泳道名（可复制 Excel 的一行）</label>
@@ -456,6 +462,7 @@
     <li><b>Lane lines off</b>: set the count on the left (Settings on phones), then drag the ↔ end lines; the middle follows in real time. Drag a middle line to shift the grid. Turn off “Link spacing” or Alt-drag to adjust one lane. Counts include marker and empty lanes; changes can be undone.</li>
     <li><b>Try detection again</b>: “Re-detect lanes + markers in crop” runs both stages inside the red frame, keeping confirmed marker choices and manual anchors. Removed marker roles are not re-added. Simply moving the crop does not reclassify lanes.</li>
     <li><b>Text sizes / marker labels</b>: use “Fonts &amp; sizes” above the figure, click a marker number, or double-click an existing marker lane on the raw image. Drag the panel title to move it aside. Marker controls stay open for show/hide and delete. Hiding preserves calibration; deleting removes the anchor too. Undo or re-position the band to restore a deleted mark.</li>
+    <li><b>Lane-name rotation</b>: use “Name angle” above the figure. Auto keeps the existing layout rule; presets, the slider or numeric input set 0–90° for all lane names. Choose Auto to restore it. The angle is included in projects, styles and exports.</li>
     <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
     <li><b>A marker band is wrong</b>: select its lane and model, then “Detect bands here” to align only that marker. Open “Calibrate / reference”, select a size and click its actual band on the original image; or click a band first to choose the size. Drag yellow lines to fine-tune (Alt disables snapping). Browsing reference models changes nothing until “Use this ladder”. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
@@ -490,6 +497,7 @@
     <li><b>泳道线没对齐</b>：在左侧填写条数（手机在“设置”页），拖 ↔ 首尾线，中间实时均分；拖中间线可整体平移。关闭“等距联动”或按 Alt 拖动可单独微调。数量包含 Marker 和空道，修改可撤销。</li>
     <li><b>重新识别</b>：“框内重新识别泳道和 Marker”一次完成两个步骤，保留手动确认的 Marker 和定位点，不重新添加已取消的 Marker；单纯拖裁切框不会重新分类。</li>
     <li><b>字号 / Marker 显示</b>：成图上方“字体与字号”统一设置，也可点 Marker 数字或双击原图中已有的 Marker 泳道；面板可按住标题拖动移开。支持显示、隐藏和删除且不会自动收起。隐藏仍保留校准，删除同时移除定位点；可撤销或重新定位恢复。</li>
+    <li><b>泳道名旋转</b>：点成图上方“泳道名角度”。默认自动沿用原有排版规则；可选预设、拖动滑块或输入 0–90°，对所有泳道名生效。选回“自动”即可恢复，角度会随项目、样式和导出保存。</li>
     <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
     <li><b>Marker 条带不对</b>：选好泳道和型号后点“识别此泳道”，只对齐这一个 Marker。打开“校准 / 图例”，先选大小再点原图上的实际条带，也可先点条带再选大小；拖黄线微调，Alt 关闭吸附。参考卡里切换型号先预览，点“使用此型号”才应用。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>

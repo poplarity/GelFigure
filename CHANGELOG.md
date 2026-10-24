@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- 修复较窄电脑窗口隐藏引导文字后，顶部导出按钮向中间偏移的问题；导出区始终靠右，长文件名会收缩显示。
+- 成图上方新增「泳道名角度」入口：默认沿用原有自动规则，可选预设或通过滑块、数值输入调节 0–90°；角度跟随项目、样式和导出保存，支持撤销及恢复自动。
+
+### Fixed
+- Keep desktop export controls aligned to the upper-right edge when the coach line is hidden, including long filenames and cache-status messages.
+
+### Added
+- Figure-side lane-name rotation controls with presets and a 0–90° slider/numeric input. The existing automatic angle selection remains the default. Manual angles persist in projects/styles and SVG, raster and editable PowerPoint exports; dragging the slider produces one undo step. Figure font/angle menus stay inside the visible viewport on small screens.
+
 ## [0.6.10] - 2026-10-23
 
 Simpler lane and marker editing, persistent custom marker libraries, and grayscale imports.

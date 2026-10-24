@@ -144,6 +144,10 @@
     if (pitchPt >= pt * 1.6) return 45;
     return 90;
   }
+  function labelAngle(value) {
+    if(value==null||value==='auto'||typeof value!=='number'&&typeof value!=='string'||String(value).trim()==='')return 'auto';
+    const n=Number(value);return Number.isFinite(n)?String(Math.round(Math.max(0,Math.min(90,n)))):'auto';
+  }
 
   /* Stack group lines into tiers: a group goes to the lowest tier where neither its line nor its text
    * touches another group's (narrow groups first, so they sit nearest the gel). Using the text's real
@@ -270,7 +274,8 @@
     const hasNames = names.some(t => t.trim());
     let angle = 0;
     if (hasNames) {
-      angle = st.labelAngle === 'auto' ? autoAngle(names, pitch, lp, family) : +st.labelAngle;
+      const chosen=labelAngle(st.labelAngle);
+      angle = chosen === 'auto' ? autoAngle(names, pitch, lp, family) : +chosen;
       const rad = angle * Math.PI / 180, sn = Math.sin(rad), cs = Math.cos(rad);
       let hMax = lp;
       vis.forEach((o, vi) => {
@@ -291,7 +296,7 @@
         }
       });
       if (angle !== 0 && pitch < lp * 1.15) overlap(G.L('泳道过窄：即使 90° 标签也会重叠，请减小字号或增大图宽', 'Lanes are too narrow: even 90° labels overlap; use a smaller font or a wider figure'));
-      if (angle === 0 && st.labelAngle !== 'auto' && Math.max(...names.map(t => measure(t, lp))) > pitch * 1.02) overlap(G.L('水平泳道标签发生重叠，建议改用"自动"或倾斜角度', 'Horizontal lane labels overlap; use "Auto" or a tilted angle'));
+      if (angle === 0 && chosen !== 'auto' && Math.max(...names.map(t => measure(t, lp))) > pitch * 1.02) overlap(G.L('水平泳道标签发生重叠，建议改用"自动"或倾斜角度', 'Horizontal lane labels overlap; use "Auto" or a tilted angle'));
       yTop -= (angle === 0 ? lp * 1.3 : hMax + lp * 0.35);
     }
     // groups: line spanning lanes + shared text above
@@ -525,5 +530,5 @@
     return { svg, w: vw, h: vh, angle, warnings, overlaps, scale: sc, vx, vy, gelW: W, gelH: H, minPt: usedMin === Infinity ? pt : usedMin, fontFamily: family };
   }
 
-  G.Render = { build, composeGel, measure: measureText, wrapText, MM, laneBounds, fontName, fontStack, fontNames: Object.freeze(Object.keys(FONTS)) };
+  G.Render = { build, composeGel, measure: measureText, wrapText, MM, laneBounds, fontName, fontStack, labelAngle, fontNames: Object.freeze(Object.keys(FONTS)) };
 })(window);
