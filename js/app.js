@@ -45,7 +45,7 @@
   App.defaultStyle = defaultStyle;
   App.onDropFile = null;   // set by the UI layer
 
-  App.VERSION = '0.6.10';
+  App.VERSION = '0.6.11';
   App.prefs = prefs;
   App.setPref = function (k, v) { const p = prefs(); p[k] = v; G.PrefStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 

@@ -4,8 +4,8 @@ title: "GelFigure: publication-ready DNA and protein gel figures in the browser"
 type: software
 authors:
   - alias: poplarity
-version: 0.6.10
-date-released: 2026-10-23
+version: 0.6.11
+date-released: 2026-10-24
 license: MIT
 repository-code: "https://github.com/poplarity/GelFigure"
 url: "https://poplarity.github.io/GelFigure/"

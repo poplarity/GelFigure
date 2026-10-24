@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.11] - 2026-10-24
+
+Right-aligned desktop exports and adjustable lane-name angles with the same automatic default.
+
 **中文摘要**
 - 修复较窄电脑窗口隐藏引导文字后，顶部导出按钮向中间偏移的问题；导出区始终靠右，长文件名会收缩显示。
 - 成图上方新增「泳道名角度」入口：默认沿用原有自动规则，可选预设或通过滑块、数值输入调节 0–90°；角度跟随项目、样式和导出保存，支持撤销及恢复自动。
@@ -284,7 +288,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.10...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.11...HEAD
+[0.6.11]: https://github.com/poplarity/GelFigure/compare/v0.6.10...v0.6.11
 [0.6.10]: https://github.com/poplarity/GelFigure/compare/v0.6.9...v0.6.10
 [0.6.9]: https://github.com/poplarity/GelFigure/compare/v0.6.8...v0.6.9
 [0.6.8]: https://github.com/poplarity/GelFigure/compare/v0.6.7...v0.6.8

@@ -4,7 +4,7 @@
 
 **把原始 DNA 胶或蛋白胶图一键做成可投稿的成图 —— 在浏览器里完成，离线可用。**
 
-[**下载单文件 HTML**](https://github.com/poplarity/GelFigure/releases/download/v0.6.10/GelFigure-v0.6.10.html) · [在线使用](https://poplarity.github.io/GelFigure/) · [English](README.md)
+[**下载单文件 HTML**](https://github.com/poplarity/GelFigure/releases/download/v0.6.11/GelFigure-v0.6.11.html) · [在线使用](https://poplarity.github.io/GelFigure/) · [English](README.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -18,13 +18,13 @@
 
 **只需下载一个文件，用浏览器打开就能做图。不用安装、不用解压，也不用注册 GitHub。**
 
-1. **[点击下载 GelFigure-v0.6.10.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.10/GelFigure-v0.6.10.html)**，不到 1 MB，保存到桌面或“下载”文件夹。
+1. **[点击下载 GelFigure-v0.6.11.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.11/GelFigure-v0.6.11.html)**，不到 1 MB，保存到桌面或“下载”文件夹。
 2. **双击刚下载的文件。** 它会在浏览器中打开；如果打开的是记事本等软件，右键文件 → **打开方式** → 选择 Firefox、Chrome、Edge 或 Safari。
 3. **点“选择文件”，导入你的胶图。** 核对识别出的胶种、泳道和 Marker，点泳道名填写名称，再点 **导出 PNG**。
 
 这一个 HTML 文件已经包含完整界面和处理功能。保存后可以断网使用，也可以把同一个文件直接发给同事。
 
-**认准文件名：** 下载的是 **GelFigure-v0.6.10.html**，不是仓库里的 **index.html**，也不是 **Source code (zip)** 或 **Source code (tar.gz)**。不需要点 **Code → Download ZIP**。如果进入了[版本下载页](https://github.com/poplarity/GelFigure/releases/latest)，展开 **Assets（附件）**，只点结尾为 **.html** 的文件即可。
+**认准文件名：** 下载的是 **GelFigure-v0.6.11.html**，不是仓库里的 **index.html**，也不是 **Source code (zip)** 或 **Source code (tar.gz)**。不需要点 **Code → Download ZIP**。如果进入了[版本下载页](https://github.com/poplarity/GelFigure/releases/latest)，展开 **Assets（附件）**，只点结尾为 **.html** 的文件即可。
 
 **下次接着做：** 关闭前点 **文件 → 保存项目**；手机端在右上角 **⋯** 里（或 **导出 → 保存项目**）。得到的 **.gelfig** 项目文件会保存原图和标注，下次用 GelFigure 打开即可继续。
 
@@ -56,7 +56,7 @@
 
 ## 功能
 
-**dev 预览：泳道名角度与顶部布局。** 较窄电脑窗口的导出按钮也保持在右上角。成图上方的 **泳道名角度** 可选预设，或滑动、输入 0–90° 整数角度。**自动（默认）** 沿用原有间距判断，随时选回即可恢复自动排版；角度随项目、样式保存，并用于各格式导出。
+**泳道名角度与顶部布局。** 较窄电脑窗口的导出按钮也保持在右上角。成图上方的 **泳道名角度** 可选预设，或滑动、输入 0–90° 整数角度。**自动（默认）** 沿用原有间距判断，随时选回即可恢复自动排版；角度随项目、样式保存，并用于各格式导出。
 
 **更直接的泳道和 Marker 操作。** 出图范围直接拖红框；泳道数量和“框内重新识别泳道和 Marker”放在左侧（手机在“设置”页）。拖 ↔ 首尾线实时等距，拖中间线整体平移。重新识别一次完成两个步骤，保留手动确认的 Marker、定位点及取消 Marker 的选择；单纯裁切不会重新分类。名称、批量粘贴和字体字号集中在成图一侧。选定 Marker 泳道和型号后，点“识别此泳道”只对齐这一道。小型参考卡留在原图旁，可预览型号、选大小后点实际条带定位。直接点成图上的 Marker 数字即可改字号、显示/隐藏或删除；隐藏保留校准，删除同时移除定位点。未匹配到实际条带的预测标注默认隐藏，识别结果仍需对照原图核对。旧项目的已有位置保持不变，修改可撤销。
 
@@ -85,7 +85,7 @@
 
 ## 版本
 
-当前版本 **0.6.10**（泳道与 Marker 交互优化、可拖动面板、自定义 Marker 缓存和默认灰度）。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.3 在每个 Release 附上单文件离线版（`GelFigure-<version>.html`，双击即用），0.6.4 重做手机端（底部导航、全格式导出、长按存图、触屏编辑），0.6.5 让分组文字不再重叠（自动换行 / 缩小字号 / 保持一行），并支持手动换行和逐项设置字号。0.6.7 新增可编辑 PowerPoint 导出，并保留可调整的图片裁切。0.6.8 新增保留原色、系统字体选择和紧凑的 Marker 单位标题。0.6.9 新增历史项目和自动恢复。需要回到旧版本时：`v0.6.9`（分支 [`release/0.6.9`](https://github.com/poplarity/GelFigure/tree/release/0.6.9)）、`v0.6.8`（分支 [`release/0.6.8`](https://github.com/poplarity/GelFigure/tree/release/0.6.8)）、`v0.6.7`（分支 [`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)）、`v0.6.6`（分支 [`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)）、`v0.6.5`（分支 [`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)）、`v0.6.4`、`v0.6.3`、`v0.6.2`、`v0.6.1`、`v0.6.0` 和 `v0.5.0`。
+当前版本 **0.6.11**（顶部导出栏修复、泳道名角度调节）。0.6 系列新增蛋白胶、论文常用标注和手机端支持；0.6.3 在每个 Release 附上单文件离线版（`GelFigure-<version>.html`，双击即用），0.6.4 重做手机端（底部导航、全格式导出、长按存图、触屏编辑），0.6.5 让分组文字不再重叠（自动换行 / 缩小字号 / 保持一行），并支持手动换行和逐项设置字号。0.6.7 新增可编辑 PowerPoint 导出，并保留可调整的图片裁切。0.6.8 新增保留原色、系统字体选择和紧凑的 Marker 单位标题。0.6.9 新增历史项目和自动恢复。0.6.10 优化泳道与 Marker 交互，加入自定义 Marker 缓存和默认灰度。需要回到旧版本时：`v0.6.10`（分支 [`release/0.6.10`](https://github.com/poplarity/GelFigure/tree/release/0.6.10)）、`v0.6.9`（分支 [`release/0.6.9`](https://github.com/poplarity/GelFigure/tree/release/0.6.9)）、`v0.6.8`（分支 [`release/0.6.8`](https://github.com/poplarity/GelFigure/tree/release/0.6.8)）、`v0.6.7`（分支 [`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)）、`v0.6.6`（分支 [`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)）、`v0.6.5`（分支 [`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)）、`v0.6.4`、`v0.6.3`、`v0.6.2`、`v0.6.1`、`v0.6.0` 和 `v0.5.0`。
 
 ## 隐私
 

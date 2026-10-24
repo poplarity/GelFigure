@@ -4,7 +4,7 @@
 
 **Turn a raw DNA or protein gel image into a publication-ready figure — in your browser, offline.**
 
-[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.10/GelFigure-v0.6.10.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
+[**Download the single HTML file**](https://github.com/poplarity/GelFigure/releases/download/v0.6.11/GelFigure-v0.6.11.html) · [Use online](https://poplarity.github.io/GelFigure/) · [中文说明](README.zh-CN.md)
 
 [![CI](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml/badge.svg)](https://github.com/poplarity/GelFigure/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -18,13 +18,13 @@
 
 **Download one file, open it in your browser, and start making your figure. No installation, ZIP extraction or GitHub account is needed.**
 
-1. **[Download GelFigure-v0.6.10.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.10/GelFigure-v0.6.10.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
+1. **[Download GelFigure-v0.6.11.html](https://github.com/poplarity/GelFigure/releases/download/v0.6.11/GelFigure-v0.6.11.html)** (under 1 MB). Save it to your Desktop or Downloads folder.
 2. **Double-click the downloaded file.** It opens in your browser. If a text editor opens instead, right-click → **Open with** → Firefox, Chrome, Edge or Safari.
 3. **Click “Choose file” and select your gel image.** Check the detected gel type, lanes and marker, click the lane names to edit them, then choose **Export PNG**.
 
 That one HTML file is the complete tool, including its layout and image-processing code. Keep it on your computer or send the same file to a colleague. Once downloaded, it works without an internet connection.
 
-**Get the right file:** choose the release attachment named **GelFigure-v0.6.10.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
+**Get the right file:** choose the release attachment named **GelFigure-v0.6.11.html**, not the repository's **index.html**, **Source code (zip)** or **Source code (tar.gz)**. You do not need **Code → Download ZIP**. If you reach the [release page](https://github.com/poplarity/GelFigure/releases/latest), expand **Assets** and click the file ending in **.html**.
 
 **Keep your work:** use **File → Save project** before closing. On a phone it is under **⋯** (or **Export → Save project**). Your **.gelfig** file contains the original image and annotations; reopen it in GelFigure to continue.
 
@@ -56,7 +56,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Features
 
-**Dev preview: lane-name angles and header layout.** Export stays at the upper right on smaller desktop windows. Use **Name angle** above the figure for presets or any whole-degree angle from 0–90°. **Auto (default)** keeps the existing spacing rule; selecting it again restores automatic layout. The choice is saved with projects and styles and used by every export format.
+**Lane-name angles and header layout.** Export stays at the upper right on smaller desktop windows. Use **Name angle** above the figure for presets or any whole-degree angle from 0–90°. **Auto (default)** keeps the existing spacing rule; selecting it again restores automatic layout. The choice is saved with projects and styles and used by every export format.
 
 **Direct lane and marker editing.** Drag the red frame to crop. Lane count and **Re-detect lanes + markers in crop** are directly available on the left (Settings on a phone). Drag the ↔ end guides for even spacing, or a middle guide to shift the grid. Re-detection runs both stages, preserves confirmed marker choices/manual anchors and respects removed marker roles; simply cropping does not reclassify lanes. Naming, bulk paste and typography live beside the figure. Select a marker lane and ladder, then **Detect bands here** to align only that lane. A compact reference card stays beside the original image: preview a model, select a size and click its actual band. Click a marker number on the figure for font, show/hide and delete controls. Hiding keeps calibration; deleting removes the anchor too. Predicted bands without a detected match are hidden initially; check the result against your image. Existing projects retain their saved geometry; edits are undoable.
 
@@ -85,7 +85,7 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Versions
 
-The current version is **0.6.10** (simpler lane/marker editing, movable panels, custom marker caching and grayscale imports). The 0.6 series adds protein gels, annotations, and mobile support. 0.6.3 ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use; 0.6.4 reworks the phone layout (bottom bar, export sheet with every format, long-press to save, touch editing); 0.6.5 keeps group labels from overlapping (wrap / shrink / one line), adds typed line breaks and a font size per label. 0.6.7 added editable PowerPoint export with adjustable image crops. 0.6.8 added original colour, system fonts and compact marker-unit headings. 0.6.9 added local project history and automatic recovery. Earlier versions are kept as tags and branches if you need to go back: `v0.6.9` ([`release/0.6.9`](https://github.com/poplarity/GelFigure/tree/release/0.6.9)), `v0.6.8` ([`release/0.6.8`](https://github.com/poplarity/GelFigure/tree/release/0.6.8)), `v0.6.7` ([`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)), `v0.6.6` ([`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)), `v0.6.5` ([`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)), `v0.6.4`, `v0.6.3`, `v0.6.2`, `v0.6.1`, `v0.6.0` and `v0.5.0`.
+The current version is **0.6.11** (right-aligned desktop exports and adjustable lane-name angles). The 0.6 series adds protein gels, annotations, and mobile support. 0.6.3 ships a single-file offline build (`GelFigure-<tag>.html`) for double-click use; 0.6.4 reworks the phone layout (bottom bar, export sheet with every format, long-press to save, touch editing); 0.6.5 keeps group labels from overlapping (wrap / shrink / one line), adds typed line breaks and a font size per label. 0.6.7 added editable PowerPoint export with adjustable image crops. 0.6.8 added original colour, system fonts and compact marker-unit headings. 0.6.9 added local project history and automatic recovery. 0.6.10 simplified lane/marker editing and added marker-library caching and grayscale imports. Earlier versions are kept as tags and branches if you need to go back: `v0.6.10` ([`release/0.6.10`](https://github.com/poplarity/GelFigure/tree/release/0.6.10)), `v0.6.9` ([`release/0.6.9`](https://github.com/poplarity/GelFigure/tree/release/0.6.9)), `v0.6.8` ([`release/0.6.8`](https://github.com/poplarity/GelFigure/tree/release/0.6.8)), `v0.6.7` ([`release/0.6.7`](https://github.com/poplarity/GelFigure/tree/release/0.6.7)), `v0.6.6` ([`release/0.6.6`](https://github.com/poplarity/GelFigure/tree/release/0.6.6)), `v0.6.5` ([`release/0.6.5`](https://github.com/poplarity/GelFigure/tree/release/0.6.5)), `v0.6.4`, `v0.6.3`, `v0.6.2`, `v0.6.1`, `v0.6.0` and `v0.5.0`.
 
 ## Privacy
 
