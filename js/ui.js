@@ -413,7 +413,9 @@
   $('btnBulkClose').onclick = () => $('figureNames').classList.add('hidden');
   $('btnBulkApply').onclick = () => { if (S()) { applyBulk(); $('figureNames').classList.add('hidden'); } };
   function placeFigureMenus(){
-    const v=window.visualViewport,x=(v?.offsetLeft||0)+8,y=(v?.offsetTop||0)+8,w=v?.width||innerWidth,h=v?.height||innerHeight;
+    const v=window.visualViewport,x=(v?.offsetLeft||0)+8,y=(v?.offsetTop||0)+8;
+    // visualViewport can report the previous width for a frame during phone resizing.
+    const w=Math.max(16,Math.min(v?.width||innerWidth,innerWidth-x+8)),h=Math.max(16,Math.min(v?.height||innerHeight,innerHeight-y+8));
     ['figureTextMenu','laneAngleMenu'].forEach(id=>{
       if(!$(id).open)return;const field=$(id).querySelector('.figure-text-fields'),a=$(id).querySelector('summary').getBoundingClientRect();
       field.style.maxHeight=Math.max(40,h-16)+'px';const r=field.getBoundingClientRect();
@@ -652,6 +654,7 @@
     $('laneAngleSlider').value=angle;
     $('angleInfo').textContent=auto?L(`自动 · 当前 ${angle}°`,`Auto · currently ${angle}°`):L(`自定义 · ${angle}°`,`Manual · ${angle}°`);
     const name=L('泳道名角度','Lane-name angle');$('laneAngleSlider').setAttribute('aria-label',name);$('laneAngleNumber').setAttribute('aria-label',name);
+    placeFigureMenus();
   }
   function setAngle(value,commit){
     if(!S())return;const angle=G.Render.labelAngle(value);if(S().style.labelAngle===angle){angleControls();return;}

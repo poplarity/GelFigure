@@ -23,6 +23,8 @@ import { ladderCacheChecks } from './ladder-cache.mjs';
 import { layoutControlChecks } from './layout-controls.mjs';
 import { nameFormatChecks } from './name-format.mjs';
 import { exportSupportChecks } from './export-support.mjs';
+import { feedbackChecks } from './feedback.mjs';
+import { arrowSpacingChecks } from './arrow-spacing.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -136,6 +138,8 @@ async function runIn(name, base) {
     if (layout.some(r => r[0] === 'FAIL')) out.ok = false;
     const nameFormats=await nameFormatChecks(browser,base,ROOT,name);out.results.push(...nameFormats);if(nameFormats.some(r=>r[0]==='FAIL'))out.ok=false;
     const support=await exportSupportChecks(browser,base);out.results.push(...support);if(support.some(r=>r[0]==='FAIL'))out.ok=false;
+    const feedback=await feedbackChecks(browser,base,ROOT,name);out.results.push(...feedback);if(feedback.some(r=>r[0]==='FAIL'))out.ok=false;
+    const arrowSpacing=await arrowSpacingChecks(browser,base,ROOT,name);out.results.push(...arrowSpacing);if(arrowSpacing.some(r=>r[0]==='FAIL'))out.ok=false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];
@@ -168,7 +172,7 @@ async function runIn(name, base) {
       if (errs.length) fail('interface page errors', errs.join(' | '));
       await page.close();
     }
-    // privacy: the Content Security Policy must stop every request to another origin
+    // privacy: CSP must stop unapproved origins; feedback alone has a narrowly configured exception
     {
       const page = await ctx.newPage();
       await page.goto(`${base}/index.html`);
@@ -182,7 +186,7 @@ async function runIn(name, base) {
         const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = t + '/css'; document.head.appendChild(l);
       }, outside.url);
       await page.waitForTimeout(2000);
-      outside.hits.length ? fail('no request leaves the page', outside.hits.join(', ')) : pass('no request leaves the page');
+      outside.hits.length ? fail('no request reaches an unapproved origin', outside.hits.join(', ')) : pass('no request reaches an unapproved origin');
       await page.close();
     }
     // Chinese interface loads and detects the demo gel

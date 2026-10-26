@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#131c29">
 <meta name="format-detection" content="telephone=no">
-<!-- Everything runs locally. This policy forbids the page from contacting any server other than its own origin (its own files), so images can never leave the computer. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
-<meta name="description" content="GelFigure: turn a raw DNA or protein gel image into a publication-ready figure in the browser. Offline, nothing is uploaded.">
+<!-- Images stay local. The sole external connect-src allowance is the configured text-feedback endpoint, used only on an explicit submission. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; connect-src 'self' file: data: blob: https://formsubmit.co/ajax/wyang404%40qq.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="description" content="GelFigure: turn a raw DNA or protein gel image into a publication-ready figure in the browser. Offline image processing; gel images stay local.">
 <title>GelFigure</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Cg fill='%23fff'%3E%3Crect x='6' y='8' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='13' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='18' width='6' height='2.2' rx='1'/%3E%3Crect x='6' y='23' width='6' height='2.2' rx='1'/%3E%3Crect x='19' y='15' width='7' height='3' rx='1.2'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
@@ -36,6 +36,7 @@
         <button id="btnResetAll" class="danger" data-en="Reset everything (back to import)">重置整图（回到刚导入时）</button>
       </div>
     </div>
+    <button class="icon-btn community-entry d-only" id="btnCommunity" title="反馈、赞助与 GitHub Star" data-en-title="Feedback, support and GitHub Star" aria-label="反馈与支持"><span aria-hidden="true">♡</span><span class="community-label" data-en="Feedback / support">反馈 / 支持</span></button>
     <button class="icon-btn" id="btnHelp" title="使用说明" data-en-title="Help">?</button>
     <button class="icon-btn lang-btn" id="btnLang">EN</button>
     <span class="divider"></span>
@@ -386,6 +387,7 @@
     <button class="sheet-item" data-m="loadTpl"><span class="si-ic">⤓</span><span class="si-tx"><span data-en="Apply style…">载入样式…</span></span></button>
     <div class="sheet-sep"></div>
     <button class="sheet-item" data-m="help"><span class="si-ic">?</span><span class="si-tx"><span data-en="How to use">使用说明</span></span></button>
+    <button class="sheet-item" data-m="community"><span class="si-ic">♡</span><span class="si-tx"><span data-en="Feedback / support / Star">反馈 / 支持作者 / Star</span><small data-en="Always available, with or without an image">随时可打开，无需先导出图片</small></span></button>
     <button class="sheet-item" data-m="lang"><span class="si-ic">文</span><span class="si-tx"><span>English / 中文</span></span></button>
     <button class="sheet-item danger" data-m="reset"><span class="si-ic">↺</span><span class="si-tx"><span data-en="Reset everything (back to import)">重置整图（回到刚导入时）</span></span></button>
     <p class="sheet-foot" data-en-html="GelFigure · open source (MIT) · images never leave this device<br><a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a>">GelFigure · 开源（MIT）· 图片只在本机处理<br><a href="https://github.com/poplarity/GelFigure" target="_blank" rel="noopener">github.com/poplarity/GelFigure</a></p>
@@ -569,6 +571,7 @@
 <script src="js/marker-ui.js"></script>
 <script src="js/history-ui.js"></script>
 <script src="js/support-config.js"></script>
+<script src="js/feedback.js"></script>
 <script src="js/export-support.js"></script>
 </body>
 </html>

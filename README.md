@@ -34,7 +34,7 @@ Need help? See [the illustrated download and opening guide](docs/getting-started
 
 <img src="docs/screenshot-en.png" alt="GelFigure: raw gel on the left, finished figure on the right" width="900">
 
-Drop in the image from your gel imager or scanner. GelFigure works out whether it is a DNA (agarose) or a protein (SDS-PAGE) gel, straightens and crops it, finds the lanes, identifies the ladder and labels its band sizes in bp or kDa. You type the lane names on the figure and export. Everything happens in the browser; **nothing is uploaded, nothing is installed**.
+Drop in the image from your gel imager or scanner. GelFigure works out whether it is a DNA (agarose) or a protein (SDS-PAGE) gel, straightens and crops it, finds the lanes, identifies the ladder and labels its band sizes in bp or kDa. You type the lane names on the figure and export. Everything happens in the browser; **gel images stay local, nothing is installed**.
 
 <p align="center"><img src="docs/example-figure.png" alt="Example output" width="560"></p>
 
@@ -56,7 +56,9 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Features
 
-**Dev preview: individual lane names and text formatting.** Shared name settings remain the default. Click a name, expand **Individual lane settings** and enable custom size/angle only when needed; untick it to follow the shared settings again. Select text and use Upright, Italic, x² or x₂; with no selection the action applies to the whole name. Clear restores the shared face. Formatting travels with projects/styles and stays editable in PowerPoint. After exporting, you can leave GitHub feedback or optionally support the author via the provided Alipay QR. Viewing or saving the QR does not replace your figure; payment is never opened automatically.
+**Dev preview: feedback and support are always available.** Use **Feedback / support** in the desktop top bar, or **⋯ → Feedback / support / Star** on a phone, even before loading an image. Export reminders return on the next export after being closed. The online form needs no GitHub account: FormSubmit forwards your message, optional reply email and app version to the author. Failed submissions keep your text. Local HTML files offer copy/open-online fallback because this service requires a web page. Alipay support and GitHub Stars are optional. Hidden marker-label columns no longer create a blank strip beside arrows.
+
+**Dev preview: individual lane names and text formatting.** Shared name settings remain the default. Click a name, expand **Individual lane settings** and enable custom size/angle only when needed; untick it to follow the shared settings again. Select text and use Upright, Italic, x² or x₂; with no selection the action applies to the whole name. Clear restores the shared face. Formatting travels with projects/styles and stays editable in PowerPoint. After exporting, you can leave feedback or optionally support the author via the provided Alipay QR. Viewing or saving the QR does not replace your figure; payment is never opened automatically.
 
 **Lane-name angles and header layout.** Export stays at the upper right on smaller desktop windows. Use **Name angle** above the figure for presets or any whole-degree angle from 0–90°. **Auto (default)** keeps the existing spacing rule; selecting it again restores automatic layout. The choice is saved with projects and styles and used by every export format.
 
@@ -91,9 +93,9 @@ The current version is **0.6.11** (right-aligned desktop exports and adjustable 
 
 ## Privacy
 
-GelFigure is a static web page with no backend. Images are decoded and processed by JavaScript in your browser, and results are saved by your browser's own download mechanism.
+GelFigure is a static web page; image processing does not use a server. Images are decoded and processed by JavaScript in your browser, and results are saved by your browser's own download mechanism.
 
-The page carries a [Content Security Policy](index.html) that **forbids it from connecting to any other server** (it may only load its own files), so this is enforced by the browser, not just promised. Preferences, custom ladders and autosaved projects (including images, annotations, history and all exposures) stay in browser-local storage. Delete individual projects from Recent projects or clear the browser's site data. Cached data is not written into the downloaded HTML.
+The [Content Security Policy](index.html) allows the app’s own resources and one explicitly configured feedback endpoint. Image processing, editing and export do not upload gels. Only clicking **Send feedback** submits the text you wrote, optional reply email and app version through FormSubmit; no image, filename, lane names or project is attached automatically. Feedback requires internet access. Sponsorship/Star links open only when clicked. Preferences, custom ladders and autosaved projects (including images, annotations, history and all exposures) stay in browser-local storage. Delete individual projects from Recent projects or clear the browser's site data. Cached data is not written into the downloaded HTML.
 
 ## Supported input
 

@@ -9,12 +9,18 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - 名称工具条新增正体、斜体、上标、下标；对选中文字生效，未选中时作用于整个名称。使用普通文本编辑，不必输入格式标记；兼容已有 `*斜体*` 名称，泳道名中的孤立星号不再丢失。
 - “清除格式”恢复统一字形；名称编辑内支持 Ctrl/⌘+Z 撤销和重做，格式、文字与单独设置一起恢复。
 - 名称格式随项目、历史和样式保存，导出 SVG、PNG、TIFF、PPTX 时保留；PowerPoint 中仍为可编辑文字，保留上下标基线和字号。
-- 成图导出后提供可关闭的反馈/赞助提示，反馈链接到 GitHub Issues；已接入作者提供的支付宝收款码，可显示或保存二维码、主动打开收款链接。仅保留同一收款地址的纯二维码，不含原图头像、昵称及图片元数据。无支付 SDK、跟踪或自动上传，不影响正常导出。
+- 电脑顶栏和手机“更多”新增固定的反馈 / 支持入口，无需先导出；关闭导出提示后，下次导出仍会出现。支付宝码、保存码、收款链接与 GitHub Star 都可随时找到；赞助文案说明 Token 成本，所有支持均自愿。
+- 网页内直接填写反馈，无需 GitHub 账号；通过 FormSubmit 转发到作者明确同意公开的接收邮箱。只提交所填文字、可选回复邮箱和版本号，不自动附带胶图、文件名、泳道名或项目。失败保留草稿；离线文件提供复制内容、打开网页版的替代入口。
 
 ### Added
 - Per-lane name size/angle overrides are opt-in; shared defaults remain the normal workflow. Lane-name runs support selection-based upright/italic and superscript/subscript formatting without a rich-text dependency.
 - SVG/raster measurement, bounds, minimum-font checks, templates/projects/logs and editable DrawingML runs preserve name formatting and per-lane layout. Existing italic-markup names remain supported.
-- Optional author support and feedback after a successful figure export. The author-provided Alipay destination is shown as a local QR, with save/open-link controls; source-photo nickname/avatar/metadata are omitted. Desktop prompts are dismissible for the session; phones retain the exported file while viewing/saving the QR. Only explicit clicks open external pages; no image/project data is attached. Empty sponsorship configuration still hides the button.
+- Persistent desktop/phone community entry and reminders after each successful figure export. Optional Alipay support explains maintenance/token costs and includes a voluntary GitHub Star link. No payment SDK, tracking, forced payment or automatic starring.
+- In-app text feedback with email forwarding via the configured FormSubmit endpoint, drafts, duplicate-send protection and explicit success/error states. CSP permits only that exact endpoint in addition to app resources. No image/project information is added. Local-file users can copy feedback and open the online form. The maintainer explicitly approved the public recipient address.
+
+### Fixed
+- Hidden or vertically cropped-out marker labels no longer reserve empty side columns that push arrows far away from the gel. Visible labels still keep their spacing; marker calibration data is unchanged.
+- Re-clamp floating font/angle menus against the current viewport when a phone is resized, including frames where visualViewport still reports its previous width.
 
 ## [0.6.11] - 2026-10-24
 

@@ -6,7 +6,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) first (no build step, bilingual strings,
 
 ## In one minute
 
-- A static web app: `index.html` + `css/style.css` + plain scripts in `js/`. No framework, no dependencies, no network (a Content Security Policy blocks every request to another origin). It must keep working when opened from `file://` and as the single-file build.
+- A static web app: `index.html` + `css/style.css` + plain scripts in `js/`. No framework or runtime dependencies; no automatic external requests. Opt-in text feedback may use the single configured endpoint, explicitly allowed by CSP. It must keep working when opened from `file://` and as the single-file build.
 - `npm install && npx playwright install chromium firefox webkit && npm test` runs everything (≈ 5 min, three engines).
 - Live site = `main` (GitHub Pages). Work happens on `dev`; `main` only moves at release time.
 
@@ -37,7 +37,8 @@ Scripts load in this order (also hard-coded in `scripts/bundle-onefile.mjs` — 
 | `marker-ui.js` | `MarkerUI` | marker-lane picking, compact non-modal reference beside the raw canvas, band-size picker and direct marker-label controls |
 | `history-ui.js` | `HistoryUI` | responsive recent-project dialog, rename/delete, cache status and save-file fallback |
 | `support-config.js` | `GelFigureSupport` | author-approved public sponsorship URL and matching pure QR SVG; no source photograph/nickname/avatar metadata |
-| `export-support.js` | `ExportSupport` | non-blocking post-export feedback and optional author sponsorship links; no payment/network SDK |
+| `feedback.js` | `Feedback` | in-app text feedback, in-memory drafts, validated form endpoint, explicit submit only; no image/project data |
+| `export-support.js` | `ExportSupport` | persistent community entry, repeatable export reminders, optional Alipay support and GitHub Star |
 | `uitest.js` | — | interface self-test, loaded only with `?uitest=1` |
 
 **Data flow.** File → `TIFF.decodeBuffer` → `App.readInput` → `startFrom` builds `App.S` → `App.autoAll` (deskew, crop, lanes, markers, gel type) → `App.buildFigure` remaps lanes to the figure range → `Render.build` → SVG preview / exports.
@@ -74,7 +75,7 @@ Double-clicks/taps on the raw canvas open the label editor only for existing, vi
 
 - **Image integrity first.** Linear, whole-image adjustments only by default; nothing removed silently (cut lanes get a splice mark and a log entry); anything that changes how the data looks is recorded in the processing log. Exports are never upscaled-and-passed-off: the gel's effective dpi is reported separately from the export dpi.
 - **Honest numbers.** Sizes outside the ladder are marked `≈`; a ladder without a manufacturer source is not added (see CONTRIBUTING).
-- **No network, no dependencies, works from `file://`.** No ES modules, no CDN.
+- **No automatic external requests, no dependencies, works from `file://`.** No ES modules or CDN. Explicit feedback sends only typed fields and the app version to the configured endpoint; image operations remain local.
 - **Bilingual UI**, English figures/logs/exports.
 - **Detection changes are risky.** A rule tuned on synthetic gels has broken a real gel before. Check against real gels (see below) as well as `npm test`.
 
@@ -101,8 +102,10 @@ Double-clicks/taps on the raw canvas open the label editor only for existing, vi
 - `tests/ladder-cache.mjs` — legacy migration, model/favourite restoration in new pages, localStorage/IndexedDB failure and fallback, aborted writes, persistent deletions, same-name models across gel types, safe backup imports, concurrent fallback writes and offline phone controls.
 - `tests/layout-controls.mjs` — header alignment at desktop breakpoints with long names/status text, unchanged auto-angle rules, manual angles/slider undo, actual SVG bounds, project/template persistence, PNG/TIFF/SVG/PPTX agreement and phone/offline controls.
 - `tests/name-format.mjs` — shared defaults and individual overrides, plain-text selection formatting, IME/Escape, legacy names, persistence, actual SVG bounds, DrawingML run sizes/baselines, phone and offline editing. Native PowerPoint checks use synthetic exports in ignored folders only.
-- `tests/export-support.mjs` — successful downloads before prompts, no prompts on failure, configured HTTPS URLs only, session dismissal, phone save/share controls, local/offline Alipay QR and no automatic outbound requests. The author supplied the Alipay destination in `js/support-config.js`; its SVG must encode exactly that same URL. Never invent or substitute a payment destination. When updating it, decode the rendered PNG and compare it with the author-provided source before committing. Do not commit the source photograph with nickname/avatar/EXIF. Feedback defaults to this project's GitHub Issues; links never contain sample names, pixels or project contents. QR saving uses a separate download, not the figure-result sheet, so the original exported file remains available.
+- `tests/export-support.mjs` — successful downloads before prompts, no prompts on failure, configured HTTPS URLs only, reminders after each export plus a permanent entry, phone save/share controls, local/offline Alipay QR and no automatic outbound requests. The author supplied the Alipay destination in `js/support-config.js`; its SVG must encode exactly that same URL. Never invent or substitute a payment destination. When updating it, decode the rendered PNG and compare it with the author-provided source before committing. Do not commit the source photograph with nickname/avatar/EXIF. Feedback uses the in-app form; GitHub Issues is a secondary option. The maintainer approved a public email endpoint; activation URLs and private mailbox data remain excluded from source. QR saving uses a separate download, not the figure-result sheet, so the original exported file remains available.
 - `tests/workflow.mjs` — linked lane gestures/counts/undo, annotation identity, figure-side text/typography; delegates marker checks to `tests/marker-workflow.mjs` for combined detection, confirmed and excluded choices, selected-lane alignment, catalogue preview vs application, real-image anchors, persistent hide/delete controls and responsive/offline operation. Synthetic screenshots go in ignored `test-results/workflow/<engine>/` and `test-results/marker-workflow/<engine>/`. Firefox SVG `scrollIntoView` can move the wrong scroll parent; scroll the reference container and verify a real hit target before coordinate clicks.
+- `tests/feedback.mjs` mocks form requests and checks persistent access, drafts, duplicate-send prevention, privacy payload, Star links and phone/header layout. `tests/arrow-spacing.mjs` checks that hidden/out-of-crop marker labels reserve no side column; calibration data stays unchanged.
+- Configure feedback with `node scripts/configure-feedback.mjs <endpoint>`; email endpoints require `--public-email` and explicit maintainer permission. Never place confirmation links or API keys in the client. Keep CSP and configuration in sync. FormSubmit requires a web origin, so local HTML users can copy/open the online feedback form. A live delivery test must be separately authorised and must not run in CI.
 - New behaviour gets a check. CI (`.github/workflows/ci.yml`) runs on pushes to `main` and on pull requests; for `dev`, trigger it by hand: `gh workflow run ci.yml --ref dev`.
 - **Real gels are not in the repo** and must never be committed (unpublished data). The maintainer keeps them, with a small regression harness, outside the repository. If they are not available on your machine, say so when you change detection code and ask the maintainer to run them.
 

@@ -388,9 +388,11 @@
     const tick = st.tickLenPt;
     const extent = { left: 0, right: 0 };   // how far labels already reach beyond the gel edge
     markers.forEach((mk, mi) => {
+      const shown = shownBands(mk);
+      // Hidden/out-of-crop labels still calibrate sizes, but must not reserve an invisible column.
+      if(!shown.length)return;
       const side = sides[mi];
       const off = extent[side] ? extent[side] + 3 : 0;  // a second column on the same side sits further out
-      const shown = shownBands(mk);
       let maxTw = 0;
       shown.forEach(b => {
         const attrs = `data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="${mk.bands.indexOf(b)}"`;

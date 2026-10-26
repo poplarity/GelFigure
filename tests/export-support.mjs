@@ -10,12 +10,12 @@ export async function exportSupportChecks(browser,base){
   });
   await check('successful export downloads first and offers optional feedback without uploading',async()=>{
    const download=p.waitForEvent('download');await p.evaluate(()=>document.getElementById('btnSVG').click());assert((await download).suggestedFilename().endsWith('.svg'));await p.waitForSelector('#exportThanks:not(.hidden)');
-   const a=p.locator('#exportThanks [data-support="feedback"]');assert.equal(await a.getAttribute('href'),'https://github.com/poplarity/GelFigure/issues/new/choose');assert.equal(await a.getAttribute('target'),'_blank');assert((await a.getAttribute('rel')).includes('noreferrer'));
+   await p.locator('#exportThanks [data-support="feedback"]').click();assert(await p.locator('#feedbackDlg').isVisible());assert(await p.locator('#feedbackMessage').isVisible());await p.locator('#feedbackClose').click();
    const state=await p.evaluate(()=>App.snapshot());await p.locator('#exportThanks [data-support="sponsor"]').click();await p.waitForFunction(()=>document.getElementById('sponsorQr')?.src.startsWith('data:image/png'));
    assert.equal(await p.locator('#sponsorOpen').getAttribute('href'),await p.evaluate(()=>new URL(GelFigureSupport.sponsor).href));assert.equal(await p.evaluate(()=>new URL(GelFigureSupport.sponsor).hostname),'qr.alipay.com');
    assert.equal(await p.locator('#sponsorSave').getAttribute('href'),await p.locator('#sponsorQr').getAttribute('src'));assert.equal(await p.evaluate(()=>App.snapshot()),state);assert.deepEqual(external,[]);
    await p.locator('#sponsorClose').click();assert(await p.locator('#exportThanks').isVisible());
-   await p.locator('#exportThanks .support-close').click();const next=p.waitForEvent('download');await p.evaluate(()=>document.getElementById('btnSVG').click());await next;assert(!(await p.locator('#exportThanks').isVisible()));
+   await p.locator('#exportThanks .support-close').click();const next=p.waitForEvent('download');await p.evaluate(()=>document.getElementById('btnSVG').click());await next;assert(await p.locator('#exportThanks').isVisible());
   });
   await check('phone export keeps the file controls and renders only configured safe sponsorship links',async()=>{
    await p.setViewportSize({width:390,height:844});await p.waitForFunction(()=>UI.isPhone());await p.evaluate(()=>{ExportSupport.links.sponsor='https://example.com/author-support';document.getElementById('btnSVG').click();});await p.waitForSelector('#resultSheet:not(.hidden)');

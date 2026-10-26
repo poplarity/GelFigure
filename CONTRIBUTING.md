@@ -36,7 +36,7 @@ If the band sizes turn out to be identical to a ladder that is already there, sa
 
 There is no build step. Edit the files and reload `index.html`. [AGENTS.md](AGENTS.md) describes the architecture, the release process and known pitfalls in more depth.
 
-- **Keep it dependency-free** and loadable from `file://`: plain `<script>` tags, no ES modules, no CDN, no network requests (the Content Security Policy in `index.html` blocks them anyway).
+- **Keep it dependency-free** and loadable from `file://`: plain `<script>` tags, no ES modules, no CDN, no automatic external requests. Explicit text feedback is the sole submission exception: use the configured endpoint, do not attach image/project data, and keep its exact CSP allowance.
 - **Every interface string is bilingual.** In JavaScript, write `L('中文', 'English')`; in HTML, put the English text in `data-en` (or `data-en-html`, `data-en-title`, `data-en-placeholder`). Text that goes into figures, legends, logs and exported files stays in English.
 - **Image-processing changes must stay honest:** only linear whole-image adjustments by default, nothing removed silently, and anything that changes how the data looks is recorded in the processing log.
 - Match the existing style: small functions, comments that explain *why*.
