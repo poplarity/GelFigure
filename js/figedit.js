@@ -89,35 +89,67 @@
   /* ---------- inline text editor (with a size / line-break bar) ---------- */
   let edit = null;   // { kind, id, orig }
   const bar = $('fedBar');
+  function nameEditSnapshot(){
+    const lane=S().lanes[edit.id];return {data:JSON.parse(JSON.stringify({name:lane.name,nameRuns:lane.nameRuns,nameStyle:lane.nameStyle,lanePt:S().style.lanePt})),runs:G.NameText.normalize(edit.runs),a:fed.selectionStart,z:fed.selectionEnd};
+  }
+  function recordNameEdit(){
+    if(edit?.kind!=='lane'||!edit.stack||edit.composing)return;
+    const next=nameEditSnapshot();if(JSON.stringify(next.data)===JSON.stringify(edit.stack[edit.cursor].data))return;
+    edit.stack=edit.stack.slice(0,edit.cursor+1);edit.stack.push(next);if(edit.stack.length>100)edit.stack.shift();edit.cursor=edit.stack.length-1;
+  }
+  function nameUndoKey(e){
+    if(edit?.kind!=='lane'||edit.composing||composing(e)||!(e.ctrlKey||e.metaKey)||!['z','y'].includes(e.key.toLowerCase()))return false;
+    if(e.target!==fed&&/^(input|select)$/i.test(e.target.tagName))return false;
+    e.preventDefault();e.stopPropagation();
+    const redo=e.key.toLowerCase()==='y'||e.shiftKey,at=edit.cursor+(redo?1:-1);if(at<0||at>=edit.stack.length)return true;
+    edit.cursor=at;const snap=edit.stack[at],lane=S().lanes[edit.id];
+    for(const k of ['name','nameRuns','nameStyle']){if(snap.data[k]===undefined)delete lane[k];else lane[k]=JSON.parse(JSON.stringify(snap.data[k]));}
+    S().style.lanePt=snap.data.lanePt??null;edit.runs=G.NameText.normalize(snap.runs);fed.value=G.NameText.plain(edit.runs);fed.focus({preventScroll:true});fed.setSelectionRange(snap.a,snap.z);syncBar();autoRows();App.refresh();return true;
+  }
   const getVal = (kind, id) => kind === 'lane' ? S().lanes[id].name : kind === 'group' ? S().groups[id].text : S().conditions[id].name;
   const setVal = (kind, id, v) => { if (kind === 'lane') S().lanes[id].name = v; else if (kind === 'group') S().groups[id].text = v; else S().conditions[id].name = v; };
   // font size of what is being edited: lane names share one size; a group label or a +/− row has its own
-  const sizeHost = () => (edit.kind === 'lane' ? { o: S().style, k: 'lanePt' } : { o: edit.kind === 'group' ? S().groups[edit.id] : S().conditions[edit.id], k: 'pt' });
-  const curSize = () => { const h = sizeHost(); return h.o[h.k] || S().style.fontPt; };
+  const sizeHost = () => (edit.kind === 'lane' ? S().lanes[edit.id].nameStyle?{o:S().lanes[edit.id].nameStyle,k:'pt'}:{ o: S().style, k: 'lanePt' } : { o: edit.kind === 'group' ? S().groups[edit.id] : S().conditions[edit.id], k: 'pt' });
+  const curSize = () => { const h = sizeHost(); return h.o[h.k] || (edit.kind==='lane'?S().style.lanePt:0)||S().style.fontPt; };
   function setSize(v) {
     const h = sizeHost();
-    if (v == null || v === S().style.fontPt) { if (h.k === 'pt') delete h.o.pt; else h.o[h.k] = null; }
+    const fallback=edit.kind==='lane'&&h.o!==S().style?(S().style.lanePt||S().style.fontPt):S().style.fontPt;
+    if (v == null || v === fallback) { if (h.k === 'pt') delete h.o.pt; else h.o[h.k] = null; }
     else h.o[h.k] = clamp(Math.round(v * 2) / 2, 4, 14);
     syncBar(); App.refresh();
+    recordNameEdit();
   }
   function syncBar() {
     if (!edit) return;
     fed.style.fontFamily = G.Render.fontStack(S().style.fontFamily);
     const own = sizeHost().o[sizeHost().k];
-    $('fedSizeLbl').textContent = edit.kind === 'lane' ? L('泳道名字号', 'Lane names') : edit.kind === 'group' ? L('字号', 'Size') : L('本行字号', 'Row size');
+    $('fedSizeLbl').textContent = edit.kind === 'lane' ? (S().lanes[edit.id].nameStyle?L('此泳道字号','This lane'):L('统一泳道字号', 'All lane names')) : edit.kind === 'group' ? L('字号', 'Size') : L('本行字号', 'Row size');
     $('fedSize').textContent = curSize() + ' pt';
     $('fedReset').classList.toggle('hidden', !own);
     $('fedBr').classList.toggle('hidden', edit.kind !== 'group');
     $('fedMarker').classList.toggle('hidden', edit.kind !== 'lane');
+    $('fedTextTools').classList.toggle('hidden',edit.kind!=='lane');$('fedLaneSettings').classList.toggle('hidden',edit.kind!=='lane');
+    if(edit.kind==='lane'){
+      const own=S().lanes[edit.id].nameStyle;$('fedOwn').checked=!!own;$('fedOwnFields').classList.toggle('hidden',!own);
+      if(document.activeElement!==$('fedOwnPt'))$('fedOwnPt').value=curSize();
+      if(document.activeElement!==$('fedOwnAngle'))$('fedOwnAngle').value=own?.angle==='auto'?'':own?.angle??'';
+      const a=fed.selectionStart,b=fed.selectionEnd,r=G.NameText.slice(edit.runs,a===b?0:a,a===b?fed.value.length:b);
+      for(const button of $('fedTextTools').querySelectorAll('button')){
+        const k=button.dataset.format,on=r.length&&r.every(r=>k==='normal'?!(r.italic??S().style.laneItalic):k==='italic'?(r.italic??S().style.laneItalic):r.script===k);
+        button.setAttribute('aria-pressed',String(!!on));button.disabled=!!edit.composing;
+      }
+    }
     if (edit.kind === 'lane') $('fedMarker').textContent = S().markers.some(m => m.lane === edit.id) ? L('Marker 设置', 'Marker settings') : L('设为 Marker', 'Use as marker');
     $('fedHint').textContent = edit.kind === 'group' && !coarse.matches ? L('Shift+Enter 换行', 'Shift+Enter: new line') : '';
   }
   function placeBar() {
     const r = fed.getBoundingClientRect();
     bar.classList.remove('hidden');
-    const below = r.bottom + 4 + bar.offsetHeight < innerHeight;
+    const v=window.visualViewport,bottom=(v?.offsetTop||0)+(v?.height||innerHeight);
+    bar.style.maxHeight=Math.max(70,bottom-r.bottom-12)+'px';
+    const below = r.bottom + 4 + bar.offsetHeight < bottom;
     bar.style.left = clamp(r.left, 4, Math.max(4, innerWidth - bar.offsetWidth - 4)) + 'px';
-    bar.style.top = (below ? r.bottom + 4 : r.top - bar.offsetHeight - 4) + 'px';
+    bar.style.top = Math.max(4,below?r.bottom+4:r.top-bar.offsetHeight-4)+'px';
   }
   // the textarea grows with typed line breaks (group labels only)
   const autoRows = () => { fed.rows = Math.min(4, Math.max(1, fed.value.split('\n').length)); if (edit) placeBar(); };
@@ -127,8 +159,12 @@
     const el = prev.querySelector(kind === 'lane' ? `g[data-edit="lane"][data-src="${id}"]` : kind === 'group' ? `g[data-edit="group"][data-k="${id}"]` : `g[data-edit="condname"][data-r="${id}"]`);
     if (!el) return;
     const r = el.getBoundingClientRect();
-    edit = { kind, id, orig: getVal(kind, id) || '' };
-    fed.value = edit.orig;
+    edit = { kind, id, orig: getVal(kind, id) || '',state:S() };
+    if(kind==='lane'){
+      edit.original=JSON.parse(JSON.stringify(S().lanes[id]));edit.origLanePt=S().style.lanePt;edit.runs=G.NameText.runs(S().lanes[id]);
+    }
+    fed.value = kind==='lane'?G.NameText.plain(edit.runs):edit.orig;
+    $('fedLaneSettings').open=false;
     fed.placeholder = kind === 'lane' ? L(`孔 ${id + 1} 名称`, `Well ${id + 1} name`) : kind === 'group' ? L('分组文字', 'Group label') : L('条件名', 'Condition name');
     // the on-screen keyboard labels Enter "Next" while lane names are filled in one after another
     fed.setAttribute('enterkeyhint', kind === 'lane' ? 'next' : 'done');
@@ -140,6 +176,7 @@
     fed.rows = 1; autoRows();
     syncBar(); placeBar();
     fed.focus(); fed.select();
+    if(kind==='lane'){edit.stack=[nameEditSnapshot()];edit.cursor=0;}
     if (kind === 'lane') { App.selLane = id; G.Editor.draw(); }
   }
   // only a group label keeps line breaks; tidy spaces around them
@@ -149,18 +186,30 @@
   function closeEd(revert) {
     if (!edit) return;
     const e = edit; edit = null;
-    if (revert) setVal(e.kind, e.id, e.orig);
+    if(e.state!==S()){fed.classList.add('hidden');bar.classList.add('hidden');return;}
+    if(e.kind==='lane'){
+      const lane=S().lanes[e.id];if(!lane)return;
+      if(revert){for(const key of ['name','nameRuns','nameStyle']){if(e.original[key]===undefined)delete lane[key];else lane[key]=e.original[key];}S().style.lanePt=e.origLanePt;}
+      else G.NameText.write(lane,G.NameText.edit(e.runs,clean(e.kind,fed.value)));
+    }else if (revert) setVal(e.kind, e.id, e.orig);
     else setVal(e.kind, e.id, clean(e.kind, fed.value));
     fed.classList.add('hidden'); bar.classList.add('hidden');
     App.commit();
   }
   fed.addEventListener('input', () => {
     if (!edit) return;
+    if(edit.state!==S()){reset();return;}
     if (edit.kind !== 'group' && fed.value.includes('\n')) fed.value = fed.value.replace(/\n/g, ' ');   // pasted text
-    setVal(edit.kind, edit.id, fed.value); autoRows(); App.refresh();
+    if(edit.kind==='lane'){edit.runs=G.NameText.edit(edit.runs,fed.value);G.NameText.write(S().lanes[edit.id],edit.runs);}
+    else setVal(edit.kind, edit.id, fed.value);
+    autoRows();syncBar();recordNameEdit();App.refresh();
   });
+  fed.addEventListener('compositionstart',()=>{if(edit){edit.composing=true;syncBar();}});
+  fed.addEventListener('compositionend',()=>{if(edit){edit.composing=false;recordNameEdit();syncBar();}});
+  document.addEventListener('selectionchange',()=>{if(edit&&edit.kind==='lane'&&document.activeElement===fed)syncBar();});
   fed.addEventListener('keydown', e => {
-    if (!edit || composing(e)) return;          // IME is choosing characters: Enter belongs to it
+    if(nameUndoKey(e))return;
+    if (!edit || edit.composing || composing(e)) return;          // IME is choosing characters: Enter belongs to it
     if (e.key === 'Escape') { e.preventDefault(); closeEd(true); return; }
     // Shift+Enter in a group label = a line break (the textarea inserts it)
     if (e.key === 'Enter' && edit.kind === 'group' && (e.shiftKey || e.altKey)) return;
@@ -177,13 +226,41 @@
   });
   // leaving the field finishes the edit — unless the tap went to the size / line-break bar
   let barPress = false;
-  fed.addEventListener('blur', () => { setTimeout(() => { if (edit && !barPress && document.activeElement !== fed) closeEd(false); }, 0); });
-  bar.addEventListener('pointerdown', e => { barPress = true; e.preventDefault(); setTimeout(() => { barPress = false; }, 800); });
-  bar.addEventListener('mousedown', e => e.preventDefault());   // keeps the focus (and the keyboard) in the text field
+  document.addEventListener('pointerdown',e=>{
+    if(!edit||bar.contains(e.target))return;barPress=false;
+    if(e.target!==fed){const current=edit;setTimeout(()=>{if(edit===current)closeEd(false);},0);}
+  },true);
+  const finishOnBlur=()=>setTimeout(()=>{if(edit&&!barPress&&document.activeElement!==fed&&!bar.contains(document.activeElement))closeEd(false);},0);
+  fed.addEventListener('blur',finishOnBlur);bar.addEventListener('focusout',finishOnBlur);
+  bar.addEventListener('pointerdown', e => {
+    barPress=true;
+    if(e.target.closest('button'))e.preventDefault();
+    else e.target.closest('input,select,summary')?.focus({preventScroll:true}); // Safari does not focus a clicked checkbox itself
+  });
+  bar.addEventListener('mousedown', e => {if(e.target.closest('button'))e.preventDefault();});
+  bar.addEventListener('keydown',e=>{
+    if(nameUndoKey(e))return;
+    if(e.key==='Tab'){barPress=false;finishOnBlur();}
+    if(e.key==='Escape'&&!composing(e)&&edit){e.preventDefault();e.stopPropagation();closeEd(true);}
+  });
+  $('fedLaneSettings').addEventListener('toggle',()=>{if(edit)placeBar();});
+  $('fedOwn').onchange=e=>{
+    if(!edit||edit.kind!=='lane')return;const lane=S().lanes[edit.id];
+    if(e.target.checked)lane.nameStyle={pt:curSize(),angle:String(G.UI.lastFig()?.angle||0)};else delete lane.nameStyle;
+    syncBar();placeBar();recordNameEdit();App.refresh();
+  };
+  $('fedOwnPt').onchange=e=>{if(!edit||edit.kind!=='lane'||!S().lanes[edit.id].nameStyle)return;const v=+e.target.value;if(v>0)S().lanes[edit.id].nameStyle.pt=clamp(Math.round(v*2)/2,4,14);else delete S().lanes[edit.id].nameStyle.pt;e.target.value=curSize();syncBar();recordNameEdit();App.refresh();};
+  $('fedOwnAngle').onchange=e=>{if(!edit||edit.kind!=='lane'||!S().lanes[edit.id].nameStyle)return;const v=G.Render.labelAngle(e.target.value);S().lanes[edit.id].nameStyle.angle=v;e.target.value=v==='auto'?'':v;recordNameEdit();App.refresh();};
+  window.visualViewport?.addEventListener('resize',()=>{if(edit)placeBar();});
   bar.addEventListener('click', e => {
+    const format=e.target.closest('button[data-format]');
+    if(format&&edit?.kind==='lane'&&!edit.composing){
+      const a=fed.selectionStart,z=fed.selectionEnd;edit.runs=G.NameText.format(edit.runs,a,z,format.dataset.format);G.NameText.write(S().lanes[edit.id],edit.runs);
+      fed.focus({preventScroll:true});fed.setSelectionRange(a,z);syncBar();recordNameEdit();App.refresh();barPress=false;return;
+    }
     const b = e.target.closest('button[data-fz]');
-    barPress = false;
     if (!b || !edit) return;
+    barPress = false;
     const k = b.dataset.fz;
     if (k === 'marker') { const i = edit.id; closeEd(false); G.MarkerUI.assignLane(i); return; }
     if (k === '+' || k === '-') setSize(curSize() + (k === '+' ? 0.5 : -0.5));
@@ -405,6 +482,7 @@
     setMode, arrowPopover, annoPopover, openEd, closePop, reset,
     flush() { closeEd(false); closePop(); },
     afterRender() {
+      if(edit){syncBar();placeBar();}
       if (edit && edit.kind === 'lane') {
         const el = prev.querySelector(`g[data-edit="lane"][data-src="${edit.id}"]`);
         if (el) el.classList.add('active');

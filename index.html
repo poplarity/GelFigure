@@ -309,6 +309,8 @@
             <label class="inline-label"><span data-en="Lane names">泳道名</span> <input type="number" id="lanePt" min="4" max="14" step="0.5" class="num"> pt</label>
             <label class="inline-label"><span data-en="Marker labels">Marker 标签</span> <input type="number" id="markerPt" min="4" max="14" step="0.5" class="num"> pt</label>
           </div>
+          <label class="inline-label"><span data-en="Lane-name default">泳道名统一字形</span><select id="laneFace"><option value="normal" data-en="Upright">正体</option><option value="italic" data-en="Italic">斜体</option></select></label>
+          <p class="hint" data-en="Click a name to format selected text or set that lane's own size/angle. Individual formatting is kept when defaults change.">点名称可设置局部文字格式或该泳道的字号、角度；单独设置会优先于统一设置。</p>
 </div></details>
         <details id="laneAngleMenu" class="figure-text-menu">
           <summary><span data-en="Name angle">泳道名角度</span></summary>
@@ -410,12 +412,29 @@
 <textarea id="floatEd" class="float-ed hidden" rows="1" autocomplete="off" spellcheck="false" title="编辑文字" data-en-title="Edit text"></textarea>
 <!-- under the text editor: font size of what is being edited; a line break for group labels -->
 <div id="fedBar" class="fed-bar hidden">
+ <div class="fed-row">
   <span class="fed-lbl" id="fedSizeLbl"></span>
   <button data-fz="-" title="小一点" data-en-title="Smaller">A−</button><span class="fed-size" id="fedSize"></span><button data-fz="+" title="大一点" data-en-title="Larger">A+</button>
   <button data-fz="reset" id="fedReset" data-en="Default">默认</button>
   <button data-fz="br" id="fedBr" data-en="↵ New line">↵ 换行</button>
   <button data-fz="marker" id="fedMarker" data-en="Marker…">Marker…</button>
   <span class="fed-hint" id="fedHint"></span>
+ </div>
+ <div id="fedTextTools" class="fed-row hidden" role="toolbar" aria-label="名称格式">
+  <button data-format="normal" id="fedNormal" data-en="Upright">正体</button><button data-format="italic" id="fedItalic" data-en="Italic">斜体</button>
+  <button data-format="sup" id="fedSup" title="上标（再点恢复基线）" data-en-title="Superscript (click again to reset)">x²</button><button data-format="sub" id="fedSub" title="下标（再点恢复基线）" data-en-title="Subscript (click again to reset)">x₂</button>
+  <button data-format="clear" id="fedClear" title="清除局部格式，跟随统一字形" data-en-title="Clear local formatting and follow the shared face" data-en="Clear">清除格式</button>
+  <span class="fed-hint" data-en="Selection, or the whole name">选中文字；未选则整段</span>
+ </div>
+ <details id="fedLaneSettings" class="hidden">
+  <summary data-en="Individual lane settings">此泳道单独设置</summary>
+  <label class="switch"><input type="checkbox" id="fedOwn"><span data-en="Customise this lane (default: shared settings)">仅此泳道自定义（默认跟随统一设置）</span></label>
+  <div id="fedOwnFields" class="fed-row hidden">
+   <label><span data-en="Size">字号</span> <input id="fedOwnPt" class="num" type="number" min="4" max="14" step="0.5"> pt</label>
+   <label><span data-en="Angle">角度</span> <input id="fedOwnAngle" class="num" type="number" min="0" max="90" step="1" placeholder="自动" data-en-placeholder="Auto">°</label>
+  </div>
+  <span class="fed-hint" data-en="Untick to follow the shared size and angle again. Empty angle = automatic for this name.">取消勾选即可恢复统一字号与角度；角度留空为此名称自动排版。</span>
+ </details>
 </div>
 <div id="warnings"></div>
 <div id="toasts"></div>
@@ -463,6 +482,7 @@
     <li><b>Try detection again</b>: “Re-detect lanes + markers in crop” runs both stages inside the red frame, keeping confirmed marker choices and manual anchors. Removed marker roles are not re-added. Simply moving the crop does not reclassify lanes.</li>
     <li><b>Text sizes / marker labels</b>: use “Fonts &amp; sizes” above the figure, click a marker number, or double-click an existing marker lane on the raw image. Drag the panel title to move it aside. Marker controls stay open for show/hide and delete. Hiding preserves calibration; deleting removes the anchor too. Undo or re-position the band to restore a deleted mark.</li>
     <li><b>Lane-name rotation</b>: use “Name angle” above the figure. Auto keeps the existing layout rule; presets, the slider or numeric input set 0–90° for all lane names. Choose Auto to restore it. The angle is included in projects, styles and exports.</li>
+    <li><b>Individual names and text formatting</b>: click a lane name and select text for Upright, Italic, x² or x₂. With no selection the whole name is formatted; click x²/x₂ again to restore the baseline. Clear removes local formatting and follows the shared face. Ctrl/⌘+Z undoes edits while typing. Shared size/angle settings remain the default; enable “Individual lane settings” only when needed, and untick to follow shared settings again.</li>
     <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
     <li><b>A marker band is wrong</b>: select its lane and model, then “Detect bands here” to align only that marker. Open “Calibrate / reference”, select a size and click its actual band on the original image; or click a band first to choose the size. Drag yellow lines to fine-tune (Alt disables snapping). Browsing reference models changes nothing until “Use this ladder”. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
@@ -498,6 +518,7 @@
     <li><b>重新识别</b>：“框内重新识别泳道和 Marker”一次完成两个步骤，保留手动确认的 Marker 和定位点，不重新添加已取消的 Marker；单纯拖裁切框不会重新分类。</li>
     <li><b>字号 / Marker 显示</b>：成图上方“字体与字号”统一设置，也可点 Marker 数字或双击原图中已有的 Marker 泳道；面板可按住标题拖动移开。支持显示、隐藏和删除且不会自动收起。隐藏仍保留校准，删除同时移除定位点；可撤销或重新定位恢复。</li>
     <li><b>泳道名旋转</b>：点成图上方“泳道名角度”。默认自动沿用原有排版规则；可选预设、拖动滑块或输入 0–90°，对所有泳道名生效。选回“自动”即可恢复，角度会随项目、样式和导出保存。</li>
+    <li><b>单个名称与局部格式</b>：点泳道名，选中文字可设正体、斜体、上标、下标；未选中则作用于整段，再点一次上/下标可恢复基线。“清除格式”恢复统一字形，输入时可用 Ctrl/⌘+Z 撤销。默认统一字号与角度，按需开启“此泳道单独设置”，取消勾选即可恢复统一。</li>
     <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
     <li><b>Marker 条带不对</b>：选好泳道和型号后点“识别此泳道”，只对齐这一个 Marker。打开“校准 / 图例”，先选大小再点原图上的实际条带，也可先点条带再选大小；拖黄线微调，Alt 关闭吸附。参考卡里切换型号先预览，点“使用此型号”才应用。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
@@ -534,6 +555,7 @@
 <script src="js/ladder-cache.js"></script>
 <script src="js/ladders.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/name-text.js"></script>
 <script src="js/render.js"></script>
 <script src="js/export.js"></script>
 <script src="js/pptx.js"></script>
@@ -546,5 +568,7 @@
 <script src="js/mobile.js"></script>
 <script src="js/marker-ui.js"></script>
 <script src="js/history-ui.js"></script>
+<script src="js/support-config.js"></script>
+<script src="js/export-support.js"></script>
 </body>
 </html>

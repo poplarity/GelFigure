@@ -31,6 +31,8 @@ On desktop choose **Export ▾ → PowerPoint (editable .pptx)**. On a phone use
 
 The slide opens as the finished figure with the current crop and layout. Lane names, markers, conditions, groups and annotations are native editable text boxes and shapes. Multiline groups remain a single text box; font sizes, italic runs and label angles are retained. Lines and rectangles are standard shapes; arrowheads and brackets are editable freeforms.
 
+Dev preview: lane-name superscripts/subscripts are native editable text runs with their own size and baseline, and individual lane-name angles/sizes are preserved. 新版 dev 的泳道名上下标使用可编辑文字段，保留基线和字号；单个泳道自定义的字号、角度也会保留。
+
 Select a picture and choose **Picture Format → Crop** to move its crop boundaries or pan the image within them. Spliced segments and enlarged insets are separate editable pictures. Select all and group to move or copy the whole figure together.
 
 To support recropping, the PPTX embeds **one uncropped PNG with the figure's display mode and rotation**. Grayscale mode applies levels and inversion; original-colour mode keeps RGB without those grayscale adjustments. It is not the raw TIFF. All picture objects reference that one image; recipients can reveal the hidden areas. Export stays offline, with no source EXIF, local paths or OS author identity added by GelFigure.

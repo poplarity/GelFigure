@@ -237,7 +237,7 @@
         levelClippedOnBandSideFrac: A.bandClipFrac(), pixelsInCrop: k.n
       },
       resolution: { gelWidthMm: A.gelWidthMm(), gelPixelsAcross: A.visibleWidthPx(), effectiveGelDpi: Math.round(A.effectiveDpi()), exportDpi: S.style.dpi },
-      lanes: S.lanes.map((l, i) => ({ well: i + 1, x: Math.round(l.x * 10) / 10, name: l.name, removedFromFigure: !!l.hidden,
+      lanes: S.lanes.map((l, i) => ({ well: i + 1, x: Math.round(l.x * 10) / 10, name: l.name,nameRuns:G.NameText.runs(l),nameStyle:G.NameText.style(l.nameStyle),removedFromFigure: !!l.hidden,
         removal: l.hidden ? { reason: l.hiddenReason || 'manual', xFrom: Math.round(bounds[i][0]), xTo: Math.round(bounds[i][1]) } : undefined })),
       gel: { type: A.gelKind(), sizeUnit: A.sizeUnit(), detection: A.gelDetection ? { kind: A.gelDetection.kind, confidence: Math.round((A.gelDetection.confidence || 0) * 100) / 100, manual: !!A.gelDetection.manual, reasons: (A.gelDetection.reasons || []).map(r => A.gelReasonText(r)).filter(Boolean) } : null },
       markers: S.markers.map(m => ({ well: m.lane + 1, ladder: (G.Ladders.get(m.ladderId) || {}).name, unit: m.unit, fitScore: m.score, bands: m.bands.map(b => ({ bp: b.bp, y: Math.round(b.y * 10) / 10, autoMatched: b.matched, manual: b.manual, labelled: b.show })) })),

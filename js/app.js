@@ -9,7 +9,7 @@
   const PREF_KEY = 'gelfig.prefs';
 
   const defaultStyle = () => ({
-    gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontFamily: 'Arial', fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneNumbers: false, frame: false,
+    gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontFamily: 'Arial', fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneItalic:false,laneNumbers: false, frame: false,
     panelLetter: '', panelPt: 8, spliceStyle: 'gap', spliceGapPt: 1.5, tickLenPt: 2.5, labelGapPt: 2.5,
     unitHeader: true, groupTicks: false, dpi: 600, laneNumberMode: 'well',
     // text that does not fit: lane names / marker labels can have their own size (null = fontPt);
@@ -17,7 +17,7 @@
     lanePt: null, markerPt: null, groupFit: 'wrap', minFontPt: 5
   });
 
-  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily), labelAngle: G.Render.labelAngle(style && style.labelAngle) });
+  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily), labelAngle: G.Render.labelAngle(style && style.labelAngle),laneItalic:style?.laneItalic===true });
 
   const App = {
     S: null,            // serialisable state
@@ -1182,7 +1182,7 @@
     return {
       preview: !!preview, bright: App.isColour() ? App.displayDark() : S.bright,
       crop: S.crop, levels: App.displayLevels(), style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
-      lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name, hidden: S.lanes[i].hidden, src: i })),
+      lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:G.NameText.style(S.lanes[i].nameStyle),hidden: S.lanes[i].hidden, src: i })),
       conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt })),
       groups,
       markers: S.markers.filter(m => remap.has(m.lane) && !S.lanes[m.lane].hidden).map(m => Object.assign({}, m, {
@@ -1263,6 +1263,10 @@
     if (minPt < 5) add('warn', L(`最小字号 ${minPt} pt 偏小（多数期刊要求 ≥ 5–6 pt）。`, `The smallest text is ${minPt} pt (most journals ask for ≥ 5–6 pt).`), { label: L('全部至少 6 pt', 'Make all text ≥ 6 pt'), run: () => {
       const up = v => (v && v < 6 ? 6 : v);
       st.fontPt = Math.max(st.fontPt, 6); st.lanePt = up(st.lanePt); st.markerPt = up(st.markerPt); st.minFontPt = Math.max(st.minFontPt || 5, 6);
+      S.lanes.forEach(l=>{
+        const needed=G.NameText.runs(l).some(r=>r.script)?8.5:6,own=G.NameText.style(l.nameStyle),size=own.pt||st.lanePt||st.fontPt;
+        if(size<needed)l.nameStyle={...own,pt:needed};
+      });
       [S.groups, S.conditions, S.arrows, S.labels, S.boxes, S.brackets].forEach(list => (list || []).forEach(o => { if (o.pt) o.pt = up(o.pt); }));
     } });
     if (st.lineWidthPt < 0.25) add('warn', L(`线宽 ${st.lineWidthPt} pt 太细。`, `Line width ${st.lineWidthPt} pt is too thin.`), { label: L('改为 0.5 pt', 'Use 0.5 pt'), run: () => { st.lineWidthPt = 0.5; } });
@@ -1339,7 +1343,7 @@
     const lanes = [];
     for (let i = r[0]; i <= r[1]; i++) {
       const m = S.markers.find(x => x.lane === i);
-      lanes.push({ name: S.lanes[i].name, hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side } : null });
+      lanes.push({ name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:S.lanes[i].nameStyle?G.NameText.style(S.lanes[i].nameStyle):undefined,hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side } : null });
     }
     return { gelfigTemplate: 3, app: 'GelFigure ' + App.VERSION, gelType: App.gelKind(), lanes,
       // custom ladders travel with the template, so another computer gets the same Markers
@@ -1380,7 +1384,11 @@
     let r = App.laneRange() || [0, S.lanes.length - 1];
     if (tl.length && r[0] + tl.length - 1 !== r[1]) { App.setLaneRange(r[0], Math.min(S.lanes.length - 1, r[0] + tl.length - 1)); r = App.laneRange(); }
     const abs = k => Math.min(S.lanes.length - 1, r[0] + k);
-    tl.forEach((l, k) => { const i = abs(k); S.lanes[i].name = l.name || ''; S.lanes[i].hidden = !!l.hidden; });
+    tl.forEach((l,k)=>{const i=abs(k),lane=S.lanes[i];lane.name=l.name||'';lane.hidden=!!l.hidden;
+      delete lane.nameRuns;delete lane.nameStyle;
+      if(Array.isArray(l.nameRuns)&&G.NameText.plain(G.NameText.normalize(l.nameRuns))===lane.name)lane.nameRuns=G.NameText.normalize(l.nameRuns);
+      if(l.nameStyle&&Object.keys(G.NameText.style(l.nameStyle)).length)lane.nameStyle=G.NameText.style(l.nameStyle);
+    });
     const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto', userAssigned: true, ladderLocked: true }) : null)).filter(Boolean);
     // Applying a saved marker choice is explicit, just like choosing its lane/model in the UI.
     mk.forEach(m => { delete S.lanes[m.lane].markerExcluded; });

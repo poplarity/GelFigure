@@ -221,6 +221,7 @@
       if (kind === 'tiff') await G.Export.exportTIFF(f.svg, f.w, f.h, dpi, `${baseName()}_figure_${dpi}dpi.tif`, S());
       else await G.Export.exportPNG(f.svg, f.w, f.h, dpi, `${baseName()}_figure_${dpi}dpi.png`, S());
       toast(L(`已导出 ${dpi} dpi ${fmt}`, `Exported ${dpi} dpi ${fmt}`) + (eff < dpi ? L(`（胶图本身 ${eff} dpi）`, ` (the gel itself is ${eff} dpi)`) : ''));
+      G.dispatchEvent(new Event('gelfigure-figure-exported'));
     } catch (e) { alert(e.message); } finally { App.busy(false); }
   }
   $('btnPNG').onclick = () => exportRaster('png');
@@ -231,9 +232,10 @@
     try {
       await G.PPTX.exportFile(baseName() + '_figure.pptx');
       toast(L('已导出 PPTX：文字图形可编辑，选中图片 → 裁剪可调整显示范围', 'Exported PPTX: text and shapes are editable; select a picture → Crop to adjust its visible region'));
+      G.dispatchEvent(new Event('gelfigure-figure-exported'));
     } catch (e) { alert(e.message); } finally { App.busy(false); }
   };
-  $('btnSVG').onclick = async () => { if (needImage() || !(await preflight())) return; G.Export.exportSVG(App.buildFigure(false).svg, baseName() + '_figure.svg'); toast(L('已导出 SVG', 'Exported SVG')); };
+  $('btnSVG').onclick = async () => { if (needImage() || !(await preflight())) return; G.Export.exportSVG(App.buildFigure(false).svg, baseName() + '_figure.svg'); toast(L('已导出 SVG', 'Exported SVG'));G.dispatchEvent(new Event('gelfigure-figure-exported')); };
   $('btnUncropped').onclick = () => { if (needImage()) return; App.renderFull(); G.Export.exportUncropped(S(), App.fullCanvas, baseName() + '_uncropped_same-processing.png'); toast(L('已导出未裁切图（与成图同处理）', 'Exported the uncropped image (same processing as the figure)')); };
   $('btnOriginal').onclick = () => { if (needImage()) return; G.Export.exportOriginal(S(), App.srcBuffer); toast(L('已导出原始文件', 'Exported the original file') + ' (SHA-256 ' + S().file.sha256.slice(0, 12) + '…)'); };
   $('btnLog').onclick = () => { if (needImage()) return; G.Export.download(new Blob([JSON.stringify(G.Export.processingLog(S()), null, 2)], { type: 'application/json' }), baseName() + '_processing_log.json'); };
@@ -635,6 +637,7 @@
   $('gelW').addEventListener('change', done(e => { S().style.gelWidthMm = E.clamp(+e.target.value || 45, 10, 180); S().style.autoWidth = false; }));
   $('fontPt').addEventListener('change', done(e => { S().style.fontPt = E.clamp(+e.target.value || 7, 4, 14); }));
   $('fontFamily').addEventListener('change', done(e => { S().style.fontFamily = G.Render.fontName(e.target.value); }));
+  $('laneFace').addEventListener('change',done(e=>{S().style.laneItalic=e.target.value==='italic';}));
   $('lineW').addEventListener('change', done(e => { S().style.lineWidthPt = E.clamp(+e.target.value || 0.5, 0.25, 2); }));
   // empty = follow the figure font size
   ['lanePt', 'markerPt'].forEach(id => $(id).addEventListener('change', done(e => { const v = +e.target.value; S().style[id] = e.target.value === '' || !(v > 0) ? null : E.clamp(v, 4, 14); })));
@@ -768,6 +771,7 @@
     $('autoWidth').checked = !!y.autoWidth; $('gelW').value = App.gelWidthMm(); $('gelW').disabled = !!y.autoWidth;
     $('fontPt').value = y.fontPt; $('lineW').value = y.lineWidthPt; angleControls();
     $('fontFamily').value = G.Render.fontName(y.fontFamily);
+    $('laneFace').value=y.laneItalic?'italic':'normal';
     ['lanePt', 'markerPt'].forEach(id => { $(id).value = y[id] || ''; $(id).placeholder = y.fontPt; });
     $('groupFit').value = y.groupFit || 'wrap'; $('minFontPt').value = y.minFontPt || 5;
     $('minFontRow').classList.toggle('hidden', (y.groupFit || 'wrap') !== 'shrink');

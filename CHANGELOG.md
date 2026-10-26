@@ -4,6 +4,18 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- 泳道名默认继续使用统一字号、角度和字形；编辑某个名称时可开启“此泳道单独设置”，例如只让 M 水平显示，随时取消恢复统一设置。
+- 名称工具条新增正体、斜体、上标、下标；对选中文字生效，未选中时作用于整个名称。使用普通文本编辑，不必输入格式标记；兼容已有 `*斜体*` 名称，泳道名中的孤立星号不再丢失。
+- “清除格式”恢复统一字形；名称编辑内支持 Ctrl/⌘+Z 撤销和重做，格式、文字与单独设置一起恢复。
+- 名称格式随项目、历史和样式保存，导出 SVG、PNG、TIFF、PPTX 时保留；PowerPoint 中仍为可编辑文字，保留上下标基线和字号。
+- 成图导出后提供可关闭的反馈/赞助提示，反馈链接到 GitHub Issues；已接入作者提供的支付宝收款码，可显示或保存二维码、主动打开收款链接。仅保留同一收款地址的纯二维码，不含原图头像、昵称及图片元数据。无支付 SDK、跟踪或自动上传，不影响正常导出。
+
+### Added
+- Per-lane name size/angle overrides are opt-in; shared defaults remain the normal workflow. Lane-name runs support selection-based upright/italic and superscript/subscript formatting without a rich-text dependency.
+- SVG/raster measurement, bounds, minimum-font checks, templates/projects/logs and editable DrawingML runs preserve name formatting and per-lane layout. Existing italic-markup names remain supported.
+- Optional author support and feedback after a successful figure export. The author-provided Alipay destination is shown as a local QR, with save/open-link controls; source-photo nickname/avatar/metadata are omitted. Desktop prompts are dismissible for the session; phones retain the exported file while viewing/saving the QR. Only explicit clicks open external pages; no image/project data is attached. Empty sponsorship configuration still hides the button.
+
 ## [0.6.11] - 2026-10-24
 
 Right-aligned desktop exports and adjustable lane-name angles with the same automatic default.

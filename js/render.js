@@ -38,6 +38,26 @@
     if (!(extra || '').includes(PH_FILL) && String(text).trim()) usedMin = Math.min(usedMin, pt);
     return `<text x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${extra || ''}>${runs}</text>`;
   }
+  function nameMetrics(lane,pt,family,italic){
+    let width=0,ascent=0,descent=0,left=0,right=0;
+    const runs=G.NameText.runs(lane).map(r=>{
+      const size=r.script?pt*.72:pt,shift=r.script==='sup'?-pt*.4:r.script==='sub'?pt*.22:0,it=r.italic??italic;
+      mctx.font=`${it?'italic ':''}${size*4}px ${fontStack(family)}`;const m=mctx.measureText(r.text),w=m.width/4;
+      left=Math.min(left,width-(m.actualBoundingBoxLeft||0)/4);right=Math.max(right,width+(m.actualBoundingBoxRight||m.width)/4);
+      ascent=Math.max(ascent,(m.actualBoundingBoxAscent||size*4*.85)/4-shift);
+      descent=Math.max(descent,(m.actualBoundingBoxDescent||0)/4+shift);width+=w;
+      return {...r,pt:size,shift,italic:it};
+    });return {runs,width,ascent,descent,left,right:Math.max(right,width)};
+  }
+  function nameTextEl(metrics,x,y,pt,anchor,extra){
+    let prev=0;
+    const text=metrics.runs.map(r=>{
+      const dy=r.shift-prev;prev=r.shift;usedMin=Math.min(usedMin,r.pt);
+      // dy keeps one horizontal text chunk/anchor. PPTX uses the semantic baseline offset too.
+      return `<tspan font-size="${f(r.pt)}" font-style="${r.italic?'italic':'normal'}" dy="${f(dy)}" data-name-baseline="${f(-r.shift)}">${esc(r.text)}</tspan>`;
+    }).join('');
+    return `<text data-lane-name="1" x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${extra||''}>${text}</text>`;
+  }
   function f(v) { return (Math.round(v * 100) / 100).toString(); }
 
   // ---- multi-line labels ----
@@ -139,7 +159,7 @@
   }
 
   function autoAngle(labels, pitchPt, pt, family) {
-    const maxW = Math.max(0, ...labels.map(t => measureText(t, pt, false, family)));
+    const maxW = Math.max(0, ...labels.map(t => typeof t==='object'?t.width:measureText(t, pt, false, family)));
     if (maxW <= pitchPt * 0.9) return 0;
     if (pitchPt >= pt * 1.6) return 45;
     return 90;
@@ -275,29 +295,41 @@
     let angle = 0;
     if (hasNames) {
       const chosen=labelAngle(st.labelAngle);
-      angle = chosen === 'auto' ? autoAngle(names, pitch, lp, family) : +chosen;
-      const rad = angle * Math.PI / 180, sn = Math.sin(rad), cs = Math.cos(rad);
-      let hMax = lp;
+      const labels=vis.map((o,k)=>{
+        const own=G.NameText.style(o.l.nameStyle),size=own.pt||lp;
+        const metrics=nameMetrics(o.l.name?o.l:{name:names[k]},size,family,!!st.laneItalic);
+        return {own,size,metrics};
+      });
+      angle = chosen === 'auto' ? autoAngle(labels.map(l=>l.metrics), pitch, lp, family) : +chosen;
+      const extraDescent=Math.max(0,...labels.map(l=>l.metrics.runs.some(r=>r.script)?l.metrics.descent-l.size*.2:0));
+      const baseline=yTop-extraDescent;
+      let hMax = lp,anyTilt=false,wideHorizontal=false,narrowTilt=false;
       vis.forEach((o, vi) => {
         const t = names[vi];
         if (!t.trim()) return;
         const extra = o.l.name ? '' : phStyle, src = o.l.src != null ? o.l.src : o.i;
-        const tw = measure(t, lp), x = X(o.i);
-        if (angle === 0 || !o.l.name) {
+        const {own,size,metrics}=labels[vi],tw=metrics.width,x=X(o.i);
+        const tilt=own.angle==null?angle:own.angle==='auto'?autoAngle([metrics],pitch,size,family):+own.angle;
+        if(o.l.name&&tilt===0&&tw>pitch*1.02)wideHorizontal=true;
+        if(o.l.name&&tilt!==0&&pitch<size*1.15)narrowTilt=true;
+        const rad=tilt*Math.PI/180,sn=Math.sin(rad),cs=Math.cos(rad);
+        if (tilt === 0 || !o.l.name) {
           // placeholders stay horizontal: a rotated lone digit reads like a stray glyph
-          els.push(ed(`data-edit="lane" data-src="${src}"`, textEl(t, x, yTop, lp, 'middle', extra)));
-          grow(x - tw / 2, yTop - lp, x + tw / 2, yTop);
+          els.push(ed(`data-edit="lane" data-src="${src}"`,o.l.name?nameTextEl(metrics,x,baseline,size,'middle',extra):textEl(t,x,baseline,size,'middle',extra)));
+          grow(x-tw/2+metrics.left,baseline-Math.max(size,metrics.ascent),x-tw/2+metrics.right,baseline+metrics.descent);
+          hMax=Math.max(hMax,size,metrics.ascent);
         } else {
+          anyTilt=true;
           // rotated text grows up-right from the lane centre; offset so the text's centre line sits on the lane
-          const ox = x + lp * 0.35 * sn, oy = yTop;
-          els.push(ed(`data-edit="lane" data-src="${src}"`, `<g transform="translate(${f(ox)},${f(oy)}) rotate(${-angle})">${textEl(t, 0, 0, lp, 'start', extra)}</g>`));
-          hMax = Math.max(hMax, tw * sn + lp * cs * 0.8);
-          grow(ox - lp * sn, oy - tw * sn - lp * cs, ox + tw * cs + lp * sn * 0.2, oy);
+          const ox=x+size*.35*sn,oy=baseline;
+          els.push(ed(`data-edit="lane" data-src="${src}"`, `<g transform="translate(${f(ox)},${f(oy)}) rotate(${-tilt})">${nameTextEl(metrics,0,0,size,'start',extra)}</g>`));
+          hMax=Math.max(hMax,tw*sn+size*cs*.8,tw*sn+metrics.ascent*cs);
+          for(const xx of [metrics.left,metrics.right])for(const yy of [-Math.max(size,metrics.ascent),metrics.descent]){const gx=ox+xx*cs+yy*sn,gy=oy-xx*sn+yy*cs;grow(gx,gy,gx,gy);}
         }
       });
-      if (angle !== 0 && pitch < lp * 1.15) overlap(G.L('泳道过窄：即使 90° 标签也会重叠，请减小字号或增大图宽', 'Lanes are too narrow: even 90° labels overlap; use a smaller font or a wider figure'));
-      if (angle === 0 && chosen !== 'auto' && Math.max(...names.map(t => measure(t, lp))) > pitch * 1.02) overlap(G.L('水平泳道标签发生重叠，建议改用"自动"或倾斜角度', 'Horizontal lane labels overlap; use "Auto" or a tilted angle'));
-      yTop -= (angle === 0 ? lp * 1.3 : hMax + lp * 0.35);
+      if (narrowTilt) overlap(G.L('泳道过窄：即使 90° 标签也会重叠，请减小字号或增大图宽', 'Lanes are too narrow: even 90° labels overlap; use a smaller font or a wider figure'));
+      if (wideHorizontal) overlap(G.L('水平泳道标签可能重叠，请调节该泳道的角度、字号或图宽', 'Horizontal lane labels may overlap; adjust the lane angle, font size or figure width'));
+      yTop = baseline-(anyTilt?hMax+lp*.35:Math.max(lp,...labels.map(l=>Math.max(l.size,l.metrics.ascent)))*1.3);
     }
     // groups: line spanning lanes + shared text above
     const groups = (S.groups || []).filter(g => g.from != null && g.to != null && S.lanes[g.from] && S.lanes[g.to]);
