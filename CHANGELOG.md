@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.12] - 2026-10-26
+
+Individual lane-name formatting, accessible feedback and support, and compact arrow spacing.
+
 **中文摘要**
 - 泳道名默认继续使用统一字号、角度和字形；编辑某个名称时可开启“此泳道单独设置”，例如只让 M 水平显示，随时取消恢复统一设置。
 - 名称工具条新增正体、斜体、上标、下标；对选中文字生效，未选中时作用于整个名称。使用普通文本编辑，不必输入格式标记；兼容已有 `*斜体*` 名称，泳道名中的孤立星号不再丢失。
@@ -11,6 +15,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - 名称格式随项目、历史和样式保存，导出 SVG、PNG、TIFF、PPTX 时保留；PowerPoint 中仍为可编辑文字，保留上下标基线和字号。
 - 电脑顶栏和手机“更多”新增固定的反馈 / 支持入口，无需先导出；关闭导出提示后，下次导出仍会出现。支付宝码、保存码、收款链接与 GitHub Star 都可随时找到；赞助文案说明 Token 成本，所有支持均自愿。
 - 网页内直接填写反馈，无需 GitHub 账号；通过 FormSubmit 转发到作者明确同意公开的接收邮箱。只提交所填文字、可选回复邮箱和版本号，不自动附带胶图、文件名、泳道名或项目。失败保留草稿；离线文件提供复制内容、打开网页版的替代入口。
+
+- 修复隐藏或裁切掉全部 Marker 标签后，箭头与胶图之间仍留出大块空白的问题；不改变 Marker 校准数据。
+- 修复手机窗口变化时，字体和角度浮层可能超出屏幕的问题。
 
 ### Added
 - Per-lane name size/angle overrides are opt-in; shared defaults remain the normal workflow. Lane-name runs support selection-based upright/italic and superscript/subscript formatting without a rich-text dependency.
@@ -306,7 +313,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.11...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.12...HEAD
+[0.6.12]: https://github.com/poplarity/GelFigure/compare/v0.6.11...v0.6.12
 [0.6.11]: https://github.com/poplarity/GelFigure/compare/v0.6.10...v0.6.11
 [0.6.10]: https://github.com/poplarity/GelFigure/compare/v0.6.9...v0.6.10
 [0.6.9]: https://github.com/poplarity/GelFigure/compare/v0.6.8...v0.6.9
