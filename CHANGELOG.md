@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.13] - 2026-10-27
+
+Red annotations, discoverable layout settings and an offline release-history window.
+
 **中文摘要**
 - 左侧“版式”改为与图像、泳道、标注同级的常驻设置区，默认展示图宽、分组换行、单位与编号；手机设置页及离线版一致，不再需要发现并点开隐藏的折叠菜单。
 - 新版首次打开显示简短更新卡片，同一版本只提示一次；导入图片后自动收起。开始页、桌面“文件”、使用说明及手机“更多”都有固定更新日志入口，按版本查看中英文简要记录，并标出当前运行版本；离线版也能查看。
@@ -328,7 +332,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.12...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.13...HEAD
+[0.6.13]: https://github.com/poplarity/GelFigure/compare/v0.6.12...v0.6.13
 [0.6.12]: https://github.com/poplarity/GelFigure/compare/v0.6.11...v0.6.12
 [0.6.11]: https://github.com/poplarity/GelFigure/compare/v0.6.10...v0.6.11
 [0.6.10]: https://github.com/poplarity/GelFigure/compare/v0.6.9...v0.6.10

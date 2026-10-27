@@ -1,7 +1,7 @@
 /* Short bilingual release summaries, newest first. Keep the first version equal to App.VERSION.
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
-  {version:'0.6.13-dev',date:'2026-10-27',zh:[
+  {version:'0.6.13',date:'2026-10-27',zh:[
     '文字、箭头、区域框和 Marker 支持标红，图片及可编辑 PPT 导出保留颜色。',
     '左侧“版式”与其他设置同级，图宽、换行和编号默认展开。',
     '新版首次打开提示本次更新，可随时查看历次更新日志。'
