@@ -52,6 +52,8 @@ npm test -- --browser=firefox   # a single engine
 
 `test/test.html` checks the TIFF decoder, deskew, crop, lane and ladder detection and rendering on synthetic gels. `index.html?demo=1&uitest=1` drives the interface: editing, IME handling, rotation, lane removal, templates, exports, project files, exposures and drafts. Please add a check to `js/uitest.js` (and an assertion to `tests/run.mjs`) for new behaviour.
 
+Targeted interaction/export suites also live in `tests/`; add coverage there when that better exercises the change. Run `node scripts/check-updates.mjs` and `node scripts/bundle-onefile.mjs` to validate release summaries and the offline build. At release time, the newest `js/releases.js` entry must match `App.VERSION` with a date and 1–3 short bullets in both Chinese and English. Keep the full technical history in `CHANGELOG.md`; see `AGENTS.md` for release and handover details.
+
 ## Pull requests
 
 1. Fork and create a branch.
