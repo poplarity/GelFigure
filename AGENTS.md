@@ -4,12 +4,13 @@
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first (no build step, bilingual strings, ladder sources, `npm test`). This file adds what is not obvious from the code: how the pieces fit, the rules that keep the project healthy, how releases are made, and what is still open.
 
-## 接手状态 / Handover checkpoint — 2026-10-27
+## 接手状态 / Handover checkpoint — 2026-10-28
 
 - **已发布 v0.6.13**：正式网页和 HTML/ZIP 附件已上线；发布时的代码提交为 `f1161f6`，以标签 [`v0.6.13`](https://github.com/poplarity/GelFigure/tree/v0.6.13) 为准。后续文档提交不改变这个发布标签。上一个正式版保留在 [`release/0.6.12`](https://github.com/poplarity/GelFigure/tree/release/0.6.12)，请勿覆盖。
-- **本次功能已经完成并发布**：红色文字与标注、常驻展开的“版式”、首次打开新版的更新卡片和独立更新日志窗口。不要把它们当作未完成的 dev 任务重做。准备新工作前仍须检查实时分支、工作区和用户最新要求；本节是接手快照。
-- **验证已完成**：v0.6.13 的 [main CI](https://github.com/poplarity/GelFigure/actions/runs/40451544951) 在 Chromium、Firefox、WebKit 全部通过。早先“WebKit 仍在运行”的状态已经过时；依赖安装重试后成功。线上新版提示、刷新不重复、历次更新和离线 HTML 已验证；发布 HTML 的 SHA-256 与本地构建一致。手机仍仅作浏览器模拟测试。红色标注 PPTX 另经 Windows PowerPoint 打开、编辑和重新保存验证。
-- **当前没有这几项功能的待合并改动**。新功能在 `dev` 开发并供作者审核；只有用户明确要求“合并／发布”才更新正式网页。仅同步交接文档不需要新版本号、标签或再次弹出更新提示。
+- **v0.6.13 的功能已完成并发布**：红色文字与标注、常驻展开的“版式”、首次打开新版的更新卡片和独立更新日志窗口。不要把它们当作未完成的 dev 任务重做。准备新工作前仍须检查实时分支、工作区和用户最新要求；本节是接手快照。
+- **`dev` 上有一批已推送、尚未合并、尚未发布的新功能**（提交 `587bf1a`，已在 `origin/dev`）：整图方向（镜像／90°）、泳道名紧贴胶图＋条件行的新默认顺序（带 `style.laneNamesAboveConditions` 开关回到旧排法）、侧边文字沿胶边自由定位、Pierce 26610 Ladder。改动细节见 CHANGELOG 的 *Unreleased* 段。这些只在 `dev`，正式网页仍是 v0.6.13；只有用户说“合并／发布”才动 `main`。
+- **验证已完成**：这批改动在 Chromium、Firefox、WebKit 三引擎各 201 项检查全绿，`check-updates.mjs`、`bundle-onefile.mjs` 均通过。用的是合成演示胶与模拟手机视口；**本机没有真实胶图**，而这次改了检测路径（`App.setOrient` 的四分之一转会重新检测，镜像后泳道顺序要重排），请维护者用自己的真实胶图回归集再跑一遍。
+- **GitHub issue #1（Pierce 26610）已在 `dev` 解决**：条带按说明书 MAN0011769 录入为 116 / 66.2 / 45 / 35 / 25 / 18.4 / 14.4 kDa，7 条带、无加亮参考带。等合并发布后可回复并关闭。注意 issue 里把单位写成了 bp，蛋白 Ladder 实际是 kDa，回复时说明一下即可。
 
 ## 在另一台电脑继续 / Continuing on another computer
 
