@@ -150,6 +150,8 @@
     const m=S()?.markers[mi];if(!m)return;const at=(anchor||$('preview')).getBoundingClientRect();UI.flushPending();closePicker();closeLabels();const bp=m.bands[bi]?.bp;labelTarget={marker:m,state:S(),bp};
     labels.innerHTML=`<div class="marker-pop-head">${popTitle(L('Marker · 泳道','Marker · lane')+' '+(m.lane+1))}<button class="btn sm ghost" id="markerPopClose" aria-label="${L('关闭','Close')}">×</button></div>
       <label class="inline-label">${L('Marker 字号','Marker font')} <input id="markerPopPt" class="num" type="number" min="4" max="14" step="0.5" value="${S().style.markerPt||''}" placeholder="${S().style.fontPt}"> pt</label>
+      ${G.FigEdit.colorField('markerPopColor',m.color,L('此 Marker 颜色','This marker colour'))}
+      ${bp!=null?G.FigEdit.colorField('markerBandColor',m.bands[bi].color,L('所选大小颜色','Selected size colour'),L('跟随此 Marker','Follow this marker')):''}
       ${bp!=null?`<div class="marker-selected-actions"><b>${esc(size(bp,m))}</b><button class="btn sm" id="markerHideOne">${L('隐藏标签','Hide label')}</button><button class="btn sm danger" id="markerDeleteOne">${L('删除标记','Delete mark')}</button></div>`:''}
       <div class="marker-pop-options"><label>${L('单位','Unit')}<select id="markerPopUnit">${(App.gelKind()==='protein'?['kDa']:['bp','kb','auto']).map(u=>`<option value="${u}">${u==='auto'?'bp / kb':u}</option>`).join('')}</select></label><label>${L('标签位置','Label side')}<select id="markerPopSide"><option value="auto">${L('自动','Auto')}</option><option value="left">${L('左','Left')}</option><option value="right">${L('右','Right')}</option></select></label></div>
       <p class="hint">${L('勾选只控制显示，隐藏仍保留校准；删除会移除该定位点。','Visibility keeps calibration; Delete removes the anchor too.')}</p>
@@ -157,6 +159,8 @@
       <div class="actions"><button class="btn sm" id="markerPopGuide">${L('定位条带 / 图例','Locate bands / reference')}</button><button class="btn sm danger" id="markerRemoveLane">${L('取消此 Marker','Remove marker role')}</button></div>`;
     place(labels,at);$('markerPopClose').onclick=closeLabels;$('markerPopUnit').value=m.unit;$('markerPopSide').value=m.side;
     $('markerPopPt').onchange=e=>{S().style.markerPt=e.target.value===''?null:E.clamp(+e.target.value||7,4,14);App.commit();};
+    G.FigEdit.bindColor('markerPopColor',m,true);
+    if(bp!=null)G.FigEdit.bindColor('markerBandColor',()=>m.bands.find(b=>b.bp===bp),true);
     $('markerPopUnit').onchange=e=>{m.unit=e.target.value;App.commit();};$('markerPopSide').onchange=e=>{m.side=e.target.value;App.commit();};
     labels.querySelectorAll('[data-visible-size]').forEach(cb=>cb.onchange=()=>{m.bands.find(b=>b.bp===+cb.dataset.visibleSize).show=cb.checked;App.commit();});
     if($('markerHideOne'))$('markerHideOne').onclick=()=>{const b=m.bands.find(b=>b.bp===bp);b.show=!b.show;App.commit();};
@@ -168,6 +172,9 @@
   function syncLabels(){
     if(!labelTarget)return;const m=labelTarget.marker;if(S()!==labelTarget.state||!S().markers.includes(m)){closeLabels();return;}
     labels.querySelectorAll('[data-visible-size]').forEach(cb=>{const b=m.bands.find(b=>b.bp===+cb.dataset.visibleSize);cb.checked=!!b?.show;cb.disabled=!b||!!b.excluded;cb.parentElement.classList.toggle('is-deleted',!b||!!b.excluded);});
+    for(const [id,value] of [['markerPopColor',m.color],['markerBandColor',m.bands.find(b=>b.bp===labelTarget.bp)?.color]]){
+      const el=$(id);if(el){el.value=value==='red'?'red':'';el.classList.toggle('is-red',value==='red');}
+    }
     if($('markerHideOne')){const b=m.bands.find(b=>b.bp===labelTarget.bp);$('markerHideOne').textContent=b?.show?L('隐藏标签','Hide label'):L('显示标签','Show label');$('markerHideOne').disabled=!b||!!b.excluded;$('markerDeleteOne').disabled=!b||!!b.excluded;}
   }
   App.on(w=>{

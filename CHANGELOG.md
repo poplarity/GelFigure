@@ -4,6 +4,17 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- 箭头及符号、区域框（含放大框与标签）、侧边括号、侧边文字、分组横线及条件行支持“默认／红色”。泳道名可选中部分文字标红，兼容斜体和上下标；Marker 可标红单个大小或整组标签、刻度和单位。
+- 颜色随项目、历史和适用的样式字段保存，可撤销并恢复默认。图片、SVG 和可编辑 PowerPoint 保留红色；灰度胶图含彩色标注时自动使用 RGB TIFF，纯灰度图继续导出灰度 TIFF。
+
+### Added
+- Compact red/default controls in existing annotation and marker popovers and the inline text toolbar. Lane-name selections preserve colour alongside italic/superscript/subscript runs; group lines, condition rows, boxes and their enlarged copies colour consistently. Marker colour may apply to one size or its whole ladder, survives band re-matching, and does not change calibration or source pixels.
+- Project/history persistence, applicable template fields, processing-log colour tokens, SVG/raster output and editable DrawingML colours. Imported colours use a fixed safe token, with the existing black/white defaults preserved for older projects.
+
+### Fixed
+- Export a grayscale gel with red annotations as RGB TIFF so the annotation colour is retained; wholly grayscale figures continue to use the grayscale writer.
+
 ## [0.6.12] - 2026-10-26
 
 Individual lane-name formatting, accessible feedback and support, and compact arrow spacing.

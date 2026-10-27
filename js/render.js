@@ -15,6 +15,8 @@
   });
   const fontName = name => typeof name === 'string' && Object.prototype.hasOwnProperty.call(FONTS, name) ? name : 'Arial';
   const fontStack = name => FONTS[fontName(name)];
+  // Imported colours are tokens, never arbitrary CSS/XML. Default preserves dark-gel box contrast.
+  const annotationColor = (value, fallback = '#000') => value === 'red' ? '#d32f2f' : fallback;
 
   const mctx = document.createElement('canvas').getContext('2d');
   // label markup: *italic* segments
@@ -54,7 +56,7 @@
     const text=metrics.runs.map(r=>{
       const dy=r.shift-prev;prev=r.shift;usedMin=Math.min(usedMin,r.pt);
       // dy keeps one horizontal text chunk/anchor. PPTX uses the semantic baseline offset too.
-      return `<tspan font-size="${f(r.pt)}" font-style="${r.italic?'italic':'normal'}" dy="${f(dy)}" data-name-baseline="${f(-r.shift)}">${esc(r.text)}</tspan>`;
+      return `<tspan font-size="${f(r.pt)}" font-style="${r.italic?'italic':'normal'}"${r.color==='red'?' fill="'+annotationColor(r.color)+'"':''} dy="${f(dy)}" data-name-baseline="${f(-r.shift)}">${esc(r.text)}</tspan>`;
     }).join('');
     return `<text data-lane-name="1" x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${extra||''}>${text}</text>`;
   }
@@ -279,12 +281,12 @@
         const v = c.values[o.i], src = o.l.src != null ? o.l.src : o.i;
         // a wide invisible hit area makes each cell easy to click in the preview
         const hit = P ? `<rect x="${f(X(o.i) - Math.min(pitch, 20) * 0.45)}" y="${f(yTop - cp)}" width="${f(Math.min(pitch, 20) * 0.9)}" height="${f(cp * 1.25)}" fill="transparent"/>` : '';
-        if (v) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl(v, X(o.i), yTop, cp, 'middle')));
+        if (v) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl(v, X(o.i), yTop, cp, 'middle', ` fill="${annotationColor(c.color)}"`)));
         else if (P) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl('·', X(o.i), yTop, cp, 'middle', phStyle)));
       });
       const nm = c.name || (P ? G.L('条件', 'Condition') : '');
       if (nm) {
-        els.push(ed(`data-edit="condname" data-r="${c.r}"`, textEl(nm, rowNameX, yTop, cp, 'end', c.name ? '' : phStyle)));
+        els.push(ed(`data-edit="condname" data-r="${c.r}"`, textEl(nm, rowNameX, yTop, cp, 'end', c.name ? ` fill="${annotationColor(c.color)}"` : phStyle)));
         grow(rowNameX - measure(nm, cp), yTop - cp, 0, yTop);
       }
       yTop -= cp * 1.3;
@@ -368,15 +370,16 @@
       const tierY = t => base - tierH.slice(0, t).reduce((s, v) => s + v, 0);
       items.forEach(o => {
         const y = tierY(o.tier);
+        const col = annotationColor(o.g.color);
         o.runs.forEach(([r0, r1]) => {
-          els.push(`<line x1="${f(r0)}" y1="${f(y)}" x2="${f(r1)}" y2="${f(y)}" stroke="#000" stroke-width="${f(lw)}"/>`);
+          els.push(`<line x1="${f(r0)}" y1="${f(y)}" x2="${f(r1)}" y2="${f(y)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
           if (st.groupTicks) {
-            els.push(`<line x1="${f(r0)}" y1="${f(y)}" x2="${f(r0)}" y2="${f(y + pt * 0.35)}" stroke="#000" stroke-width="${f(lw)}"/>`);
-            els.push(`<line x1="${f(r1)}" y1="${f(y)}" x2="${f(r1)}" y2="${f(y + pt * 0.35)}" stroke="#000" stroke-width="${f(lw)}"/>`);
+            els.push(`<line x1="${f(r0)}" y1="${f(y)}" x2="${f(r0)}" y2="${f(y + pt * 0.35)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
+            els.push(`<line x1="${f(r1)}" y1="${f(y)}" x2="${f(r1)}" y2="${f(y + pt * 0.35)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
           }
         });
         if (o.lines.length) {
-          els.push(ed(`data-edit="group" data-k="${o.g.k != null ? o.g.k : o.k}"`, textLines(o.lines, o.cx, y - o.size * 0.3, o.size, 'middle', o.placeholder ? phStyle : '')));
+          els.push(ed(`data-edit="group" data-k="${o.g.k != null ? o.g.k : o.k}"`, textLines(o.lines, o.cx, y - o.size * 0.3, o.size, 'middle', o.placeholder ? phStyle : ` fill="${col}"`)));
           grow(o.cx - o.tw / 2, y - o.h, o.cx + o.tw / 2, y);
         }
         grow(o.x0, y - pt, o.x1, y);
@@ -395,16 +398,17 @@
       const off = extent[side] ? extent[side] + 3 : 0;  // a second column on the same side sits further out
       let maxTw = 0;
       shown.forEach(b => {
+        const col = annotationColor(b.color, annotationColor(mk.color));
         const attrs = `data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="${mk.bands.indexOf(b)}"`;
         const y = b.y * sc, label = G.Ladders.fmt(b.bp, mk.unit);
         const tw = measure(label, mp); maxTw = Math.max(maxTw, tw);
         if (side === 'left') {
-          if (!off) els.push(`<line x1="${f(-tick - 1)}" y1="${f(y)}" x2="${f(-1)}" y2="${f(y)}" stroke="#000" stroke-width="${f(lw)}"/>`);
-          els.push(ed(attrs, textEl(label, -tick - 2.5 - off, y + mp * 0.35, mp, 'end')));
+          if (!off) els.push(`<line x1="${f(-tick - 1)}" y1="${f(y)}" x2="${f(-1)}" y2="${f(y)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
+          els.push(ed(attrs, textEl(label, -tick - 2.5 - off, y + mp * 0.35, mp, 'end', ` fill="${col}"`)));
           grow(-tick - 2.5 - off - tw, y - mp, 0, y + mp);
         } else {
-          if (!off) els.push(`<line x1="${f(W + 1)}" y1="${f(y)}" x2="${f(W + 1 + tick)}" y2="${f(y)}" stroke="#000" stroke-width="${f(lw)}"/>`);
-          els.push(ed(attrs, textEl(label, W + tick + 2.5 + off, y + mp * 0.35, mp, 'start')));
+          if (!off) els.push(`<line x1="${f(W + 1)}" y1="${f(y)}" x2="${f(W + 1 + tick)}" y2="${f(y)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
+          els.push(ed(attrs, textEl(label, W + tick + 2.5 + off, y + mp * 0.35, mp, 'start', ` fill="${col}"`)));
           grow(W, y - mp, W + tick + 2.5 + off + tw, y + mp);
         }
       });
@@ -417,7 +421,7 @@
       if (unitText && shown.length) {
         const ux = side === 'left' ? -tick - 2.5 - off : W + tick + 2.5 + off;
         const uy = unitRowY;
-        els.push(ed(`data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="-1"`, textEl(unitText, ux, uy, mp, side === 'left' ? 'end' : 'start')));
+        els.push(ed(`data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="-1"`, textEl(unitText, ux, uy, mp, side === 'left' ? 'end' : 'start', ` fill="${annotationColor(mk.color)}"`)));
         grow(side === 'left' ? ux - unitW : ux, uy - mp * 1.2, side === 'left' ? 0 : ux + unitW, uy + mp * 0.3);
       }
       extent[side] = tick + 2.5 + off + Math.max(maxTw, unitW);
@@ -433,6 +437,7 @@
     // band marks: an arrowhead, or a text symbol (* for a non-specific band, # for a degradation product)
     const SYM = { star: '*', hash: '#', dagger: '†' };
     arrows.forEach((a, k) => {
+      const col = annotationColor(a.color);
       const y = a.y * sc, side = a.side || defSide, pt = a.pt || st.fontPt;   // this arrow's own size
       const s = pt * 0.75, label = a.label != null ? a.label : (a.text || '');
       const off = extent[side] ? extent[side] + 2 : 0;
@@ -442,19 +447,19 @@
       const tw = measure(label, pt);
       // written out directly: textEl would read "*" as the start of italic markup and drop it
       const mark = (x, dir) => glyph
-        ? `<text x="${f(x + dir * gw / 2)}" y="${f(y + pt * (a.sym === 'star' ? 0.62 : 0.4))}" font-size="${f(pt * 1.15)}" text-anchor="middle">${esc(glyph)}</text>`
-        : `<path d="M${f(x)},${f(y)} L${f(x + dir * s * 1.3)},${f(y - s * 0.6)} L${f(x + dir * s * 1.3)},${f(y + s * 0.6)} Z" fill="#000"/>`;
+        ? `<text x="${f(x + dir * gw / 2)}" y="${f(y + pt * (a.sym === 'star' ? 0.62 : 0.4))}" font-size="${f(pt * 1.15)}" text-anchor="middle" fill="${col}">${esc(glyph)}</text>`
+        : `<path d="M${f(x)},${f(y)} L${f(x + dir * s * 1.3)},${f(y - s * 0.6)} L${f(x + dir * s * 1.3)},${f(y + s * 0.6)} Z" fill="${col}"/>`;
       if (side === 'right') {
         const x = W + 1.5 + off;
         const hit = P ? `<rect x="${f(x - 1)}" y="${f(y - pt * 0.8)}" width="${f(gw + 4 + tw)}" height="${f(pt * 1.6)}" fill="transparent"/>` : '';
-        els.push(ed(attrs, hit + mark(x, 1) + (label ? textEl(label, x + gw + 2, y + pt * 0.35, pt, 'start') : '')));
+        els.push(ed(attrs, hit + mark(x, 1) + (label ? textEl(label, x + gw + 2, y + pt * 0.35, pt, 'start', ` fill="${col}"`) : '')));
         grow(W, y - pt, x + gw + 2 + tw, y + pt);
         reach.right = Math.max(reach.right, 1.5 + off + gw + 2 + tw);
         occ.right.push({ y0: y - pt * 0.7, y1: y + pt * 0.7, ext: 1.5 + off + gw + 2 + tw });
       } else {
         const x = -1.5 - off;
         const hit = P ? `<rect x="${f(x - gw - 3 - tw)}" y="${f(y - pt * 0.8)}" width="${f(gw + 4 + tw)}" height="${f(pt * 1.6)}" fill="transparent"/>` : '';
-        els.push(ed(attrs, hit + mark(x, -1) + (label ? textEl(label, x - gw - 2, y + pt * 0.35, pt, 'end') : '')));
+        els.push(ed(attrs, hit + mark(x, -1) + (label ? textEl(label, x - gw - 2, y + pt * 0.35, pt, 'end', ` fill="${col}"`) : '')));
         grow(x - gw - 2 - tw, y - pt, 0, y + pt);
         reach.left = Math.max(reach.left, 1.5 + off + gw + 2 + tw);
         occ.left.push({ y0: y - pt * 0.7, y1: y + pt * 0.7, ext: 1.5 + off + gw + 2 + tw });
@@ -475,8 +480,8 @@
       const path = `M${f(xb - dir * tk)},${f(y1)} L${f(xb)},${f(y1)} L${f(xb)},${f(y2)} L${f(xb - dir * tk)},${f(y2)}`;
       const ty = (y1 + y2) / 2 + bp * 0.35, tx = xb + dir * 2;
       const hit = P ? `<rect x="${f(Math.min(xb - dir * tk, tx + dir * tw) - 1)}" y="${f(y1 - 1)}" width="${f(tk + 2 + tw + 2)}" height="${f(y2 - y1 + 2)}" fill="transparent"/>` : '';
-      els.push(ed(attrs, hit + `<path d="${path}" fill="none" stroke="#000" stroke-width="${f(lw)}"/>` +
-        (label ? textEl(label, tx, ty, bp, side === 'right' ? 'start' : 'end', b.text ? '' : phStyle) : '')));
+      els.push(ed(attrs, hit + `<path d="${path}" fill="none" stroke="${annotationColor(b.color)}" stroke-width="${f(lw)}"/>` +
+        (label ? textEl(label, tx, ty, bp, side === 'right' ? 'start' : 'end', b.text ? ` fill="${annotationColor(b.color)}"` : phStyle) : '')));
       const end = off + tk + 2 + tw;
       occ[side].push({ y0: y1, y1: y2, ext: end });
       if (side === 'right') { grow(W, y1, W + end, y2); reach.right = Math.max(reach.right, end); }
@@ -497,11 +502,11 @@
       const label = b.text || '', bp = b.pt || pt;
       // the label sits just above the box in the box colour; a box at the top edge of the gel takes
       // it inside, so it never runs into the lane names or the +/− rows above the gel
-      const inside = y0 - bp * 1.3 < 0, ly = inside ? y0 + bp * 1.05 : y0 - bp * 0.3, lcol = boxCol;
+      const inside = y0 - bp * 1.3 < 0, ly = inside ? y0 + bp * 1.05 : y0 - bp * 0.3, col = annotationColor(b.color, boxCol), lcol = col;
       const lx = inside ? x0 + bp * 0.3 : x0;
       // in the preview only the frame is clickable, so clicks inside still reach the gel (arrow tool)
       const hitB = P ? `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="transparent" stroke-width="${f(pt * 0.9)}" pointer-events="stroke"/>` : '';
-      els.push(ed(attrs, hitB + `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="${boxCol}" stroke-width="${sw}"${dash}/>` +
+      els.push(ed(attrs, hitB + `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="${col}" stroke-width="${sw}"${dash}/>` +
         (label ? textEl(label, lx, ly, bp, 'start', ` fill="${lcol}"`) : '')));
       const z = +b.zoom || 0;
       if (z >= 2) {
@@ -517,8 +522,8 @@
         const ix = W + clear + pt * 1.2;
         els.push(ed(attrs, `<svg x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" viewBox="${f(x0)} ${f(y0)} ${f(bw)} ${f(bh)}" preserveAspectRatio="none" overflow="hidden">` +
           `<image x="0" y="0" width="${f(W)}" height="${f(H)}" preserveAspectRatio="none" href="${imgHref}" xlink:href="${imgHref}"/></svg>` +
-          `<rect x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" fill="none" stroke="#000" stroke-width="${sw}"${dash}/>` +
-          (label ? textEl(label, ix, iy - bp * 0.3, bp, 'start') : '')));
+          `<rect x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" fill="none" stroke="${annotationColor(b.color)}" stroke-width="${sw}"${dash}/>` +
+          (label ? textEl(label, ix, iy - bp * 0.3, bp, 'start', ` fill="${annotationColor(b.color)}"`) : '')));
         grow(ix, iy - (label ? bp * 1.3 : 0), ix + iw, iy + ih);
         insetY = iy + ih + pt * 1.6;
       }
@@ -530,7 +535,7 @@
       const text = t.text || (P ? G.L('点击输入文字', 'Click to type') : '');
       if (!text) return;
       const pt = t.pt || st.fontPt;   // this label's own size
-      const attrs = `data-edit="label" data-k="${t.k != null ? t.k : k}"`, extra = t.text ? '' : phStyle;
+      const attrs = `data-edit="label" data-k="${t.k != null ? t.k : k}"`, extra = t.text ? ` fill="${annotationColor(t.color)}"` : phStyle;
       const tw = measure(text, pt);
       if (t.pos === 'below') {
         els.push(ed(attrs, textEl(text, W / 2, belowY, pt, 'middle', extra)));
@@ -564,5 +569,5 @@
     return { svg, w: vw, h: vh, angle, warnings, overlaps, scale: sc, vx, vy, gelW: W, gelH: H, minPt: usedMin === Infinity ? pt : usedMin, fontFamily: family };
   }
 
-  G.Render = { build, composeGel, measure: measureText, wrapText, MM, laneBounds, fontName, fontStack, labelAngle, fontNames: Object.freeze(Object.keys(FONTS)) };
+  G.Render = { build, composeGel, measure: measureText, wrapText, MM, laneBounds, fontName, fontStack, labelAngle, annotationColor, fontNames: Object.freeze(Object.keys(FONTS)) };
 })(window);

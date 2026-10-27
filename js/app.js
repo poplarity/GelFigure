@@ -988,6 +988,7 @@
           return {
             bp, y: r[k].y + S.crop.y, matched: p && !fresh && p.excluded ? false : r[k].matched, manual: !!r[k].anchored,
             show: p && !fresh ? p.show : !!(r[k].matched || r[k].anchored), ref: lad.ref.includes(bp),
+            ...(p?.color==='red'?{color:'red'}:{}),
             ...(p && !fresh && p.excluded ? { excluded: true } : {})
           };
         });
@@ -1009,7 +1010,8 @@
     const found=S.markers.filter(m=>!protectedOnes.some(p=>Math.abs(p.lane-m.lane)<=1));
     found.forEach(m=>{
       const old=previous.find(p=>p.lane===m.lane&&p.ladderId===m.ladderId);if(!old)return;
-      m.bands=m.bands.map(b=>{const p=old.bands.find(p=>p.bp===b.bp);return p?{...b,show:p.show,...(p.excluded?{excluded:true,show:false,matched:false}:{})}:b;});
+      if(old.color==='red')m.color='red';
+      m.bands=m.bands.map(b=>{const p=old.bands.find(p=>p.bp===b.bp);return p?{...b,show:p.show,...(p.color==='red'?{color:'red'}:{}),...(p.excluded?{excluded:true,show:false,matched:false}:{})}:b;});
     });
     S.markers=previous.filter(m=>!inside(m)).concat(protectedOnes,found).sort((a,b)=>a.lane-b.lane);
     const targets=S.markers.filter(inside);App.matchMarkers(false,targets);
@@ -1177,13 +1179,13 @@
     const groups = S.groups.map((g, k) => {
       const a = Math.min(g.from, g.to), b = Math.max(g.from, g.to);
       const ins = keep.filter(i => i >= a && i <= b);
-      return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, pt: g.pt, k } : null;
+      return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, pt: g.pt, color:g.color, k } : null;
     }).filter(Boolean);
     return {
       preview: !!preview, bright: App.isColour() ? App.displayDark() : S.bright,
       crop: S.crop, levels: App.displayLevels(), style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
       lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:G.NameText.style(S.lanes[i].nameStyle),hidden: S.lanes[i].hidden, src: i })),
-      conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt })),
+      conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt, color:c.color })),
       groups,
       markers: S.markers.filter(m => remap.has(m.lane) && !S.lanes[m.lane].hidden).map(m => Object.assign({}, m, {
         lane: remap.get(m.lane), src: S.markers.indexOf(m),
@@ -1343,17 +1345,17 @@
     const lanes = [];
     for (let i = r[0]; i <= r[1]; i++) {
       const m = S.markers.find(x => x.lane === i);
-      lanes.push({ name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:S.lanes[i].nameStyle?G.NameText.style(S.lanes[i].nameStyle):undefined,hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side } : null });
+      lanes.push({ name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:S.lanes[i].nameStyle?G.NameText.style(S.lanes[i].nameStyle):undefined,hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side, color:m.color==='red'?'red':undefined, redBands:m.bands.filter(b=>b.color==='red').map(b=>b.bp) } : null });
     }
     return { gelfigTemplate: 3, app: 'GelFigure ' + App.VERSION, gelType: App.gelKind(), lanes,
       // custom ladders travel with the template, so another computer gets the same Markers
       ladders: G.Ladders.defsFor(S.markers.map(m => m.ladderId)),
-      groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text, pt: g.pt || null })),
-      conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || ''), pt: c.pt || null })),
-      arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y), pt: a.pt || null })),
+      groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text, pt: g.pt || null, color:g.color })),
+      conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || ''), pt: c.pt || null, color:c.color })),
+      arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y), pt: a.pt || null, color:a.color })),
       // side text travels as is; brackets by the sizes they span (positions differ between gels)
-      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, pt: t.pt || null })),
-      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null })).filter(b => b.bp1 && b.bp2),
+      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, pt: t.pt || null, color:t.color })),
+      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null, color:b.color })).filter(b => b.bp1 && b.bp2),
       // recorded for reference only: each gel is straightened on its own
       rotation: S.rotation,
       style: S.style, displayMode: App.isColour() ? 'colour' : 'gray' };
@@ -1389,17 +1391,21 @@
       if(Array.isArray(l.nameRuns)&&G.NameText.plain(G.NameText.normalize(l.nameRuns))===lane.name)lane.nameRuns=G.NameText.normalize(l.nameRuns);
       if(l.nameStyle&&Object.keys(G.NameText.style(l.nameStyle)).length)lane.nameStyle=G.NameText.style(l.nameStyle);
     });
-    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto', userAssigned: true, ladderLocked: true }) : null)).filter(Boolean);
+    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto', userAssigned: true, ladderLocked: true, ...(l.marker.color==='red'?{color:'red'}:{}) }) : null)).filter(Boolean);
     // Applying a saved marker choice is explicit, just like choosing its lane/model in the UI.
     mk.forEach(m => { delete S.lanes[m.lane].markerExcluded; });
     if (mk.length) S.markers = mk;
-    const ptOf = o => (o && +o.pt > 0 ? { pt: +o.pt } : {});   // per-item font size, when the style has one
+    const ptOf = o => ({...(o && +o.pt > 0 ? { pt: +o.pt } : {}),...(o?.color==='red'?{color:'red'}:{})});
     S.groups = (t.groups || []).map(g => Object.assign({ from: abs(g.from), to: abs(g.to), text: g.text || '' }, ptOf(g)));
     S.conditions = (t.conditions || []).map(c => Object.assign({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }, ptOf(c)));
     S.style = normalStyle(t.style);
     if (t.displayMode === 'colour' || t.displayMode === 'gray') App.setDisplayMode(t.displayMode === 'colour' && App.hasColour() ? 'colour' : 'gray');
     App.fixIndices();
     App.matchMarkers(true);
+    if(mk.length)tl.forEach((l,k)=>{
+      const m=S.markers.find(m=>m.lane===abs(k));if(!m||!Array.isArray(l.marker?.redBands))return;
+      m.bands.forEach(b=>{if(l.marker.redBands.includes(b.bp))b.color='red';});
+    });
     S.arrows = (t.arrows || []).map(a => {
       let y = S.crop.y + S.crop.h / 2;
       const b = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);

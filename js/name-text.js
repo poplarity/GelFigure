@@ -9,8 +9,9 @@
       if(!r||typeof r.text!=='string'||!r.text)continue;
       const n={text:r.text};if(typeof r.italic==='boolean')n.italic=r.italic;
       if(r.script==='sup'||r.script==='sub')n.script=r.script;
+      if(r.color==='red')n.color='red';
       const prev=out[out.length-1];
-      if(prev&&prev.italic===n.italic&&prev.script===n.script)prev.text+=n.text;else out.push(n);
+      if(prev&&prev.italic===n.italic&&prev.script===n.script&&prev.color===n.color)prev.text+=n.text;else out.push(n);
     }return out;
   }
   function legacy(value){
@@ -55,13 +56,15 @@
       if(kind==='normal')next.italic=false;
       else if(kind==='italic')next.italic=true;
       else if(kind==='sup'||kind==='sub'){if(active)delete next.script;else next.script=kind;}
-      else if(kind==='clear'){delete next.italic;delete next.script;}
+      else if(kind==='red')next.color='red';
+      else if(kind==='autoColor')delete next.color;
+      else if(kind==='clear'){delete next.italic;delete next.script;delete next.color;}
       return next;
     }),...slice(runs,end,n)]);
   }
   function write(lane,r){
     r=normalize(r);lane.name=plain(r);
-    if(r.some(r=>r.italic!==undefined||r.script))lane.nameRuns=r;else delete lane.nameRuns;
+    if(r.some(r=>r.italic!==undefined||r.script||r.color))lane.nameRuns=r;else delete lane.nameRuns;
   }
   function style(value){
     const s={};if(!value||typeof value!=='object')return s;

@@ -56,6 +56,8 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 
 ## Features
 
+**Dev preview: red annotations.** Click an arrow/symbol, region box, side bracket or side text and choose **Colour → Red**. Box frames, labels and enlarged copies share the colour; group labels colour their line and condition labels colour the whole row. Lane names support red on a selection or the whole name using the inline toolbar. Click a marker label to colour one size or that marker's labels/ticks/unit. **Default** restores the normal colour (white boxes on dark gels). Colour is saved in projects/history and applicable style fields, and retained in PNG, TIFF, SVG and editable PowerPoint. A grayscale gel with red annotations exports as RGB TIFF; source pixels and detection are unaffected.
+
 **feedback and support are always available.** Use **Feedback / support** in the desktop top bar, or **⋯ → Feedback / support / Star** on a phone, even before loading an image. Export reminders return on the next export after being closed. The online form needs no GitHub account: FormSubmit forwards your message, optional reply email and app version to the author. Failed submissions keep your text. Local HTML files offer copy/open-online fallback because this service requires a web page. Alipay support and GitHub Stars are optional. Hidden marker-label columns no longer create a blank strip beside arrows.
 
 **individual lane names and text formatting.** Shared name settings remain the default. Click a name, expand **Individual lane settings** and enable custom size/angle only when needed; untick it to follow the shared settings again. Select text and use Upright, Italic, x² or x₂; with no selection the action applies to the whole name. Clear restores the shared face. Formatting travels with projects/styles and stays editable in PowerPoint. After exporting, you can leave feedback or optionally support the author via the provided Alipay QR. Viewing or saving the QR does not replace your figure; payment is never opened automatically.
@@ -123,7 +125,7 @@ Both bright-bands-on-dark (EtBr, SYBR, fluorescence) and dark-bands-on-light (Co
 | Export | Content |
 |---|---|
 | PNG | Rendered at the chosen dpi (300 / 600 / 1200). Includes `pHYs` (resolution), `sRGB` and an embedded processing summary (`iTXt`, UTF-8). |
-| TIFF | LZW with resolution tags and a processing summary. 8-bit RGB in original-colour mode, or 8-bit grayscale in grayscale mode. |
+| TIFF | LZW with resolution tags and a processing summary. 8-bit RGB when the figure contains image or annotation colours; otherwise 8-bit grayscale. |
 | SVG | Vector text and lines; edit in Illustrator or Inkscape. |
 | PPTX | Finished figure with native editable text/shapes and recroppable pictures. Retains uncropped, processed pixels inside the file. See [PowerPoint export](docs/pptx.md). |
 | Uncropped image | Same rotation and contrast as the figure, with the crop box, well numbers and removed lanes marked. For the supplementary information. |

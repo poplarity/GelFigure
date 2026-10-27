@@ -164,7 +164,11 @@
   async function exportTIFF(svg, wPt, hPt, dpi, name, S) {
     const c = await svgToCanvas(svg, wPt, hPt, dpi);
     const id = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, n = c.width * c.height;
-    const colour = G.App.isColour(S), g = new Uint8Array(n * (colour ? 3 : 1));
+    // A grayscale gel can still have red vector annotations. Inspect the rendered figure so TIFF
+    // keeps their colour, while figures containing only gray pixels retain the compact gray writer.
+    let colour = G.App.isColour(S);
+    for(let i=0;!colour&&i<n;i++)if(id[i*4]!==id[i*4+1]||id[i*4+1]!==id[i*4+2])colour=true;
+    const g = new Uint8Array(n * (colour ? 3 : 1));
     for (let i = 0; i < n; i++) {
       if (colour) { g[i * 3] = id[i * 4]; g[i * 3 + 1] = id[i * 4 + 1]; g[i * 3 + 2] = id[i * 4 + 2]; }
       else g[i] = Math.round(0.299 * id[i * 4] + 0.587 * id[i * 4 + 1] + 0.114 * id[i * 4 + 2]);
@@ -240,23 +244,24 @@
       lanes: S.lanes.map((l, i) => ({ well: i + 1, x: Math.round(l.x * 10) / 10, name: l.name,nameRuns:G.NameText.runs(l),nameStyle:G.NameText.style(l.nameStyle),removedFromFigure: !!l.hidden,
         removal: l.hidden ? { reason: l.hiddenReason || 'manual', xFrom: Math.round(bounds[i][0]), xTo: Math.round(bounds[i][1]) } : undefined })),
       gel: { type: A.gelKind(), sizeUnit: A.sizeUnit(), detection: A.gelDetection ? { kind: A.gelDetection.kind, confidence: Math.round((A.gelDetection.confidence || 0) * 100) / 100, manual: !!A.gelDetection.manual, reasons: (A.gelDetection.reasons || []).map(r => A.gelReasonText(r)).filter(Boolean) } : null },
-      markers: S.markers.map(m => ({ well: m.lane + 1, ladder: (G.Ladders.get(m.ladderId) || {}).name, unit: m.unit, fitScore: m.score, bands: m.bands.map(b => ({ bp: b.bp, y: Math.round(b.y * 10) / 10, autoMatched: b.matched, manual: b.manual, labelled: b.show })) })),
+      annotationColours: { default:'black; region boxes use white on a dark gel', red:'#d32f2f' },
+      markers: S.markers.map(m => ({ well: m.lane + 1, ladder: (G.Ladders.get(m.ladderId) || {}).name, unit: m.unit, color:m.color==='red'?'red':'default', fitScore: m.score, bands: m.bands.map(b => ({ bp: b.bp, y: Math.round(b.y * 10) / 10, autoMatched: b.matched, manual: b.manual, labelled: b.show, color:b.color==='red'?'red':'inherit' })) })),
       arrows: S.arrows.map(a => {
         const e = A.estimateInfo(a.y);
         const isBp = A.sizeUnit() === 'bp';
-        return { text: a.text, y: Math.round(a.y * 10) / 10, label: A.arrowLabel(a), symbol: a.sym || 'arrow', side: a.side || 'auto', userSize: a.sizeText || null,
+        return { text: a.text, y: Math.round(a.y * 10) / 10, label: A.arrowLabel(a), symbol: a.sym || 'arrow', side: a.side || 'auto', userSize: a.sizeText || null, color:a.color==='red'?'red':'default',
           estimatedSize: e ? Math.round(e.bp * 10) / 10 : null, sizeUnit: A.sizeUnit(), estimatedBp: e && isBp ? Math.round(e.bp) : undefined,
           extrapolated: e ? e.extrap : null, markersDisagree: e ? e.disagree : null, markersUsed: e ? e.used.map(i => i + 1) : [],
           perMarker: e ? e.perMarker.map(p => ({ well: p.lane + 1, size: Math.round(p.bp * 10) / 10, bp: Math.round(p.bp), extrapolated: p.extrap })) : [] };
       }),
-      groups: S.groups.map(g => ({ fromWell: Math.min(g.from, g.to) + 1, toWell: Math.max(g.from, g.to) + 1, text: g.text, fontPt: g.pt || null })),
-      regionBoxes: (S.boxes || []).map(b => ({ text: b.text, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), dashed: b.dash !== false, enlarged: b.zoom >= 2 ? b.zoom : null })),
+      groups: S.groups.map(g => ({ fromWell: Math.min(g.from, g.to) + 1, toWell: Math.max(g.from, g.to) + 1, text: g.text, fontPt: g.pt || null, color:g.color==='red'?'red':'default' })),
+      regionBoxes: (S.boxes || []).map(b => ({ text: b.text, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), dashed: b.dash !== false, enlarged: b.zoom >= 2 ? b.zoom : null, color:b.color==='red'?'red':'default' })),
       brackets: (S.brackets || []).map(b => {
         const s1 = A.estimateBp(Math.min(b.y1, b.y2)), s2 = A.estimateBp(Math.max(b.y1, b.y2));
-        return { text: b.text, y1: Math.round(b.y1), y2: Math.round(b.y2), side: b.side || 'auto',
+        return { text: b.text, y1: Math.round(b.y1), y2: Math.round(b.y2), side: b.side || 'auto', color:b.color==='red'?'red':'default',
           sizeRange: s1 && s2 ? { from: Math.round(s2 * 10) / 10, to: Math.round(s1 * 10) / 10, unit: A.sizeUnit() } : null };
       }),
-      sideText: (S.labels || []).map(t => ({ text: t.text, position: t.pos })),
+      sideText: (S.labels || []).map(t => ({ text: t.text, position: t.pos, color:t.color==='red'?'red':'default' })),
       conditions: S.conditions, style: S.style,
       legendHints: legendHints(S)
     };

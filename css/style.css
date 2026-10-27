@@ -260,6 +260,10 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .fed-bar .switch { font-size:12px; margin:7px 0; color:#fff; }
 .fed-bar input[type=number] { background:#fff; color:#16202c; padding:3px 5px; width:55px; }
 .fed-bar .fed-hint { white-space:normal; }
+.fed-bar .red-choice { color:#ffb3b3; }
+.annotation-color-field { flex-wrap:wrap; margin:7px 0; }
+select.annotation-color { width:auto; max-width:100%; }
+select.annotation-color.is-red { color:#d32f2f; }
 .fed-bar [aria-pressed=true] { background:#2f6feb; }
 .fed-bar button { border: none; background: rgba(255,255,255,.13); color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; min-height: 0; }
 .fed-bar button:hover { background: rgba(255,255,255,.24); }

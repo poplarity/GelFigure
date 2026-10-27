@@ -107,6 +107,7 @@
     S().style.lanePt=snap.data.lanePt??null;edit.runs=G.NameText.normalize(snap.runs);fed.value=G.NameText.plain(edit.runs);fed.focus({preventScroll:true});fed.setSelectionRange(snap.a,snap.z);syncBar();autoRows();App.refresh();return true;
   }
   const getVal = (kind, id) => kind === 'lane' ? S().lanes[id].name : kind === 'group' ? S().groups[id].text : S().conditions[id].name;
+  const editedObject = () => edit.kind === 'lane' ? S().lanes[edit.id] : edit.kind === 'group' ? S().groups[edit.id] : S().conditions[edit.id];
   const setVal = (kind, id, v) => { if (kind === 'lane') S().lanes[id].name = v; else if (kind === 'group') S().groups[id].text = v; else S().conditions[id].name = v; };
   // font size of what is being edited: lane names share one size; a group label or a +/− row has its own
   const sizeHost = () => (edit.kind === 'lane' ? S().lanes[edit.id].nameStyle?{o:S().lanes[edit.id].nameStyle,k:'pt'}:{ o: S().style, k: 'lanePt' } : { o: edit.kind === 'group' ? S().groups[edit.id] : S().conditions[edit.id], k: 'pt' });
@@ -139,6 +140,10 @@
         button.setAttribute('aria-pressed',String(!!on));button.disabled=!!edit.composing;
       }
     }
+    const a=fed.selectionStart,z=fed.selectionEnd,r=edit.kind==='lane'?G.NameText.slice(edit.runs,a===z?0:a,a===z?fed.value.length:z):[{color:editedObject().color}];
+    for(const [id,red] of [['fedRed',true],['fedColorDefault',false]]){
+      $(id).setAttribute('aria-pressed',String(!!r.length&&r.every(v=>(v.color==='red')===red)));$(id).disabled=!!edit.composing;
+    }
     if (edit.kind === 'lane') $('fedMarker').textContent = S().markers.some(m => m.lane === edit.id) ? L('Marker 设置', 'Marker settings') : L('设为 Marker', 'Use as marker');
     $('fedHint').textContent = edit.kind === 'group' && !coarse.matches ? L('Shift+Enter 换行', 'Shift+Enter: new line') : '';
   }
@@ -160,6 +165,7 @@
     if (!el) return;
     const r = el.getBoundingClientRect();
     edit = { kind, id, orig: getVal(kind, id) || '',state:S() };
+    edit.origColor=editedObject().color;
     if(kind==='lane'){
       edit.original=JSON.parse(JSON.stringify(S().lanes[id]));edit.origLanePt=S().style.lanePt;edit.runs=G.NameText.runs(S().lanes[id]);
     }
@@ -191,7 +197,10 @@
       const lane=S().lanes[e.id];if(!lane)return;
       if(revert){for(const key of ['name','nameRuns','nameStyle']){if(e.original[key]===undefined)delete lane[key];else lane[key]=e.original[key];}S().style.lanePt=e.origLanePt;}
       else G.NameText.write(lane,G.NameText.edit(e.runs,clean(e.kind,fed.value)));
-    }else if (revert) setVal(e.kind, e.id, e.orig);
+    }else if (revert) {
+      setVal(e.kind, e.id, e.orig);const o=e.kind==='group'?S().groups[e.id]:S().conditions[e.id];
+      if(e.origColor===undefined)delete o.color;else o.color=e.origColor;
+    }
     else setVal(e.kind, e.id, clean(e.kind, fed.value));
     fed.classList.add('hidden'); bar.classList.add('hidden');
     App.commit();
@@ -254,6 +263,10 @@
   window.visualViewport?.addEventListener('resize',()=>{if(edit)placeBar();});
   bar.addEventListener('click', e => {
     const format=e.target.closest('button[data-format]');
+    if(format&&edit&&edit.kind!=='lane'&&!edit.composing&&['red','autoColor'].includes(format.dataset.format)){
+      if(format.dataset.format==='red')editedObject().color='red';else delete editedObject().color;
+      syncBar();App.refresh();fed.focus({preventScroll:true});barPress=false;return;
+    }
     if(format&&edit?.kind==='lane'&&!edit.composing){
       const a=fed.selectionStart,z=fed.selectionEnd;edit.runs=G.NameText.format(edit.runs,a,z,format.dataset.format);G.NameText.write(S().lanes[edit.id],edit.runs);
       fed.focus({preventScroll:true});fed.setSelectionRange(a,z);syncBar();recordNameEdit();App.refresh();barPress=false;return;
@@ -293,6 +306,16 @@
       App.refresh();
     });
   }
+  // Two colour tokens keep imported styles safe and the controls compact on phones.
+  const colorField = (id, value, title = L('颜色', 'Colour'), defaultText = L('默认', 'Default')) => `<label class="inline-label annotation-color-field" for="${id}">${title}<select id="${id}" class="annotation-color${value==='red'?' is-red':''}"><option value="">${defaultText}</option><option value="red"${value==='red'?' selected':''}>${L('● 红色','● Red')}</option></select></label>`;
+  function bindColor(id, object, committed = false) {
+    const input=$(id);input.addEventListener('change',()=>{
+      const target=typeof object==='function'?object():object;if(!target)return;
+      if(input.value==='red')target.color='red';else delete target.color;
+      input.classList.toggle('is-red',target.color==='red');
+      committed?App.commit():App.refresh();
+    });
+  }
 
   /* ---------- box / bracket / side-text popover ---------- */
   function annoPopover(kind, k, anchor) {
@@ -319,12 +342,13 @@
         <div class="field inline"><label class="inline-label">${L('位置', 'Position')}</label>${sel('qPos', [['left', L('左侧竖排', 'Left, vertical')], ['right', L('右侧竖排', 'Right, vertical')], ['below', L('胶图下方', 'Below the gel')]], a.pos || 'left')}</div>
         <p class="hint">${L('用于注明染色方法、抗体或曝光时间。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. *italic* works as in lane names.')}</p>`;
     }
-    pop.innerHTML = `<h4>${title}</h4>${body}${ptField('qPt', a.pt)}
+    pop.innerHTML = `<h4>${title}</h4>${body}${ptField('qPt', a.pt)}${colorField('qColor',a.color)}
       <div class="actions"><button class="btn sm danger" id="qDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="qOk">${L('完成', 'Done')}</button></div>`;
     placePop(anchor);
     const upd = () => App.refresh();
     const q = id => pop.querySelector('#' + id);
     bindPt(q('qPt'), a);
+    bindColor('qColor',a);
     q('qText').addEventListener('input', e => { a.text = e.target.value; upd(); G.Editor.draw(); });
     q('qText').addEventListener('keydown', e => { if (e.key === 'Enter' && !composing(e)) closePop(); });
     if (q('qDash')) q('qDash').addEventListener('change', e => { a.dash = e.target.value === '1'; upd(); G.Editor.draw(); });
@@ -362,7 +386,7 @@
       <div class="field inline"><label class="inline-label">${L('位置', 'Side')}</label>
         <select id="pSide" style="width:auto"><option value="">${L('自动', 'Auto')}</option><option value="right">${L('右侧', 'Right')}</option><option value="left">${L('左侧', 'Left')}</option></select>
         <span class="hint" style="margin:0">${L('上下位置在原图上拖品红线', 'Drag the magenta line on the image to move it')}</span></div>
-      ${ptField('pPt', a.pt)}
+      ${ptField('pPt', a.pt)}${colorField('pColor',a.color)}
       <div class="actions"><button class="btn sm danger" id="pDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="pOk">${L('完成', 'Done')}</button></div>`;
     pop.querySelector('#pSide').value = a.side || '';
     pop.querySelector('#pSym').value = a.sym || 'arrow';
@@ -380,6 +404,7 @@
     pop.querySelector('#pSizeText').addEventListener('input', e => { a.sizeText = e.target.value.trim(); if (a.sizeText) { a.size = true; pop.querySelector('#pSize').checked = true; } upd(); });
     pop.querySelector('#pSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
     bindPt(pop.querySelector('#pPt'), a);
+    bindColor('pColor',a);
     pop.querySelector('#pOk').onclick = closePop;
     pop.querySelector('#pDel').onclick = () => { const i = S().arrows.indexOf(a); if (i >= 0) S().arrows.splice(i, 1); App.selArrow = -1; popK = -1; pop.classList.add('hidden'); App.commit(); };
     if (!coarse.matches) setTimeout(() => pop.querySelector('#pName').focus(), 0);
@@ -479,7 +504,7 @@
   App.on(w => { if (w === 'loaded') reset(); });
 
   G.FigEdit = {
-    setMode, arrowPopover, annoPopover, openEd, closePop, reset,
+    setMode, arrowPopover, annoPopover, openEd, closePop, reset, colorField, bindColor,
     flush() { closeEd(false); closePop(); },
     afterRender() {
       if(edit){syncBar();placeBar();}
