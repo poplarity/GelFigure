@@ -38,14 +38,18 @@ function unzip(b) {
 }
 export { unzip as readPptx };
 // Compare PNG pixel scanlines even if the browser chooses a different lossless compression stream.
-function pngPixels(b) {
+// Ancillary metadata is not part of a picture: WebKit stamps every canvas with an eXIf block, and the
+// media file is deliberately cleaned of it, so only the header and the decoded scanlines are compared.
+function pngPixels(b, checkMeta) {
   assert.equal(b.readUInt32BE(0), 0x89504e47);
   const data = []; let ihdr;
   for (let off = 8; off < b.length;) {
     const n = b.readUInt32BE(off), type = b.toString('ascii', off + 4, off + 8), bytes = b.subarray(off + 8, off + 8 + n);
     if (type === 'IHDR') ihdr = bytes;
     if (type === 'IDAT') data.push(bytes);
-    assert(!['eXIf', 'tEXt', 'iTXt'].includes(type), 'No source metadata in embedded PNG');
+    // the exported figure must not carry camera/source metadata from the canvas (the reference copy
+    // comes straight from the canvas, so it is only checked for decodability)
+    if (checkMeta) assert(!['eXIf', 'tEXt', 'iTXt', 'zTXt'].includes(type), 'No source metadata in embedded PNG');
     off += n + 12;
   }
   return { ihdr: ihdr.toString('hex'), pixels: inflateSync(Buffer.concat(data)) };
@@ -91,7 +95,7 @@ export async function pptxChecks(browser, base, root, engine) {
       assert.equal(bundle.mime, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
       assert(bundle.unchanged, 'Export must not mutate project state');
       assert.equal([...entries.keys()].filter(n => n.startsWith('ppt/media/')).length, 1);
-      const orig = pngPixels(Buffer.from(bundle.source,'base64')), media = pngPixels(entries.get('ppt/media/gel.png'));
+      const orig = pngPixels(Buffer.from(bundle.source,'base64'), false), media = pngPixels(entries.get('ppt/media/gel.png'), true);
       assert.deepEqual(media, orig, 'Full processed image is retained losslessly');
       const names = [...entries.keys()];
       const xmls = [...entries].filter(([n]) => /\.xml$|\.rels$/.test(n)).map(([n,b])=>[n,b.toString('utf8')]);

@@ -338,9 +338,13 @@
         <p class="hint">${L('上下两端在原图上拖青色虚线调整。', 'Drag the teal dashed lines on the image to set its top and bottom.')}</p>`;
     } else {
       title = L('侧边文字', 'Side text');
+      const av = a.at != null && a.at !== '' && Number.isFinite(+a.at) ? Math.min(1, Math.max(0, +a.at)) : 0.5;
+      const at = Math.round(av * 100);
       body = `<div class="field"><input type="text" id="qText" placeholder="${L('如 Coomassie、EtBr、IB: anti-HA、30 s', 'e.g. Coomassie, EtBr, IB: anti-HA, 30 s')}" value="${esc(a.text)}"></div>
         <div class="field inline"><label class="inline-label">${L('位置', 'Position')}</label>${sel('qPos', [['left', L('左侧竖排', 'Left, vertical')], ['right', L('右侧竖排', 'Right, vertical')], ['below', L('胶图下方', 'Below the gel')]], a.pos || 'left')}</div>
-        <p class="hint">${L('用于注明染色方法、抗体或曝光时间。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. *italic* works as in lane names.')}</p>`;
+        <div class="field"><label class="inline-label">${a.pos === 'below' ? L('左右位置', 'Across the gel') : L('上下位置', 'Along the gel')}</label>
+          <input type="range" id="qAt" min="0" max="100" step="1" value="${at}"><output id="qAtOut">${at}%</output></div>
+        <p class="hint">${L('用于注明染色方法、抗体或曝光时间；拖动滑杆可让它避开 Marker 数字或其它文字。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. Drag the slider so it clears the marker numbers or other text. *italic* works as in lane names.')}</p>`;
     }
     pop.innerHTML = `<h4>${title}</h4>${body}${ptField('qPt', a.pt)}${colorField('qColor',a.color)}
       <div class="actions"><button class="btn sm danger" id="qDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="qOk">${L('完成', 'Done')}</button></div>`;
@@ -355,6 +359,12 @@
     if (q('qZoom')) q('qZoom').addEventListener('change', e => { a.zoom = +e.target.value; upd(); G.Editor.draw(); });
     if (q('qSide')) q('qSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
     if (q('qPos')) q('qPos').addEventListener('change', e => { a.pos = e.target.value; upd(); });
+    // dragging the slider only previews; letting go records one undo step
+    if (q('qAt')) {
+      const out = q('qAtOut');
+      q('qAt').addEventListener('input', e => { a.at = +e.target.value / 100; if (out) out.textContent = e.target.value + '%'; upd(); });
+      q('qAt').addEventListener('change', () => App.commit());
+    }
     q('qOk').onclick = closePop;
     // by identity: other items may have been deleted while the popover was open
     q('qDel').onclick = () => { const i = list.indexOf(a); if (i >= 0) list.splice(i, 1); App.selAnno = null; popAnno = null; pop.classList.add('hidden'); App.commit(); };
@@ -416,8 +426,20 @@
   });
 
   /* ---------- preview pointer handling ---------- */
-  let press = null;
+  let press = null, dragLabel = null;
   const laneAt = (x, y) => { const el = document.elementFromPoint(x, y); const g = el && el.closest && el.closest('g[data-edit="lane"]'); return g ? +g.dataset.src : null; };
+  // where along the gel edge the pointer is (0..1): vertically beside the gel, across it below.
+  // Uses the gel <image> in the preview, so zoom and phone scaling need no extra arithmetic.
+  const labelAt = (e, t) => {
+    const svg = prev.querySelector('svg'), gel = svg && svg.querySelector('image');
+    if (!gel || !svg.createSVGPoint) return null;
+    const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+    const m = svg.getScreenCTM(); if (!m) return null;
+    const q = p.matrixTransform(m.inverse());
+    const w = +gel.getAttribute('width'), h = +gel.getAttribute('height');
+    const v = t.pos === 'below' ? q.x / w : q.y / h;
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null;
+  };
   function highlight(a, b) {
     prev.querySelectorAll('g[data-edit="lane"]').forEach(g => {
       const s = +g.dataset.src;
@@ -430,6 +452,11 @@
     if (!g) return;
     if (App.mode === 'marker-lane' && g.dataset.edit === 'lane') { e.preventDefault(); G.MarkerUI.chooseLane(+g.dataset.src); return; }
     if (g.dataset.edit === 'lane') { press = { src: +g.dataset.src, x: e.clientX, y: e.clientY, moved: false, end: +g.dataset.src, touch: e.pointerType === 'touch' }; e.preventDefault(); }
+    // side text: dragging along the gel edge moves it; a plain click opens its popover as before
+    else if (g.dataset.edit === 'label') {
+      const t = S().labels[+g.dataset.k];
+      if (t) { dragLabel = { t, x: e.clientX, y: e.clientY, moved: false }; try { g.setPointerCapture && g.setPointerCapture(e.pointerId); } catch (_) {} }
+    }
   });
   function makeGroup(a, b) {
     S().groups.push({ from: Math.min(a, b), to: Math.max(a, b), text: '' });
@@ -439,12 +466,19 @@
     requestAnimationFrame(() => openEd('group', k));
   }
   window.addEventListener('pointermove', e => {
+    if (dragLabel) {
+      if (!dragLabel.moved && Math.abs(e.clientX - dragLabel.x) + Math.abs(e.clientY - dragLabel.y) <= 6) return;
+      const v = labelAt(e, dragLabel.t);
+      if (v != null) { dragLabel.moved = true; dragLabel.t.at = Math.round(v * 100) / 100; App.refresh(); }
+      return;
+    }
     if (!press) return;
     if (e.cancelable) e.preventDefault();
     if (Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 6) press.moved = true;
     if (press.moved) { const l = laneAt(e.clientX, e.clientY); if (l != null) press.end = l; highlight(press.src, press.end); }
   });
   window.addEventListener('pointerup', e => {
+    if (dragLabel) { const d = dragLabel; dragLabel = null; if (d.moved) App.commit(); return; }
     if (!press) return;
     const p = press; press = null;
     if (App.mode === 'group' && p.touch && !p.moved) {
@@ -464,7 +498,7 @@
     else if (!p.moved) openEd('lane', p.src);
   });
   // the browser took the touch for scrolling the figure
-  window.addEventListener('pointercancel', () => { if (press) { press = null; if (groupStart == null) highlight(null); } });
+  window.addEventListener('pointercancel', () => { if (press) { press = null; if (groupStart == null) highlight(null); } dragLabel = null; });
   prev.addEventListener('click', e => {
     if (!S()) return;
     const g = e.target.closest('[data-edit]');

@@ -77,7 +77,7 @@ export async function layoutControlChecks(browser,base,root,engine){
       for(const width of [390,320]){
         await p.setViewportSize({width,height:844});await p.locator('#mNav [data-view="fig"]').click();await setAngle(28);
         assert.equal(await p.evaluate(()=>UI.lastFig().angle),28);assert(await p.locator('#mExport').isVisible());assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),width);
-        const b=await p.locator('#laneAngleMenu .figure-text-fields').boundingBox();assert(b.x>=0&&b.x+b.width<=width+1);
+        const b=await p.locator('#laneAngleMenu .figure-text-fields').boundingBox();assert(b.x>=0&&b.x+b.width<=width+1,`${width}px: the angle menu must stay on screen, got ${JSON.stringify(b)}`);
         await p.screenshot({path:path.join(dir,'phone-'+width+'.png')});await p.locator('#laneAngleNumber').press('Escape');assert(!(await p.locator('#laneAngleMenu').evaluate(e=>e.open)));
       }
       assert.deepEqual(errors,[]);

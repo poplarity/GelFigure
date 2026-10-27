@@ -4,6 +4,25 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+**中文摘要**
+- 新增整图方向调整：水平/垂直翻转、顺时针/逆时针 90°。图像在导入后即可摆正，不必先到别的软件里旋转再导入。
+- 泳道名现在紧贴胶图，条件行堆叠在泳道名**上方**；增加条件行不再把 Marker 泳道名推离图像。需要旧版排法（条件行贴胶、泳道名在其上）可在“版式”里打开开关。
+- 侧边文字不再只有三个固定位置：左右竖排与胶图下方均可沿胶边自由移动，也可在图上直接拖动。
+- 新增 Pierce™ Unstained Protein MW Marker（26610）蛋白 Ladder（14.4–116 kDa，7 条带）。
+- 修复：Safari 下导出的 PNG 与 PowerPoint 不再夹带浏览器写入的图片元数据；手机上刚切换视图就打开的字号/角度面板不再跑到屏幕外。
+
+### Added
+- Whole-image orientation: horizontal/vertical mirror and 90° turns in either direction, applied to the source pixels before detection, so an image photographed sideways can be squared up without another application. Mirroring and 180° carry every annotation across exactly; a quarter turn re-detects the (now horizontal) lanes and keeps the typed names in order. Stored as `orient` in project state, recorded in the processing log, undone like any other change.
+- Side text can be placed anywhere along its gel edge (`at`, 0–1) instead of only centred, by slider or by dragging it on the figure. Left/right text moves vertically, the line below the gel moves across it; the label is kept on the gel. Older projects and templates without the field stay centred.
+- Pierce Unstained Protein MW Marker (26610), 116 / 66.2 / 45 / 35 / 25 / 18.4 / 14.4 kDa, from MAN0011769.
+
+### Changed
+- Lane names now sit directly above the gel with the condition rows stacked above them, so adding a condition row no longer pushes the lane names (and a marker lane's label) away from the image. The previous order — conditions nearest the gel — remains available as `style.laneNamesAboveConditions`.
+
+### Fixed
+- Exported PNG and PowerPoint media no longer carry the browser's own metadata blocks. Safari/WebKit stamps every canvas with an `eXIf` block; it is stripped along with any encoder text, so only GelFigure's own `Software`/`Description` reach a figure.
+- The angle menu on a phone no longer opens partly off-screen after the viewport has just changed (for example a rotation straight into the figure view). It is re-placed once the new layout is live.
+
 ## [0.6.13] - 2026-10-27
 
 Red annotations, discoverable layout settings and an offline release-history window.

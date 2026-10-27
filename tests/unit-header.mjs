@@ -38,9 +38,23 @@ export async function unitHeaderChecks(browser,base,root,engine){
           }
           const y=units.map(t=>+t.getAttribute('y'));
           if(count && mp===7 && cp===7){
-            const bottom=host.querySelector(`[data-edit="condname"][data-r="${count-1}"] text`);
+            // The block nearest the gel must sit at its usual baseline: the lane names in the default
+            // order, the bottom condition row in the legacy one. Either way the unit header must not
+            // reserve an empty row below it.
+            // A tilted lane name carries its baseline in the wrapping group's translate and leaves the
+            // <text> at y=0, so read the baseline from whichever of the two the render actually used.
+            const baselineOf=el=>{
+              const g=el.matches('text')?null:el.querySelector('g[transform]');
+              const m=g&&/translate\(\s*([-\d.eE+]+)[,\s]+([-\d.eE+]+)/.exec(g.getAttribute('transform')||'');
+              if(m)return +m[2];
+              const t=el.matches('text')?el:el.querySelector('text');
+              return t?+t.getAttribute('y'):NaN;
+            };
+            const nearest=R.style.laneNamesAboveConditions!==true
+              ? Math.max(...Array.from(host.querySelectorAll('[data-edit="lane"]'),baselineOf).filter(Number.isFinite))
+              : baselineOf(host.querySelector(`[data-edit="condname"][data-r="${count-1}"]`));
             const expected=-R.style.labelGapPt-(numbers?pt*1.25:0);
-            if(Math.abs(+bottom.getAttribute('y')-expected)>.01)failures.push({error:'unnecessary blank row below conditions',unit,count,family,numbers});
+            if(Math.abs(nearest-expected)>.01)failures.push({error:'unnecessary blank row below conditions',unit,count,family,numbers,y:nearest,expected});
           }
           R.preview=false;const exportDoc=new DOMParser().parseFromString(Render.build(R,gel,pixel).svg,'image/svg+xml');R.preview=true;
           const exported=Array.from(exportDoc.querySelectorAll('text')).filter(t=>t.textContent==='('+unit+')').map(t=>+t.getAttribute('y'));

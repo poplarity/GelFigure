@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import {pathToFileURL} from 'node:url';
 import {readPptx} from './pptx.mjs';
 
@@ -111,7 +112,13 @@ export async function colourChecks(browser,base,root,engine){
       });assert(r.rgb);assert.equal(r.spp,3);assert.equal(r.dpi,300);assert.equal(r.original,source);
       for(const k of ['png','tif','pptx','uncropped'])fs.writeFileSync(path.join(dir,k==='uncropped'?'uncropped.png':'figure.'+k),Buffer.from(r[k],'base64'));
       fs.writeFileSync(path.join(dir,'figure.svg'),r.svg);
-      const parts=readPptx(Buffer.from(r.pptx,'base64'));assert.deepEqual(parts.get('ppt/media/gel.png'),Buffer.from(r.full,'base64'));assert(parts.get('ppt/slides/slide1.xml').toString().includes('<a:srcRect'));
+      const parts=readPptx(Buffer.from(r.pptx,'base64'));
+      // the media file is the canvas' pixels with the canvas' metadata blocks cleaned off, so compare
+      // the decoded scanlines rather than the encoded bytes (WebKit adds an eXIf block)
+      const media=parts.get('ppt/media/gel.png');
+      const scan=b=>{const d=[];for(let o=8;o<b.length;){const n=b.readUInt32BE(o),t=b.toString('ascii',o+4,o+8);if(t==='IDAT')d.push(b.subarray(o+8,o+8+n));o+=n+12;}return zlib.inflateSync(Buffer.concat(d));};
+      assert.deepEqual(scan(media),scan(Buffer.from(r.full,'base64')));
+      assert(parts.get('ppt/slides/slide1.xml').toString().includes('<a:srcRect'));
       const images=await p.evaluate(async({png,tif,uncropped})=>{
         const buf=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)).buffer;
         const a=await TIFF.decodeBuffer(buf(png),'figure.png'),b=await TIFF.decode(buf(tif)),u=await TIFF.decodeBuffer(buf(uncropped),'uncropped.png');

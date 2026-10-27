@@ -48,6 +48,8 @@
     { id: 'thermo_26616', name: 'Thermo PageRuler Prestained 10–180 kDa (26616)', sizes: [180, 130, 100, 70, 55, 40, 35, 25, 15, 10], ref: [70, 25, 10] },
     { id: 'thermo_26619', name: 'Thermo PageRuler Plus Prestained 10–250 kDa (26619)', sizes: [250, 130, 100, 70, 55, 35, 25, 15, 10], ref: [70, 25, 10] },
     { id: 'thermo_26614', name: 'Thermo PageRuler Unstained 10–200 kDa (26614)', sizes: [200, 150, 120, 100, 85, 70, 60, 50, 40, 30, 25, 20, 15, 10], ref: [50] },
+    // seven purified proteins on an 8–16 % Tris-glycine gel; no band is marked as an indicator (MAN0011769)
+    { id: 'thermo_26610', name: 'Thermo Pierce Unstained Protein MW Marker 14.4–116 kDa (26610)', sizes: [116, 66.2, 45, 35, 25, 18.4, 14.4], ref: [] },
     { id: 'thermo_26632', name: 'Thermo PageRuler Unstained Low Range 3.4–100 kDa (26632, Tricine)', sizes: [100, 30, 25, 20, 15, 10, 5, 3.4], ref: [25] },
     { id: 'thermo_26634', name: 'Thermo Spectra Multicolor Broad Range (26634)', sizes: [260, 140, 100, 70, 50, 40, 35, 25, 15, 10], ref: [260, 70, 50, 40, 10] },
     { id: 'thermo_26625', name: 'Thermo Spectra Multicolor High Range (26625)', sizes: [300, 250, 180, 130, 100, 70, 50, 40], ref: [300, 70, 50] },

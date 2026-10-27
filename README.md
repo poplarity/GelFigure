@@ -84,6 +84,9 @@ Drop in the image from your gel imager or scanner. GelFigure works out whether i
 - **Target-band arrows with sizes**: click a band; the arrow snaps to it and its size is estimated from the marker(s). Sizes outside the ladder, or where two markers disagree by more than 10 %, are marked `≈`.
 - **Several exposures at once**: drop all exposures of one gel; the best one (least saturation, best signal-to-noise) is chosen, and you can switch with all annotations kept.
 - **Rotation keeps annotations in place**: lanes, bands, arrows and the crop box rotate with the image.
+- **No need to straighten images elsewhere**: mirror horizontally or vertically, and turn 90° either way, inside the Image section. Mirrors and 180° carry every annotation with the image; a 90° turn re-detects the lanes in their new direction and keeps the names you typed, in order.
+- **Lane names hug the gel**: condition rows stack above them, so adding rows never pushes a marker lane's name away from the image. The older order (conditions nearest the gel) is one switch in Layout.
+- **Side text anywhere along its edge**: left, right and below-the-gel captions can be moved along the edge, by slider or by dragging them on the figure.
 - **Lane removal with splice marks**: select a lane and press `H`; a splice gap or line is added and recorded. Empty lanes are suggested for removal (never removed silently). `Delete` / `⌫` deletes a wrongly detected lane.
 - **Live lane alignment**: change the count on the left (Settings on phones; include marker and empty lanes), then drag the two end guides; the middle follows evenly. Turn off linking or Alt-drag for an independent correction. The visible crop re-detection button finds both lanes and markers.
 - **Pre-flight check before export**: camera saturation, contrast clipping, effective resolution below 300 dpi, tiny fonts, extrapolated sizes, with one-click fixes.

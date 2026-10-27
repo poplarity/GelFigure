@@ -37,20 +37,28 @@
   }
   /* Insert pHYs (dpi), sRGB and text metadata right after IHDR. dpi is the pixel density of THIS
    * raster (text and lines really are rendered at it); the gel's own effective dpi is written as
-   * text and checked before export, never passed off as the raster density. */
+   * text and checked before export, never passed off as the raster density.
+   * Every other encoder chunk is copied through except source/colour metadata, which must not travel
+   * into an exported figure: WebKit adds an eXIf block carrying the canvas' origin, and iCCP/gAMA
+   * would contradict the sRGB we declare. Pass dpi 0 to clean a picture without decorating it (the
+   * PowerPoint media file is used as-is, at the canvas' own size). */
   async function pngDecorate(blob, dpi, texts) {
     const src = new Uint8Array(await blob.arrayBuffer());
-    const ppm = Math.round(dpi / 0.0254), ph = new Uint8Array(9), dv = new DataView(ph.buffer);
-    dv.setUint32(0, ppm); dv.setUint32(4, ppm); ph[8] = 1;
-    const parts = [chunk('pHYs', ph), chunk('sRGB', Uint8Array.of(0))];
+    const parts = [];
+    if (dpi) {
+      const ppm = Math.round(dpi / 0.0254), ph = new Uint8Array(9), dv = new DataView(ph.buffer);
+      dv.setUint32(0, ppm); dv.setUint32(4, ppm); ph[8] = 1;
+      parts.push(chunk('pHYs', ph), chunk('sRGB', Uint8Array.of(0)));
+    }
     Object.entries(texts || {}).forEach(([k, v]) => parts.push(itxt(k, v)));
     // copy the encoder's chunks, dropping the ones we replace (each may appear only once; iCCP and
-    // sRGB are mutually exclusive) and inserting ours right after IHDR
+    // sRGB are mutually exclusive), the source metadata WebKit adds (eXIf) and any text the encoder
+    // wrote, and inserting ours right after IHDR
     const keep = [src.subarray(0, 33)];
     for (let p = 33; p + 8 <= src.length;) {
       const len = ((src[p] << 24) | (src[p + 1] << 16) | (src[p + 2] << 8) | src[p + 3]) >>> 0;
       const type = String.fromCharCode(src[p + 4], src[p + 5], src[p + 6], src[p + 7]);
-      if (!['pHYs', 'sRGB', 'iCCP', 'gAMA', 'cHRM'].includes(type)) keep.push(src.subarray(p, p + 12 + len));
+      if (!['pHYs', 'sRGB', 'iCCP', 'gAMA', 'cHRM', 'eXIf', 'tEXt', 'iTXt', 'zTXt'].includes(type)) keep.push(src.subarray(p, p + 12 + len));
       p += 12 + len;
     }
     return new Blob([keep[0], ...parts, ...keep.slice(1)], { type: 'image/png' });
@@ -82,7 +90,7 @@
     return JSON.stringify({
       tool: 'GelFigure ' + A.VERSION, source: S.file.name, sha256: S.file.sha256,
       figureFont: G.Render.fontName(S.style.fontFamily),
-      rotationDeg: S.rotation, display: A.displayInfo(), levels: A.displayLevels(S), effectiveGelDpi: Math.round(A.effectiveDpi()),
+      rotationDeg: S.rotation, orientation: S.orient || null, display: A.displayInfo(), levels: A.displayLevels(S), effectiveGelDpi: Math.round(A.effectiveDpi()),
       sensorSaturatedFrac: A.isColour(S) ? null : +k.sensorFrac.toFixed(5), levelClippedFrac: +A.bandClipFrac().toFixed(5),
       splicedLanes: S.lanes.map((l, i) => (l.hidden ? i + 1 : null)).filter(v => v != null),
       disclosure: legendHints(S).join(' ')
@@ -207,7 +215,7 @@
     ctx.fillText('Uncropped image (same processing as figure)', fs * 0.5, fs * 1.3);
     ctx.font = `${fs * 0.8}px ${family}`;
     const lv = G.App.displayLevels(S);
-    const info = `${S.file.name} · SHA-256 ${String(S.file.sha256 || '').slice(0, 16)}… · ${S.file.bits}-bit · rotation ${S.rotation}° · ${G.App.isColour(S) ? 'original colour (8-bit RGB)' : `levels ${(lv.black * 100).toFixed(2)}–${(lv.white * 100).toFixed(2)}% (linear${lv.gamma !== 1 ? ', gamma ' + lv.gamma : ''})${lv.invert ? ' · inverted' : ''}`}`;
+    const info = `${S.file.name} · SHA-256 ${String(S.file.sha256 || '').slice(0, 16)}… · ${S.file.bits}-bit · rotation ${S.rotation}°${S.orient && S.orient !== '' ? ` · orientation ${S.orient}` : ''} · ${G.App.isColour(S) ? 'original colour (8-bit RGB)' : `levels ${(lv.black * 100).toFixed(2)}–${(lv.white * 100).toFixed(2)}% (linear${lv.gamma !== 1 ? ', gamma ' + lv.gamma : ''})${lv.invert ? ' · inverted' : ''}`}`;
     ctx.fillText(info, fs * 0.5, H + top + fs * 1.2, W - fs);
     const key = S.lanes.map((l, i) => `${l.hidden ? 'X' : i + 1}: ${l.name || '—'}`).join('   ');
     ctx.fillText(key, fs * 0.5, H + top + fs * 2.4, W - fs);
@@ -228,7 +236,7 @@
       tool: 'GelFigure', version: A.VERSION, exportedAt: new Date().toISOString(),
       environment: { userAgent: navigator.userAgent, figureFont: G.Render.fontName(S.style.fontFamily), fontFallbacks: G.Render.fontStack(S.style.fontFamily), fontsEmbedded: false },
       source: { file: S.file.name, sha256: S.file.sha256, bytes: S.file.size, width: A.src.w, height: A.src.h, bitDepth: S.file.bits, dpi: S.file.dpi || null },
-      rotationDeg: S.rotation, autoRotationDeg: A.autoRotation,
+      rotationDeg: S.rotation, autoRotationDeg: A.autoRotation, orientation: S.orient || null,
       crop: S.crop, figureWells: r ? [r[0] + 1, r[1] + 1] : null,
       display: A.displayInfo(),
       levels: Object.assign({ note: A.isColour(S) ? 'original-colour display; grayscale adjustments are not applied' : 'linear whole-image stretch; values are fractions of full scale' }, A.displayLevels(S)),

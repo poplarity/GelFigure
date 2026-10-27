@@ -296,6 +296,23 @@
   $('rotNum').addEventListener('change', e => { if (!S()) return; App.setRotation(+e.target.value || 0); commitRotation(); });
   $('rotMinus').onclick = () => { if (!S()) return; App.setRotation(S().rotation - 0.5); commitRotation(); };
   $('rotPlus').onclick = () => { if (!S()) return; App.setRotation(S().rotation + 0.5); commitRotation(); };
+  // orientation: flips carry all annotations; quarter turns re-detect and keep names in order
+  function applyOrient(next, what) {
+    if (!S()) return;
+    const r = App.setOrient(next);
+    if (!r.ok) return;
+    if (r.redetected) {
+      const msg = r.lanesAfter === r.lanesBefore
+        ? L(`${what}：已重新识别泳道并保留泳道名`, `${what}: lanes re-detected, names kept`)
+        : L(`${what}：旋转后识别到 ${r.lanesAfter} 条泳道（原来 ${r.lanesBefore} 条），泳道名已按顺序保留前 ${Math.min(r.lanesAfter, r.lanesBefore)} 个，请核对`, `${what}: ${r.lanesAfter} lanes detected (was ${r.lanesBefore}); the first ${Math.min(r.lanesAfter, r.lanesBefore)} names were kept in order — please check`);
+      toast(msg, 5200);
+    }
+    requestAnimationFrame(() => G.Editor.resize());
+  }
+  $('btnRotCW').onclick = () => applyOrient({ r: 90, f: 0 }, L('顺时针 90°', 'Rotated 90° clockwise'));
+  $('btnRotCCW').onclick = () => applyOrient({ r: 270, f: 0 }, L('逆时针 90°', 'Rotated 90° anticlockwise'));
+  $('btnFlipH').onclick = () => applyOrient({ r: 0, f: 1 }, L('水平翻转', 'Mirrored left to right'));
+  $('btnFlipV').onclick = () => applyOrient({ r: 180, f: 1 }, L('垂直翻转', 'Mirrored top to bottom'));
   $('btnDeskew').onclick = () => {
     if (!S()) return;
     App.busy(true, L('正在检测角度…', 'Measuring the angle…'));
@@ -423,13 +440,21 @@
       field.style.top=E.clamp(a.bottom+6,y,Math.max(y,y+h-r.height-16))+'px';
     });
   }
+  /* A viewport change and the click that opens a menu can be delivered in either order, so the first
+   * placement may still see the old width and leave the menu hanging off a phone screen. Place again
+   * once the new layout is live; the repeat is a no-op on a settled page. */
+  const placeFigureMenusSoon=()=>{placeFigureMenus();requestAnimationFrame(placeFigureMenus);setTimeout(placeFigureMenus,80);};
   ['figureTextMenu','laneAngleMenu'].forEach(id=>{
-    $(id).addEventListener('toggle',placeFigureMenus);
+    // Watch the `open` attribute, not just `toggle`: toggle is a queued task, so a menu opened and
+    // measured in the same tick (a phone rotating into the figure view, say) keeps its stale spot.
+    new MutationObserver(placeFigureMenusSoon).observe($(id),{attributes:true,attributeFilter:['open']});
+    $(id).addEventListener('toggle',placeFigureMenusSoon);
+    $(id).querySelector('summary').addEventListener('click',placeFigureMenusSoon);
     document.addEventListener('pointerdown', e=>{if(!$(id).contains(e.target))$(id).open=false;});
     $(id).addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.isComposing){e.stopPropagation();$(id).open=false;$(id).querySelector('summary').focus();}});
   });
-  window.addEventListener('resize',placeFigureMenus);
-  window.visualViewport?.addEventListener('resize',placeFigureMenus);
+  window.addEventListener('resize',placeFigureMenusSoon);
+  window.visualViewport?.addEventListener('resize',placeFigureMenusSoon);
   window.visualViewport?.addEventListener('scroll',placeFigureMenus);
   $('laneBulk').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); applyBulk(); } });
 
@@ -611,6 +636,12 @@
       <input type="text" data-c="${r}" value="${esc(c.name)}" placeholder="${L('条件名，如 EcoRI', 'Condition, e.g. EcoRI')}"><button class="x" data-cdel="${r}">×</button></div>`));
     const KIND = { box: L('区域框', 'Box'), bracket: L('括号', 'Bracket'), label: L('文字', 'Text') };
     const POS = { left: L('左侧', 'left'), right: L('右侧', 'right'), below: L('下方', 'below') };
+    // where along the gel edge the text sits; only worth showing once it is off centre
+    const atNote = t => {
+      if (t.at == null || t.at === '' || !Number.isFinite(+t.at)) return '';
+      const a = +t.at;
+      return Math.abs(a - 0.5) < 0.005 ? '' : `${Math.round(a * 100)}%`;
+    };
     const qrow = (kind, k, text, note) => {
       const sel = App.selAnno && App.selAnno.kind === kind && App.selAnno.k === k;
       return `<div class="item${sel ? ' sel' : ''}"><span class="kind">${KIND[kind]}</span>
@@ -618,7 +649,7 @@
     };
     (st.boxes || []).forEach((b, k) => rows.push(qrow('box', k, b.text, b.zoom >= 2 ? L(`放大 ×${b.zoom}`, `×${b.zoom} inset`) : '')));
     (st.brackets || []).forEach((b, k) => rows.push(qrow('bracket', k, b.text, '')));
-    (st.labels || []).forEach((t, k) => rows.push(qrow('label', k, t.text, POS[t.pos] || '')));
+    (st.labels || []).forEach((t, k) => rows.push(qrow('label', k, t.text, [POS[t.pos] || '', atNote(t)].filter(Boolean).join(' · '))));
     const box = $('annoList');
     box.innerHTML = rows.join('');
     // a one-line field: line breaks of a group label show as ↵ and come back as breaks
@@ -668,7 +699,7 @@
     const value=G.Render.labelAngle(e.target.value);e.target.value=value;setAngle(value,true);
   });
   $('laneAngleNumber').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();e.target.blur();}});
-  ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
+  ['unitHeader', 'laneNumbers', 'frame', 'groupTicks', 'laneNamesAboveConditions'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
   $('panelLetter').addEventListener('change', done(e => { S().style.panelLetter = e.target.value.trim(); }));
   $('laneNumberMode').addEventListener('change', done(e => { S().style.laneNumberMode = e.target.value; }));
   // journal column width = total figure width (labels included): solve for the gel width
@@ -778,7 +809,7 @@
     ['lanePt', 'markerPt'].forEach(id => { $(id).value = y[id] || ''; $(id).placeholder = y.fontPt; });
     $('groupFit').value = y.groupFit || 'wrap'; $('minFontPt').value = y.minFontPt || 5;
     $('minFontRow').classList.toggle('hidden', (y.groupFit || 'wrap') !== 'shrink');
-    ['unitHeader', 'laneNumbers', 'frame', 'groupTicks'].forEach(id => { $(id).checked = !!y[id]; });
+    ['unitHeader', 'laneNumbers', 'frame', 'groupTicks', 'laneNamesAboveConditions'].forEach(id => { $(id).checked = !!y[id]; });
     $('unitHeaderLbl').textContent = L(`Marker 单位 (${App.sizeUnit()})`, `Marker units (${App.sizeUnit()})`);
     $('panelLetter').value = y.panelLetter || '';
     $('dpiTop').value = String(y.dpi);

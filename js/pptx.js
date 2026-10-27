@@ -223,7 +223,10 @@
     const objects = collect(fig, G.App._lastGel, G.App.S.crop, canvas.width, canvas.height);
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error(G.L('图片编码失败，可能超出浏览器内存限制', 'Could not encode the image; the browser may be out of memory'));
-    return packageFile(fig, objects, new Uint8Array(await blob.arrayBuffer()));
+    // Same chunk cleanup the PNG export does: Safari/WebKit stamps the canvas with an eXIf block, and
+    // that must not ride into a slide. No pHYs or text is added — the slide places the picture itself.
+    const clean = await G.Export.pngDecorate(blob, 0, null);
+    return packageFile(fig, objects, new Uint8Array(await clean.arrayBuffer()));
   }
   async function exportFile(name) { G.Export.download(await build(), name); }
   G.PPTX = { build, exportFile, MIME };

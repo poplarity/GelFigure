@@ -27,6 +27,7 @@ import { feedbackChecks } from './feedback.mjs';
 import { arrowSpacingChecks } from './arrow-spacing.mjs';
 import { annotationColourChecks } from './annotation-colours.mjs';
 import { updateChecks } from './updates.mjs';
+import { figureOrderChecks } from './figure-order.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -144,6 +145,7 @@ async function runIn(name, base) {
     const arrowSpacing=await arrowSpacingChecks(browser,base,ROOT,name);out.results.push(...arrowSpacing);if(arrowSpacing.some(r=>r[0]==='FAIL'))out.ok=false;
     const annotationColours=await annotationColourChecks(browser,base,ROOT,name);out.results.push(...annotationColours);if(annotationColours.some(r=>r[0]==='FAIL'))out.ok=false;
     const updates=await updateChecks(browser,base,ROOT,name);out.results.push(...updates);if(updates.some(r=>r[0]==='FAIL'))out.ok=false;
+    const figureOrder=await figureOrderChecks(browser,base,ROOT,name);out.results.push(...figureOrder);if(figureOrder.some(r=>r[0]==='FAIL'))out.ok=false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];

@@ -122,6 +122,16 @@
             <label class="switch"><input type="checkbox" id="showGrid"><span data-en="Grid">参考网格</span></label>
           </div>
         </div>
+        <div class="field">
+          <label><span data-en="Orientation">方向</span> <span class="h3-note" id="orientNote"></span></label>
+          <div class="inline nowrap">
+            <button class="btn sm ghost" id="btnRotCCW" title="逆时针 90°" data-en-title="Rotate 90° anticlockwise" aria-label="Rotate 90 degrees anticlockwise">⟲</button>
+            <button class="btn sm ghost" id="btnRotCW" title="顺时针 90°" data-en-title="Rotate 90° clockwise" aria-label="Rotate 90 degrees clockwise">⟳</button>
+            <button class="btn sm ghost" id="btnFlipH" title="水平翻转" data-en-title="Mirror left to right" data-en="⇋ Flip">⇋ 水平翻转</button>
+            <button class="btn sm ghost" id="btnFlipV" title="垂直翻转" data-en-title="Mirror top to bottom" data-en="⇅ Flip">⇅ 垂直翻转</button>
+          </div>
+          <p class="hint" data-en-html="Photos taken sideways or upside down can be turned here instead of in another app. Flips keep every label; quarter turns re-detect the lanes and keep the names in order.">拍歪、倒置或镜像的胶图可以直接在这里转正，不必先用别的软件处理。翻转会保留全部标注；90° 旋转会重新识别泳道，并按顺序保留泳道名。</p>
+        </div>
         <div id="grayAdjustments">
         <div class="field"><label><span data-en="Black point">暗部</span> <b id="lvBlackV"></b></label><input type="range" id="lvBlack" min="0" max="1000"></div>
         <div class="field"><label><span data-en="White point">亮部</span> <b id="lvWhiteV"></b></label><input type="range" id="lvWhite" min="0" max="1000"></div>
@@ -246,7 +256,9 @@
             <label class="switch"><input type="checkbox" id="laneNumbers"><span data-en="Lane numbers">泳道编号</span></label>
             <label class="switch"><input type="checkbox" id="frame"><span data-en="Frame">边框</span></label>
             <label class="switch"><input type="checkbox" id="groupTicks"><span data-en="Group line ends">分组线端点</span></label>
+            <label class="switch"><input type="checkbox" id="laneNamesAboveConditions"><span data-en="Conditions above lane names">条件行在泳道名上方</span></label>
           </div>
+          <p class="hint" data-en="Lane names stay next to the gel; condition rows stack above them. Tick the box to put the condition matrix nearest the gel instead (lane names above it).">泳道名紧贴胶图，条件行依次叠在泳道名上方。勾选后改为条件矩阵贴近胶图、泳道名在其上方。</p>
           <div class="field inline">
             <label class="inline-label"><span data-en="Numbering">编号</span> <select id="laneNumberMode" style="width:auto"><option value="well" data-en="By well">按加样孔号</option><option value="seq" data-en="In figure order">按图中顺序</option></select></label>
             <label class="inline-label"><span data-en="Panel letter">面板字母</span> <input type="text" id="panelLetter" maxlength="2" class="num" placeholder="a"></label>
@@ -492,7 +504,7 @@
     <li><b>Text sizes / marker labels</b>: use “Fonts &amp; sizes” above the figure, click a marker number, or double-click an existing marker lane on the raw image. Drag the panel title to move it aside. Marker controls stay open for show/hide and delete. Hiding preserves calibration; deleting removes the anchor too. Undo or re-position the band to restore a deleted mark.</li>
     <li><b>Lane-name rotation</b>: use “Name angle” above the figure. Auto keeps the existing layout rule; presets, the slider or numeric input set 0–90° for all lane names. Choose Auto to restore it. The angle is included in projects, styles and exports.</li>
     <li><b>Individual names and text formatting</b>: click a lane name and select text for Upright, Italic, x² or x₂. With no selection the whole name is formatted; click x²/x₂ again to restore the baseline. Clear removes local formatting and follows the shared face. Ctrl/⌘+Z undoes edits while typing. Shared size/angle settings remain the default; enable “Individual lane settings” only when needed, and untick to follow shared settings again.</li>
-    <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
+    <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel; drag it along the edge (or use the position slider) to clear other labels. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
     <li><b>A marker band is wrong</b>: select its lane and model, then “Detect bands here” to align only that marker. Open “Calibrate / reference”, select a size and click its actual band on the original image; or click a band first to choose the size. Drag yellow lines to fine-tune (Alt disables snapping). Browsing reference models changes nothing until “Use this ladder”. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
   </ul>
@@ -528,7 +540,7 @@
     <li><b>字号 / Marker 显示</b>：成图上方“字体与字号”统一设置，也可点 Marker 数字或双击原图中已有的 Marker 泳道；面板可按住标题拖动移开。支持显示、隐藏和删除且不会自动收起。隐藏仍保留校准，删除同时移除定位点；可撤销或重新定位恢复。</li>
     <li><b>泳道名旋转</b>：点成图上方“泳道名角度”。默认自动沿用原有排版规则；可选预设、拖动滑块或输入 0–90°，对所有泳道名生效。选回“自动”即可恢复，角度会随项目、样式和导出保存。</li>
     <li><b>单个名称与局部格式</b>：点泳道名，选中文字可设正体、斜体、上标、下标；未选中则作用于整段，再点一次上/下标可恢复基线。“清除格式”恢复统一字形，输入时可用 Ctrl/⌘+Z 撤销。默认统一字号与角度，按需开启“此泳道单独设置”，取消勾选即可恢复统一。</li>
-    <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
+    <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方；可拖动（或用位置滑杆）沿胶边移动，避开其它文字。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
     <li><b>Marker 条带不对</b>：选好泳道和型号后点“识别此泳道”，只对齐这一个 Marker。打开“校准 / 图例”，先选大小再点原图上的实际条带，也可先点条带再选大小；拖黄线微调，Alt 关闭吸附。参考卡里切换型号先预览，点“使用此型号”才应用。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
   </ul>

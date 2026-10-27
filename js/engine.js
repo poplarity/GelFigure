@@ -103,6 +103,71 @@
     return { w, h, data: d, x0, y0 };
   }
 
+  /* ---------- whole-image orientation (the dihedral group D4) ----------
+   * A gel photographed sideways, upside down or mirrored is corrected BEFORE detection: every later
+   * stage still sees an upright image with vertical lanes, so nothing downstream needs to know.
+   * Stored as {r, f}: mirror left-right first when f, then rotate clockwise by r degrees.
+   * Lanes stay vertical only for the four non-swapping elements; swapping ones (90°/270°) change the
+   * lane direction, so the application re-runs detection instead of moving annotations. */
+  const ORIENTS = [
+    { id: '', r: 0, f: 0 }, { id: 'h', r: 0, f: 1 },
+    { id: 'r90', r: 90, f: 0 }, { id: 'r90h', r: 90, f: 1 },
+    { id: 'r180', r: 180, f: 0 }, { id: 'r180h', r: 180, f: 1 },
+    { id: 'r270', r: 270, f: 0 }, { id: 'r270h', r: 270, f: 1 },
+  ];
+  function orientPoint(code, x, y, w, h) {
+    const { r, f } = ORIENTS[code];
+    let W = w, H = h, px = f ? W - 1 - x : x, py = y;
+    if (r === 90) { W = h; H = w; return { x: W - 1 - py, y: px, w: W, h: H }; }
+    if (r === 180) return { x: W - 1 - px, y: H - 1 - py, w: W, h: H };
+    if (r === 270) { W = h; H = w; return { x: py, y: H - 1 - px, w: W, h: H }; }
+    return { x: px, y: py, w: W, h: H };
+  }
+  // D4 is closed: composing two elements is another of the eight. Build the table numerically from
+  // the corner mapping rather than trusting hand-written algebra.
+  const ORIENT_COMPOSE = (() => {
+    const probe = [[0, 0], [1, 0], [0, 1], [1, 1]];
+    const at = (c, p) => { const q = orientPoint(c, p[0], p[1], 2, 2); return [q.x, q.y]; };
+    const table = ORIENTS.map(() => ORIENTS.map(() => 0));
+    ORIENTS.forEach((_, a) => ORIENTS.forEach((_, b) => {
+      // apply a, then b
+      const pts = probe.map(p => at(b, at(a, p)));
+      const hit = ORIENTS.findIndex((_, c) => probe.every((p, i) => { const q = at(c, p); return q[0] === pts[i][0] && q[1] === pts[i][1]; }));
+      table[a][b] = hit < 0 ? 0 : hit;
+    }));
+    return table;
+  })();
+  const orientCode = o => {
+    if (o == null || o === '') return 0;
+    if (typeof o === 'number') return o >= 0 && o < 8 ? o : 0;
+    if (typeof o === 'string') { const byId = ORIENTS.findIndex(e => e.id === o); return byId >= 0 ? byId : 0; }
+    const hit = ORIENTS.findIndex(e => e.id === o.id);
+    if (hit >= 0) return hit;
+    const r = ((Math.round((+o.r || 0) / 90) * 90) % 360 + 360) % 360, f = o.f ? 1 : 0;
+    return Math.max(0, ORIENTS.findIndex(e => e.r === r && e.f === f));
+  };
+  const orientId = code => ORIENTS[orientCode(code)].id;
+  const orientSwap = code => ORIENTS[orientCode(code)].r === 90 || ORIENTS[orientCode(code)].r === 270;
+  // apply 'next' to an image that is already in orientation 'code'
+  const composeOrient = (code, next) => ORIENT_COMPOSE[orientCode(code)][orientCode(next)];
+
+  /* Pixel transform. Rather than hand-deriving an inverse (easy to get wrong for mirrored+rotated
+   * combinations — the first attempt here did), forward-map every source pixel with the SAME
+   * orientPoint used for geometry and scatter it into the destination buffer. orientPoint is a
+   * bijection, so every destination pixel is written exactly once. */
+  function orientPixels(img, code, isRGB) {
+    const c = orientCode(code);
+    if (!c) return img;
+    const { w, h, data } = img, o = orientPoint(c, 0, 0, w, h), ow = o.w, oh = o.h;
+    const out = isRGB ? new Uint8Array(ow * oh * 3) : new Float32Array(ow * oh);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const q = orientPoint(c, x, y, w, h);
+      if (isRGB) { const si = (y * w + x) * 3, di = (q.y * ow + q.x) * 3; out[di] = data[si]; out[di + 1] = data[si + 1]; out[di + 2] = data[si + 2]; }
+      else out[q.y * ow + q.x] = data[y * w + x];
+    }
+    return { w: ow, h: oh, data: out };
+  }
+
   // ---------- intensity ----------
   // Bands bright on dark background (EtBr/SYBR, iBright default) or dark on light?
   function detectBright(img) {
@@ -1239,6 +1304,7 @@
 
   G.Engine = {
     clamp, percentiles, gaussSmooth, downsample, rotate, cropImg, detectBright, autoLevels, saturation,
-    toImageData, deskew, autoCrop, detectLanes, measurePitch, dividedPitch, evenLanes, laneProfile, detectBands, matchLadder, estimateSize, estimateSizeInfo, exposureScore,sharpBandCount, rankLadders, markerQuality, jointLadders, matchMulti, detectLaneLattice, detectGelType
+    toImageData, deskew, autoCrop, detectLanes, measurePitch, dividedPitch, evenLanes, laneProfile, detectBands, matchLadder, estimateSize, estimateSizeInfo, exposureScore,sharpBandCount, rankLadders, markerQuality, jointLadders, matchMulti, detectLaneLattice, detectGelType,
+    orientPoint, orientPixels, orientCode, orientId, orientSwap, composeOrient, orientList: () => ORIENTS.slice()
   };
 })(window);

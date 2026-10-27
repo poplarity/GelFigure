@@ -261,7 +261,16 @@
     const phStyle = ` fill="${PH_FILL}"`;
     const conds = (S.conditions || []).map((c, r) => Object.assign({ r }, c)).filter(c => P || c.name || c.values.some(v => v));
     const leftUnits = unitMarkers.filter(mk => sides[markers.indexOf(mk)] === 'left');
-    if (leftUnits.length && conds.length) {
+
+    /* Lane names usually sit directly above the gel and condition rows are stacked above THEM, so
+     * adding a row never pushes the names (and the marker lane's label) away from the image. Journals
+     * that put the condition matrix nearest the gel can switch back with laneNamesAboveConditions. */
+    const namesFirst = st.laneNamesAboveConditions !== true;
+    let rowNameX = -st.labelGapPt * 2;
+    /* In the legacy order the condition rows sit directly on the gel, where their left-hand names can
+     * collide with the marker unit header anchored in the side margin. Measure and shift only then. */
+    const shiftConditionsForUnits = () => {
+      if (!leftUnits.length || !conds.length) return;
       // Font substitutions have different descenders (notably Firefox/Linux). Measure them rather
       // than assuming a fixed fraction of the point size; shift only named rows that would collide.
       const headerTop = unitRowY - Math.max(...leftUnits.map(mk => vertical(`(${mk.unit === 'kDa' ? 'kDa' : mk.unit === 'kb' ? 'kb' : 'bp'})`, mp).ascent));
@@ -273,66 +282,71 @@
         cy -= cp * 1.3;
       }
       yTop -= shift;
-    }
-    const rowNameX = -st.labelGapPt * 2;
-    for (let k = conds.length - 1; k >= 0; k--) {
-      const c = conds[k], cp = c.pt || pt;
-      vis.forEach(o => {
-        const v = c.values[o.i], src = o.l.src != null ? o.l.src : o.i;
-        // a wide invisible hit area makes each cell easy to click in the preview
-        const hit = P ? `<rect x="${f(X(o.i) - Math.min(pitch, 20) * 0.45)}" y="${f(yTop - cp)}" width="${f(Math.min(pitch, 20) * 0.9)}" height="${f(cp * 1.25)}" fill="transparent"/>` : '';
-        if (v) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl(v, X(o.i), yTop, cp, 'middle', ` fill="${annotationColor(c.color)}"`)));
-        else if (P) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl('·', X(o.i), yTop, cp, 'middle', phStyle)));
-      });
-      const nm = c.name || (P ? G.L('条件', 'Condition') : '');
-      if (nm) {
-        els.push(ed(`data-edit="condname" data-r="${c.r}"`, textEl(nm, rowNameX, yTop, cp, 'end', c.name ? ` fill="${annotationColor(c.color)}"` : phStyle)));
-        grow(rowNameX - measure(nm, cp), yTop - cp, 0, yTop);
-      }
-      yTop -= cp * 1.3;
-    }
-    // lane names (placeholders in preview: the well number)
-    const names = vis.map(o => o.l.name || (P ? String((o.l.src != null ? o.l.src : o.i) + 1) : ''));
-    const hasNames = names.some(t => t.trim());
+    };
+    // the lane-name block is emitted by a function so the two orders share one implementation
+    // `angle` is the angle actually used for shared labels; the slider reads it back via fig.angle
     let angle = 0;
-    if (hasNames) {
-      const chosen=labelAngle(st.labelAngle);
-      const labels=vis.map((o,k)=>{
-        const own=G.NameText.style(o.l.nameStyle),size=own.pt||lp;
-        const metrics=nameMetrics(o.l.name?o.l:{name:names[k]},size,family,!!st.laneItalic);
-        return {own,size,metrics};
+    const drawLaneNames = () => {
+      const names = vis.map(o => o.l.name || (P ? String((o.l.src != null ? o.l.src : o.i) + 1) : ''));
+      if (!names.some(t => t.trim())) return;
+      const chosen = labelAngle(st.labelAngle);
+      const labels = vis.map((o, k) => {
+        const own = G.NameText.style(o.l.nameStyle), size = own.pt || lp;
+        const metrics = nameMetrics(o.l.name ? o.l : { name: names[k] }, size, family, !!st.laneItalic);
+        return { own, size, metrics };
       });
-      angle = chosen === 'auto' ? autoAngle(labels.map(l=>l.metrics), pitch, lp, family) : +chosen;
-      const extraDescent=Math.max(0,...labels.map(l=>l.metrics.runs.some(r=>r.script)?l.metrics.descent-l.size*.2:0));
-      const baseline=yTop-extraDescent;
-      let hMax = lp,anyTilt=false,wideHorizontal=false,narrowTilt=false;
+      const angle0 = chosen === 'auto' ? autoAngle(labels.map(l => l.metrics), pitch, lp, family) : +chosen;
+      angle = angle0;
+      const extraDescent = Math.max(0, ...labels.map(l => l.metrics.runs.some(r => r.script) ? l.metrics.descent - l.size * .2 : 0));
+      const baseline = yTop - extraDescent;
+      let hMax = lp, anyTilt = false, wideHorizontal = false, narrowTilt = false;
       vis.forEach((o, vi) => {
         const t = names[vi];
         if (!t.trim()) return;
         const extra = o.l.name ? '' : phStyle, src = o.l.src != null ? o.l.src : o.i;
-        const {own,size,metrics}=labels[vi],tw=metrics.width,x=X(o.i);
-        const tilt=own.angle==null?angle:own.angle==='auto'?autoAngle([metrics],pitch,size,family):+own.angle;
-        if(o.l.name&&tilt===0&&tw>pitch*1.02)wideHorizontal=true;
-        if(o.l.name&&tilt!==0&&pitch<size*1.15)narrowTilt=true;
-        const rad=tilt*Math.PI/180,sn=Math.sin(rad),cs=Math.cos(rad);
+        const { own, size, metrics } = labels[vi], tw = metrics.width, x = X(o.i);
+        const tilt = own.angle == null ? angle0 : own.angle === 'auto' ? autoAngle([metrics], pitch, size, family) : +own.angle;
+        if (o.l.name && tilt === 0 && tw > pitch * 1.02) wideHorizontal = true;
+        if (o.l.name && tilt !== 0 && pitch < size * 1.15) narrowTilt = true;
+        const rad = tilt * Math.PI / 180, sn = Math.sin(rad), cs = Math.cos(rad);
         if (tilt === 0 || !o.l.name) {
           // placeholders stay horizontal: a rotated lone digit reads like a stray glyph
-          els.push(ed(`data-edit="lane" data-src="${src}"`,o.l.name?nameTextEl(metrics,x,baseline,size,'middle',extra):textEl(t,x,baseline,size,'middle',extra)));
-          grow(x-tw/2+metrics.left,baseline-Math.max(size,metrics.ascent),x-tw/2+metrics.right,baseline+metrics.descent);
-          hMax=Math.max(hMax,size,metrics.ascent);
+          els.push(ed(`data-edit="lane" data-src="${src}"`, o.l.name ? nameTextEl(metrics, x, baseline, size, 'middle', extra) : textEl(t, x, baseline, size, 'middle', extra)));
+          grow(x - tw / 2 + metrics.left, baseline - Math.max(size, metrics.ascent), x - tw / 2 + metrics.right, baseline + metrics.descent);
+          hMax = Math.max(hMax, size, metrics.ascent);
         } else {
-          anyTilt=true;
+          anyTilt = true;
           // rotated text grows up-right from the lane centre; offset so the text's centre line sits on the lane
-          const ox=x+size*.35*sn,oy=baseline;
-          els.push(ed(`data-edit="lane" data-src="${src}"`, `<g transform="translate(${f(ox)},${f(oy)}) rotate(${-tilt})">${nameTextEl(metrics,0,0,size,'start',extra)}</g>`));
-          hMax=Math.max(hMax,tw*sn+size*cs*.8,tw*sn+metrics.ascent*cs);
-          for(const xx of [metrics.left,metrics.right])for(const yy of [-Math.max(size,metrics.ascent),metrics.descent]){const gx=ox+xx*cs+yy*sn,gy=oy-xx*sn+yy*cs;grow(gx,gy,gx,gy);}
+          const ox = x + size * .35 * sn, oy = baseline;
+          els.push(ed(`data-edit="lane" data-src="${src}"`, `<g transform="translate(${f(ox)},${f(oy)}) rotate(${-tilt})">${nameTextEl(metrics, 0, 0, size, 'start', extra)}</g>`));
+          hMax = Math.max(hMax, tw * sn + size * cs * .8, tw * sn + metrics.ascent * cs);
+          for (const xx of [metrics.left, metrics.right]) for (const yy of [-Math.max(size, metrics.ascent), metrics.descent]) { const gx = ox + xx * cs + yy * sn, gy = oy - xx * sn + yy * cs; grow(gx, gy, gx, gy); }
         }
       });
       if (narrowTilt) overlap(G.L('泳道过窄：即使 90° 标签也会重叠，请减小字号或增大图宽', 'Lanes are too narrow: even 90° labels overlap; use a smaller font or a wider figure'));
       if (wideHorizontal) overlap(G.L('水平泳道标签可能重叠，请调节该泳道的角度、字号或图宽', 'Horizontal lane labels may overlap; adjust the lane angle, font size or figure width'));
-      yTop = baseline-(anyTilt?hMax+lp*.35:Math.max(lp,...labels.map(l=>Math.max(l.size,l.metrics.ascent)))*1.3);
-    }
+      yTop = baseline - (anyTilt ? hMax + lp * .35 : Math.max(lp, ...labels.map(l => Math.max(l.size, l.metrics.ascent))) * 1.3);
+    };
+    const drawConditions = () => {
+      for (let k = conds.length - 1; k >= 0; k--) {
+        const c = conds[k], cp = c.pt || pt;
+        vis.forEach(o => {
+          const v = c.values[o.i], src = o.l.src != null ? o.l.src : o.i;
+          // a wide invisible hit area makes each cell easy to click in the preview
+          const hit = P ? `<rect x="${f(X(o.i) - Math.min(pitch, 20) * 0.45)}" y="${f(yTop - cp)}" width="${f(Math.min(pitch, 20) * 0.9)}" height="${f(cp * 1.25)}" fill="transparent"/>` : '';
+          if (v) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl(v, X(o.i), yTop, cp, 'middle', ` fill="${annotationColor(c.color)}"`)));
+          else if (P) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl('·', X(o.i), yTop, cp, 'middle', phStyle)));
+        });
+        const nm = c.name || (P ? G.L('条件', 'Condition') : '');
+        if (nm) {
+          els.push(ed(`data-edit="condname" data-r="${c.r}"`, textEl(nm, rowNameX, yTop, cp, 'end', c.name ? ` fill="${annotationColor(c.color)}"` : phStyle)));
+          grow(rowNameX - measure(nm, cp), yTop - cp, 0, yTop);
+        }
+        yTop -= cp * 1.3;
+      }
+    };
+    if (namesFirst) { drawLaneNames(); shiftConditionsForUnits(); drawConditions(); }
+    else { shiftConditionsForUnits(); drawConditions(); drawLaneNames(); }
     // groups: line spanning lanes + shared text above
     const groups = (S.groups || []).filter(g => g.from != null && g.to != null && S.lanes[g.from] && S.lanes[g.to]);
     if (groups.length) {
@@ -529,8 +543,17 @@
       }
     });
 
-    // ---- side text: stain / antibody / exposure, vertical beside the gel or a line below it ----
+    /* ---- side text: stain / antibody / exposure, vertical beside the gel or a line below it ----
+     * `at` (0..1) moves the text along the gel edge: vertically for left/right, horizontally for
+     * below. It is eased so the whole label stays on the gel, which also makes 0/0.5/1 read as
+     * top/middle/bottom. Absent (every project written before this field) means centred. */
     let belowY = Math.max(H, box.y1) + pt * 1.3;
+    const alongGel = (t, len, span) => {
+      const v = t.at;
+      const want = v != null && v !== '' && Number.isFinite(+v) ? Math.min(1, Math.max(0, +v)) : 0.5;
+      const half = span > 0 ? Math.min(0.5, len / span / 2) : 0;
+      return half >= 0.5 ? 0.5 : half + want * (1 - 2 * half);
+    };
     (S.labels || []).forEach((t, k) => {
       const text = t.text || (P ? G.L('点击输入文字', 'Click to type') : '');
       if (!text) return;
@@ -538,17 +561,18 @@
       const attrs = `data-edit="label" data-k="${t.k != null ? t.k : k}"`, extra = t.text ? ` fill="${annotationColor(t.color)}"` : phStyle;
       const tw = measure(text, pt);
       if (t.pos === 'below') {
-        els.push(ed(attrs, textEl(text, W / 2, belowY, pt, 'middle', extra)));
-        grow(W / 2 - tw / 2, belowY - pt, W / 2 + tw / 2, belowY + pt * 0.3);
+        const x = W * alongGel(t, tw, W);
+        els.push(ed(attrs, textEl(text, x, belowY, pt, 'middle', extra)));
+        grow(x - tw / 2, belowY - pt, x + tw / 2, belowY + pt * 0.3);
         belowY += pt * 1.3;
       } else if (t.pos === 'right') {
-        const x = box.x1 + pt * 0.45;
-        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(H / 2)}) rotate(90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
-        grow(x, H / 2 - tw / 2, x + pt * 1.05, H / 2 + tw / 2);
+        const x = box.x1 + pt * 0.45, y = H * alongGel(t, tw, H);
+        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(y)}) rotate(90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
+        grow(x, y - tw / 2, x + pt * 1.05, y + tw / 2);
       } else {
-        const x = box.x0 - pt * 0.45;
-        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(H / 2)}) rotate(-90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
-        grow(x - pt * 1.05, H / 2 - tw / 2, x, H / 2 + tw / 2);
+        const x = box.x0 - pt * 0.45, y = H * alongGel(t, tw, H);
+        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(y)}) rotate(-90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
+        grow(x - pt * 1.05, y - tw / 2, x, y + tw / 2);
       }
     });
 

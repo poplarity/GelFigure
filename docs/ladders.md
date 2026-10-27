@@ -55,6 +55,7 @@ Protein ladders are stored in kDa: the **apparent** molecular weights of the pre
 | `thermo_26616` | Thermo PageRuler Prestained 10–180 kDa | 26616 | 10 | 10–180 | 70, 25, 10 |
 | `thermo_26619` | Thermo PageRuler Plus Prestained 10–250 kDa | 26619 | 9 | 10–250 | 70, 25, 10 |
 | `thermo_26614` | Thermo PageRuler Unstained 10–200 kDa | 26614 | 14 | 10–200 | 50 |
+| `thermo_26610` | Thermo Pierce Unstained Protein MW Marker 14.4–116 kDa | 26610 | 7 | 14.4–116 | — |
 | `thermo_26632` | Thermo PageRuler Unstained Low Range 3.4–100 kDa | 26632 | 8 | 3.4–100 | 25 |
 | `thermo_26634` | Thermo Spectra Multicolor Broad Range | 26634 | 10 | 10–260 | 260, 70, 50, 40, 10 |
 | `thermo_26625` | Thermo Spectra Multicolor High Range | 26625 | 8 | 40–300 | 300, 70, 50 |
@@ -94,7 +95,7 @@ Sizes are the **Tris-glycine (Laemmli)** values except where the system is named
 除注明的体系外，大小均为 **Tris-glycine（Laemmli）** 体系的数值：PageRuler Unstained Low Range、Spectra Low Range 和 BeyoColor 2.7–40 是 Tricine 体系的 Marker。Spectra Broad / High Range、SeeBlue Plus2 和 Abcam ab116028 在 Bis-Tris（NuPAGE MES / MOPS）胶上的数值差别很大——用这类胶请按你的体系建自定义 Ladder。碧云天说明预染条带大小可能随批次略有不同，请以随货说明书为准。
 
 Sources (vendor product pages and manuals, read 2026-10):
-- Thermo / Invitrogen: catalogue pages thermofisher.com/order/catalog/product/<cat. no.> (Specifications); Spectra manuals MAN0011774 / MAN0011775 ("Migration Patterns"); Novex Sharp MAN0005693; SeeBlue Plus2 NuPAGE Technical Guide ("Assigned Apparent Molecular Weights", Tris-glycine 4–20 % column)
+- Thermo / Invitrogen: catalogue pages thermofisher.com/order/catalog/product/<cat. no.> (Specifications); Spectra manuals MAN0011774 / MAN0011775 ("Migration Patterns"); Novex Sharp MAN0005693; SeeBlue Plus2 NuPAGE Technical Guide ("Assigned Apparent Molecular Weights", Tris-glycine 4–20 % column); Pierce Unstained Protein MW Marker MAN0011769, p. 2 (band table for the 8–16 % Tris-glycine gel)
 - Bio-Rad: bulletins 4110024 (All Blue), 4110182 (Kaleidoscope), 4110023 (Unstained), 10018393 (Dual Xtra), product page 161-0374 (Dual Color)
 - NEB: protein marker flyer (P7719, P7717 lanes) · Abcam: ab116028 product page
 - Beyotime: product manuals P0068, P0071, P0075, P0060, P0063 and product pages P0776, P0773, P0779, P0771

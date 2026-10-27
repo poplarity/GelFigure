@@ -12,6 +12,9 @@
     gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontFamily: 'Arial', fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneItalic:false,laneNumbers: false, frame: false,
     panelLetter: '', panelPt: 8, spliceStyle: 'gap', spliceGapPt: 1.5, tickLenPt: 2.5, labelGapPt: 2.5,
     unitHeader: true, groupTicks: false, dpi: 600, laneNumberMode: 'well',
+    // lane names sit directly above the gel and condition rows stack above them, so adding a row
+    // never pushes the names (or the marker lane's label) away from the image
+    laneNamesAboveConditions: false,
     // text that does not fit: lane names / marker labels can have their own size (null = fontPt);
     // a group label wider than its line wraps ('wrap'), shrinks down to minFontPt ('shrink') or stays ('none')
     lanePt: null, markerPt: null, groupFit: 'wrap', minFontPt: 5
@@ -19,9 +22,14 @@
 
   const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily), labelAngle: G.Render.labelAngle(style && style.labelAngle),laneItalic:style?.laneItalic===true });
 
+  /* Side text `at` (0..1 along the gel edge). Absent means centred — and `+null` is 0, so test for a
+   * value explicitly rather than with Number.isFinite(+v). */
+  const atOf = v => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(1, Math.max(0, +v)) : null);
+
   const App = {
     S: null,            // serialisable state
     src: null, rot: null, rotFor: null,
+    rawSrc: null, rawRGB: null,   // pixels exactly as decoded, before the D4 orientation is applied
     fullCanvas: document.createElement('canvas'),
     satCanvas: null,
     listeners: [],
@@ -93,24 +101,36 @@
   };
 
   // install a decoded image as the current source and run the automatic pipeline
-  function sourcePixels(img) {
+  // `orient` is the D4 element (see engine.js): the gel is turned upright here, BEFORE detection, so
+  // every later stage keeps its "vertical lanes" assumption and nothing downstream needs to know.
+  /* Install decoded pixels as the source. `orient` is the D4 element (see engine.js) that turns the
+   * gel upright; the oriented buffer is derived by ensureSrc() from S.orient, so undo/redo follows. */
+  function sourcePixels(img, orient) {
+    App.rawSrc = { w: img.width, h: img.height, data: img.data };
+    App.rawRGB = img.rgb || null;
     App.src = { w: img.width, h: img.height, data: img.data };
-    App.sourceRGB = img.rgb || null;
+    App.sourceRGB = App.rawRGB;
+    App._srcFor = 0;
     App._colourBg = null;
+    App._orientOnInstall = E.orientId(orient);
   }
-  function startFrom(input) {
+  function startFrom(input, orient) {
     const img = input.img;
-    sourcePixels(img);
+    sourcePixels(img, orient);
     App.srcBuffer = input.buffer;
     App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null;
     const p = prefs();
+    // provisional state so ensureSrc() can derive the oriented buffer before detection runs
+    App.S = { orient: App._orientOnInstall };
+    App.ensureSrc();
     App.S = {
       file: { name: input.name, bits: img.bits, dpi: img.dpi, actualMax: img.actualMax, sha256: input.sha256, size: input.buffer.byteLength },
       bright: E.detectBright(App.src),
       displayMode: 'gray',
       rotation: 0,
+      orient: App._orientOnInstall,
       levels: { black: 0, white: 1, gamma: 1, invert: p.invert != null ? p.invert : false },
-      crop: { x: 0, y: 0, w: img.width, h: img.height },
+      crop: { x: 0, y: 0, w: App.src.w, h: App.src.h },
       lanes: [], laneHalfW: 10, laneLinked: true,
       gelType: null,          // 'dna' | 'protein'; decided from the image below, the user can override
       markers: [],
@@ -209,7 +229,7 @@
       const S = App.S;
       App.expIdx = k;
       if (img.width === App.src.w && img.height === App.src.h) {
-        sourcePixels(img);
+        sourcePixels(img, S.orient);
         if (!App.sourceRGB) S.displayMode = 'gray';
         App._colorStats = img.colorStats || null;
         App.loadWarnings = img.warnings || [];
@@ -223,7 +243,7 @@
         return { ok: true, kept: true };
       }
       const names = App.figureLanes().map(i => S.lanes[i].name);
-      startFrom({ name: ex.name, buffer: ex.buffer, img, sha256: ex.sha256 });
+      startFrom({ name: ex.name, buffer: ex.buffer, img, sha256: ex.sha256 }, S.orient);
       const fl = App.figureLanes();
       const same = fl.length === names.length;
       if (same) { fl.forEach((i, j) => { App.S.lanes[i].name = names[j]; }); App.commit(); }
@@ -256,7 +276,28 @@
     if (!App._colourBg || App._colourBg.key !== key) App._colourBg = { key, dark: G.Colour.isDark(App.sourceRGB, App.src.w, App.src.h, r, s.rotation) };
     return App._colourBg.dark;
   };
+  /* The oriented source is derived from the decoded pixels by S.orient — exactly like App.rot is
+   * derived from App.src by S.rotation. Keeping it derived (instead of mutating it in place) is what
+   * makes undo/redo correct: restoring an older state restores its orientation too. */
+  App.ensureSrc = function () {
+    const code = E.orientCode(App.S && App.S.orient);
+    if (!App.rawSrc) return App.src;
+    if (App._srcFor !== code) {
+      let w = App.rawSrc.w, h = App.rawSrc.h, data = App.rawSrc.data, rgb = App.rawRGB;
+      if (code) {
+        const g = E.orientPixels({ w, h, data }, code, false);
+        w = g.w; h = g.h; data = g.data;
+        if (rgb) rgb = E.orientPixels({ w: App.rawSrc.w, h: App.rawSrc.h, data: rgb }, code, true).data;
+      }
+      App.src = { w, h, data };
+      App.sourceRGB = rgb;
+      App._srcFor = code;
+      App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null; App._colourBg = null;
+    }
+    return App.src;
+  };
   App.ensureRot = function () {
+    App.ensureSrc();
     if (!App.rot || App.rotFor !== App.S.rotation) {
       App.rot = E.rotate(App.src, App.S.rotation);
       App.rotFor = App.S.rotation;
@@ -372,6 +413,7 @@
   App.resetAll = function () {
     if (!App.initial) return;
     App.S = JSON.parse(App.initial);
+    App.ensureSrc();
     App.rot = null; App.ensureRot();
     App.hist = [App.initial]; App.future = [];
     savePrefs();
@@ -711,6 +753,84 @@
     const S = App.S;
     const order = S.lanes.map((l, i) => i).sort((a, b) => S.lanes[a].x - S.lanes[b].x);
     if (order.some((o, i) => o !== i)) App.reorderLanes(order);
+  };
+
+  /* ---------- orientation (flip / quarter turns) ----------
+   * Stored in S.orient and applied to the source pixels by ensureSrc(), so detection and every export
+   * keep working on an upright gel. Two cases:
+   *   - no quarter turn (mirror, or mirror + 180°): width/height are unchanged and lanes stay vertical,
+   *     so every annotation is carried across exactly, the way setRotation moves them;
+   *   - a quarter turn: lanes become horizontal, so the "vertical lane" model no longer applies. The
+   *     gel is re-detected and the text the user typed survives in lane order.
+   * Undo/redo is free: this is an ordinary committed state change and the pixels are derived from
+   * S.orient, exactly like App.rot is derived from S.rotation. */
+  App.setOrient = function (next) {
+    const S = App.S;
+    if (!S || !App.rawSrc) return { ok: false };
+    const target = E.composeOrient(S.orient, next);
+    if (target === E.orientCode(S.orient)) return { ok: true, same: true };
+    const swap = E.orientSwap(target) !== E.orientSwap(S.orient);
+    const oldW = App.src.w, oldH = App.src.h;
+
+    if (swap) {
+      // re-detect on the turned gel; keep what the user typed, in lane order
+      const names = S.lanes.map(l => ({ name: l.name, nameRuns: l.nameRuns, nameStyle: l.nameStyle, hidden: !!l.hidden, markerExcluded: !!l.markerExcluded }));
+      const conds = S.conditions.map(c => ({ name: c.name, pt: c.pt, color: c.color, values: S.lanes.map((_, i) => c.values[i] || '') }));
+      const keepStyle = S.style, keepMode = S.displayMode, keepLevels = S.levels, keepRot = S.rotation;
+      S.orient = E.orientId(target);
+      S.crop = { x: 0, y: 0, w: App.rawSrc.w, h: App.rawSrc.h };
+      S.lanes = []; S.markers = []; S.groups = []; S.arrows = []; S.boxes = []; S.brackets = []; S.labels = []; S.conditions = [];
+      S.style = keepStyle; S.displayMode = keepMode; S.levels = keepLevels; S.rotation = keepRot;
+      App.selLane = -1; App.selArrow = -1;
+      if (E.orientSwap(S.orient)) S.rotation = 0;   // a quarter turn makes the deskew angle meaningless
+      const hBefore = App.hist.length;              // autoAll commits on its own; that is part of this turn
+      App.ensureSrc();
+      App.autoAll(true);
+      // the turned gel may detect a different number of wells; carry the names across in order anyway
+      const n = Math.min(names.length, S.lanes.length);
+      for (let i = 0; i < n; i++) {
+        const s = names[i], l = S.lanes[i];
+        l.name = s.name; l.hidden = s.hidden;
+        if (s.nameRuns && G.NameText.plain(G.NameText.normalize(s.nameRuns)) === l.name) l.nameRuns = G.NameText.normalize(s.nameRuns);
+        if (s.nameStyle) l.nameStyle = G.NameText.style(s.nameStyle);
+        if (s.markerExcluded) l.markerExcluded = true;
+      }
+      conds.forEach(c => { c.values = S.lanes.map((_, i) => c.values[i] || ''); S.conditions.push(c); });
+      App.autoRotation = S.rotation;
+      // one turn = one undo step: drop the intermediate snapshot autoAll pushed with empty lanes
+      if (App.hist.length === hBefore + 1) App.hist.splice(hBefore, 1);
+      App.commit();
+      return { ok: true, redetected: true, lanesBefore: names.length, lanesAfter: S.lanes.length };
+    }
+
+    // ---- no quarter turn: every coordinate goes through the same D4 element ----
+    const code = target;
+    const P = (x, y) => E.orientPoint(code, x, y, oldW, oldH);
+    const flipX = P(1, 0).x < P(0, 0).x;      // a mirror reverses the direction of +x
+    const flipY = P(0, 1).y < P(0, 0).y;      // so does a 180° turn for +y
+    const swapSide = o => { if (flipX) { if (o.side === 'left') o.side = 'right'; else if (o.side === 'right') o.side = 'left'; } };
+    S.orient = E.orientId(code);
+    App.ensureSrc();
+    const c1 = P(S.crop.x, S.crop.y), c2 = P(S.crop.x + S.crop.w - 1, S.crop.y + S.crop.h - 1);
+    S.crop = {
+      x: Math.round(Math.min(c1.x, c2.x)), y: Math.round(Math.min(c1.y, c2.y)),
+      w: Math.round(Math.abs(c2.x - c1.x) + 1), h: Math.round(Math.abs(c2.y - c1.y) + 1),
+    };
+    S.lanes.forEach(l => { l.x = P(l.x, 0).x; });
+    S.markers.forEach(m => { m.bands.forEach(b => { b.y = P(0, b.y).y; }); swapSide(m); });
+    S.arrows.forEach(a => { a.y = P(0, a.y).y; swapSide(a); });
+    (S.brackets || []).forEach(b => { b.y1 = P(0, b.y1).y; b.y2 = P(0, b.y2).y; swapSide(b); });
+    (S.boxes || []).forEach(b => {
+      const q1 = P(b.x, b.y), q2 = P(b.x + b.w, b.y + b.h);
+      b.x = Math.min(q1.x, q2.x); b.y = Math.min(q1.y, q2.y);
+      b.w = Math.abs(q2.x - q1.x); b.h = Math.abs(q2.y - q1.y);
+    });
+    // after a mirror, lane order must still run left to right; reorderLanes carries markers,
+    // condition values and groups along with the lanes
+    App.sortLanesIfNeeded();
+    App.ensureRot();
+    App.commit();
+    return { ok: true, redetected: false };
   };
 
   // ---------- markers (one or more ladder lanes, matched jointly: same gel = same migration curve) ----------
@@ -1325,6 +1445,7 @@
     dropSelection();
     App.future.push(App.hist.pop());
     App.S = JSON.parse(App.hist[App.hist.length - 1]);
+    App.ensureSrc();     // a restored state may have a different orientation
     App.saveDraftSoon();
     App.emit('change');
   };
@@ -1334,6 +1455,7 @@
     const s = App.future.pop();
     App.hist.push(s);
     App.S = JSON.parse(s);
+    App.ensureSrc();
     App.saveDraftSoon();
     App.emit('change');
   };
@@ -1354,7 +1476,7 @@
       conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || ''), pt: c.pt || null, color:c.color })),
       arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y), pt: a.pt || null, color:a.color })),
       // side text travels as is; brackets by the sizes they span (positions differ between gels)
-      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, pt: t.pt || null, color:t.color })),
+      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, at: atOf(t.at), pt: t.pt || null, color:t.color })),
       brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null, color:b.color })).filter(b => b.bp1 && b.bp2),
       // recorded for reference only: each gel is straightened on its own
       rotation: S.rotation,
@@ -1412,7 +1534,8 @@
       if (a.bp && b.length >= 2) { const pred = predictY(a.bp, b); if (pred != null) y = pred; }
       return Object.assign({ text: a.text, side: a.side, size: a.size !== false, sizeText: a.sizeText || '', sym: a.sym || 'arrow', y }, ptOf(a));
     });
-    S.labels = (t.labels || []).map(x => Object.assign({ text: x.text || '', pos: x.pos || 'left' }, ptOf(x)));
+    S.labels = (t.labels || []).map(x => Object.assign(
+      { text: x.text || '', pos: x.pos || 'left', at: atOf(x.at) }, ptOf(x)));
     const mb = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);
     S.brackets = (t.brackets || []).map(b => {
       const y1 = mb.length >= 2 ? predictY(b.bp1, mb) : null, y2 = mb.length >= 2 ? predictY(b.bp2, mb) : null;
@@ -1463,7 +1586,9 @@
     restore(input, P.state, P.initial, P.autoRotation);
   };
   function restore(input, state, initial, autoRotation, exposures = null, expIdx = null) {
-    sourcePixels(input.img);
+    // the saved orientation belongs to the stored coordinates: apply it before the state is installed.
+    // Projects written before orientation existed carry no field and mean "as decoded".
+    sourcePixels(input.img, state && state.orient);
     App.srcBuffer = input.buffer;
     App.rot = null; App.satCanvas = null; App._display = null; App._clipKey = null; App._emptyKey = null;
     App.exposures = exposures; App.expIdx = expIdx;
