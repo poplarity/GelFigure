@@ -5,10 +5,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 **中文摘要**
+- 左侧“版式”改为与图像、泳道、标注同级的常驻设置区，默认展示图宽、分组换行、单位与编号；手机设置页及离线版一致，不再需要发现并点开隐藏的折叠菜单。
+- 新版首次打开显示简短更新卡片，同一版本只提示一次；导入图片后自动收起。开始页、桌面“文件”、使用说明及手机“更多”都有固定更新日志入口，按版本查看中英文简要记录，并标出当前运行版本；离线版也能查看。
 - 箭头及符号、区域框（含放大框与标签）、侧边括号、侧边文字、分组横线及条件行支持“默认／红色”。泳道名可选中部分文字标红，兼容斜体和上下标；Marker 可标红单个大小或整组标签、刻度和单位。
 - 颜色随项目、历史和适用的样式字段保存，可撤销并恢复默认。图片、SVG 和可编辑 PowerPoint 保留红色；灰度胶图含彩色标注时自动使用 RGB TIFF，纯灰度图继续导出灰度 TIFF。
 
 ### Added
+- Make Layout a normal, always-expanded sidebar section alongside Image, Lanes and Annotations, including phone Settings and the offline HTML. Clarify where figure typography lives; keep the existing layout controls and their behaviour.
+- A non-modal startup notice appears once per new version; permanent start-page, File, Help and phone More entries reopen a bilingual release-history window with the running version marked. All summaries are local and available offline; version comparison avoids repeated/downgrade notices. Development builds are explicitly labelled. Build validation requires matching versioned bilingual summaries and covers every release in the changelog.
 - Compact red/default controls in existing annotation and marker popovers and the inline text toolbar. Lane-name selections preserve colour alongside italic/superscript/subscript runs; group lines, condition rows, boxes and their enlarged copies colour consistently. Marker colour may apply to one size or its whole ladder, survives band re-matching, and does not change calibration or source pixels.
 - Project/history persistence, applicable template fields, processing-log colour tokens, SVG/raster output and editable DrawingML colours. Imported colours use a fixed safe token, with the existing black/white defaults preserved for older projects.
 
@@ -207,7 +211,7 @@ Mobile polish and a one-file offline build.
 ### Fixed
 - **Top bar on phones** no longer overflows: undo / redo, the file menu, export resolution and the split export button are hidden on narrow screens and their functions live in the settings drawer.
 - **Single-file bundle** loads cleanly from file:// after inlining tiff.js and relaxing the script-src restriction only for that bundle.
- - 2026-10-21
+## [0.6.2] - 2026-10-21
 
 Mobile layout and touch support; same features as 0.6.1.
 
@@ -221,7 +225,7 @@ Mobile layout and touch support; same features as 0.6.1.
 - **Touch interactions**: crop edges, lane lines, region boxes and brackets can be moved with a finger; lane-name input, +/− cells and arrow taps work on the figure. Slider thumbs and text inputs use phone-friendly sizes; iOS no longer zooms when focusing a field.
 - Window uses 100dvh with `viewport-fit=cover` so the bottom of the page is not hidden behind the browser chrome.
 - Tests confirm Pointer Events work identically to mouse events on desktop; the full 49-check suite still passes in Chromium, Firefox and WebKit.
- - 2026-10-20
+## [0.6.1] - 2026-10-20
 
 Marker detection on purification gels, and a review of the whole interface.
 

@@ -125,6 +125,7 @@
     saveTpl: () => $('btnSaveTpl').click(),
     loadTpl: () => $('tplInput').click(),
     help: () => $('helpDlg').classList.remove('hidden'),
+    updates: () => G.Updates.open($('btnMore')),
     community: () => G.ExportSupport.openHub($('btnMore')),
     lang: () => $('btnLang').click(),
     reset: () => $('btnResetAll').click()

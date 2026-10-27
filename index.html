@@ -28,6 +28,7 @@
         <label><span data-en="Open image…">打开图片…</span><small data-en="Select several exposures of one gel to pick the best automatically">可一次选多张同一块胶的不同曝光，自动挑最佳</small><input type="file" id="fileInput3" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,image/*" multiple hidden></label>
         <label><span data-en="Open project…">打开项目…</span><small data-en=".gelfig project file (original image and all annotations)">.gelfig 项目文件（含原图和全部标注）</small><input type="file" id="projInput" accept=".gelfig,.json" hidden></label>
         <button id="btnHistory" data-en="Recent projects…">历史项目…</button>
+        <button id="btnUpdates"><span data-en="Release history…">更新日志…</span><small data-app-version></small></button>
         <button id="btnSaveProj"><span data-en="Save project…">保存项目…</span><small data-en="Original image + every setting and annotation; continue on any computer">原图 + 全部参数和标注，可在任何电脑接着做</small></button>
         <div class="menu-sep"></div>
         <button id="btnSaveTpl"><span data-en="Save style…">保存样式…</span><small data-en="Lane names, markers, groups, layout — reuse for similar gels">泳道名、Marker、分组、版式，下次同类胶一键套用</small></button>
@@ -75,6 +76,7 @@
       <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
       <button class="btn big" id="btnHistoryStart" data-en="Open a recent project">打开历史项目</button>
       <p class="hint d-only" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.12/GelFigure-v0.6.12.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
+      <button class="updates-start" id="btnUpdatesStart"><span data-app-version></span><span data-en="Release history">更新日志</span></button>
       <div id="draftBox" class="draft hidden">
         <div><span data-en="Your most recent project:">最近一次的项目：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
         <div class="inline"><button class="btn sm primary" id="btnDraftRestore" data-en="Restore">恢复</button><button class="btn sm ghost" id="btnDraftDrop" data-en="Delete cache">删除缓存</button></div>
@@ -224,9 +226,9 @@
       </section>
 
       <!-- layout -->
-      <section class="sec">
-        <details class="adv flush">
-          <summary class="sec-head as-summary"><span class="sec-n">5</span><span data-en="Layout">版式</span> <span class="h3-note" id="stLayout"></span></summary>
+      <section class="sec" id="layoutSection" aria-labelledby="layoutHeading">
+          <h3 class="sec-head" id="layoutHeading"><span class="sec-n">5</span><span data-en="Layout">版式</span> <span class="h3-note" id="stLayout"></span></h3>
+          <p class="lead" data-en="Adjust figure width, label layout and numbering.">调整成图宽度、标签排版和编号。</p>
           <div class="field inline">
             <label class="switch"><input type="checkbox" id="autoWidth" checked><span data-en="Auto width">宽度自动</span></label>
             <label class="inline-label"><span data-en="Gel width">凝胶宽</span> <input type="number" id="gelW" min="10" max="180" step="1" class="num"> mm</label>
@@ -238,7 +240,7 @@
               <select id="groupFit" style="width:auto"><option value="wrap" data-en="Wrap to the line">自动换行</option><option value="shrink" data-en="Shrink the font">缩小字号</option><option value="none" data-en="Keep one line">保持一行</option></select></label>
             <label class="inline-label" id="minFontRow"><span data-en="not below">最小</span> <input type="number" id="minFontPt" min="4" max="10" step="0.5" class="num"> pt</label>
           </div>
-          <p class="hint" data-en="Empty = the font size above. Every group line, +/− row, arrow, box and side text can also have its own size: click it on the figure. Group labels that still collide move up a row on their own.">留空 = 跟随上面的字号。每条分组、+/− 行、箭头、区域框、侧边文字也能单独设字号：在成图上点它即可。仍会相撞的分组文字会自动错开到上一行。</p>
+          <p class="hint" data-en="Group labels that still collide move up a row. For fonts and sizes, use the toolbar above the figure or click an annotation.">仍会相撞的分组文字会自动错开到上一行。字体与字号在成图上方调整，也可点标注单独设置。</p>
           <div class="field inline wrap">
             <label class="switch"><input type="checkbox" id="unitHeader" checked><span id="unitHeaderLbl" data-en="Marker units (bp)">Marker 单位 (bp)</span></label>
             <label class="switch"><input type="checkbox" id="laneNumbers"><span data-en="Lane numbers">泳道编号</span></label>
@@ -250,7 +252,6 @@
             <label class="inline-label"><span data-en="Panel letter">面板字母</span> <input type="text" id="panelLetter" maxlength="2" class="num" placeholder="a"></label>
           </div>
           <button class="btn sm ghost" id="btnResetLayout" data-en="Reset layout">重置版式</button>
-        </details>
       </section>
 
       <div id="legendHints" class="legend"></div>
@@ -387,6 +388,7 @@
     <button class="sheet-item" data-m="loadTpl"><span class="si-ic">⤓</span><span class="si-tx"><span data-en="Apply style…">载入样式…</span></span></button>
     <div class="sheet-sep"></div>
     <button class="sheet-item" data-m="help"><span class="si-ic">?</span><span class="si-tx"><span data-en="How to use">使用说明</span></span></button>
+    <button class="sheet-item" data-m="updates"><span class="si-ic">↻</span><span class="si-tx"><span data-en="Release history">更新日志</span><small data-app-version></small></span></button>
     <button class="sheet-item" data-m="community"><span class="si-ic">♡</span><span class="si-tx"><span data-en="Feedback / support / Star">反馈 / 支持作者 / Star</span><small data-en="Always available, with or without an image">随时可打开，无需先导出图片</small></span></button>
     <button class="sheet-item" data-m="lang"><span class="si-ic">文</span><span class="si-tx"><span>English / 中文</span></span></button>
     <button class="sheet-item danger" data-m="reset"><span class="si-ic">↺</span><span class="si-tx"><span data-en="Reset everything (back to import)">重置整图（回到刚导入时）</span></span></button>
@@ -447,6 +449,7 @@
 
 <div id="helpDlg" class="dlg hidden"><div class="dlg-body">
   <button class="dlg-x" id="btnHelpClose" title="关闭" data-en-title="Close">×</button>
+  <div class="help-updates"><span data-app-version></span><button class="btn sm" id="btnHelpUpdates" data-en="Release history">更新日志</button></div>
   <div class="m-only" data-en-html="
   <h3>On a phone</h3>
   <ul>
@@ -577,5 +580,7 @@
 <script src="js/support-config.js"></script>
 <script src="js/feedback.js"></script>
 <script src="js/export-support.js"></script>
+<script src="js/releases.js"></script>
+<script src="js/updates.js"></script>
 </body>
 </html>

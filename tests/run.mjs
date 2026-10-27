@@ -26,6 +26,7 @@ import { exportSupportChecks } from './export-support.mjs';
 import { feedbackChecks } from './feedback.mjs';
 import { arrowSpacingChecks } from './arrow-spacing.mjs';
 import { annotationColourChecks } from './annotation-colours.mjs';
+import { updateChecks } from './updates.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -142,6 +143,7 @@ async function runIn(name, base) {
     const feedback=await feedbackChecks(browser,base,ROOT,name);out.results.push(...feedback);if(feedback.some(r=>r[0]==='FAIL'))out.ok=false;
     const arrowSpacing=await arrowSpacingChecks(browser,base,ROOT,name);out.results.push(...arrowSpacing);if(arrowSpacing.some(r=>r[0]==='FAIL'))out.ok=false;
     const annotationColours=await annotationColourChecks(browser,base,ROOT,name);out.results.push(...annotationColours);if(annotationColours.some(r=>r[0]==='FAIL'))out.ok=false;
+    const updates=await updateChecks(browser,base,ROOT,name);out.results.push(...updates);if(updates.some(r=>r[0]==='FAIL'))out.ok=false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];
