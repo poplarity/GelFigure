@@ -1,6 +1,15 @@
 /* Short bilingual release summaries, newest first. Keep the first version equal to App.VERSION.
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
+  {version:'0.6.14',date:'2026-10-28',zh:[
+    '新增整图方向：水平/垂直翻转、顺时针/逆时针 90°，导入后直接摆正。',
+    '泳道名紧贴胶图，条件行在其上方；增加条件行不再把 Marker 名称推离图片。',
+    '侧边文字可沿胶边任意移动；新增 Pierce 26610 蛋白 Ladder。'
+  ],en:[
+    'Whole-image orientation: mirror horizontally or vertically, turn 90° either way, right after import.',
+    'Lane names now sit against the gel with condition rows above them, so a new row no longer pushes a marker label away.',
+    'Side text can be placed anywhere along the gel edge; added the Pierce 26610 protein ladder.'
+  ]},
   {version:'0.6.13',date:'2026-10-27',zh:[
     '文字、箭头、区域框和 Marker 支持标红，图片及可编辑 PPT 导出保留颜色。',
     '左侧“版式”与其他设置同级，图宽、换行和编号默认展开。',

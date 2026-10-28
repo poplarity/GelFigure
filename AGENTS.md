@@ -6,11 +6,11 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) first (no build step, bilingual strings,
 
 ## 接手状态 / Handover checkpoint — 2026-10-28
 
-- **已发布 v0.6.13**：正式网页和 HTML/ZIP 附件已上线；发布时的代码提交为 `f1161f6`，以标签 [`v0.6.13`](https://github.com/poplarity/GelFigure/tree/v0.6.13) 为准。后续文档提交不改变这个发布标签。上一个正式版保留在 [`release/0.6.12`](https://github.com/poplarity/GelFigure/tree/release/0.6.12)，请勿覆盖。
-- **v0.6.13 的功能已完成并发布**：红色文字与标注、常驻展开的“版式”、首次打开新版的更新卡片和独立更新日志窗口。不要把它们当作未完成的 dev 任务重做。准备新工作前仍须检查实时分支、工作区和用户最新要求；本节是接手快照。
-- **`dev` 上有一批已推送、尚未合并、尚未发布的新功能**（提交 `587bf1a`，已在 `origin/dev`）：整图方向（镜像／90°）、泳道名紧贴胶图＋条件行的新默认顺序（带 `style.laneNamesAboveConditions` 开关回到旧排法）、侧边文字沿胶边自由定位、Pierce 26610 Ladder。改动细节见 CHANGELOG 的 *Unreleased* 段。这些只在 `dev`，正式网页仍是 v0.6.13；只有用户说“合并／发布”才动 `main`。
-- **验证已完成**：这批改动在 Chromium、Firefox、WebKit 三引擎各 201 项检查全绿，`check-updates.mjs`、`bundle-onefile.mjs` 均通过。用的是合成演示胶与模拟手机视口；**本机没有真实胶图**，而这次改了检测路径（`App.setOrient` 的四分之一转会重新检测，镜像后泳道顺序要重排），请维护者用自己的真实胶图回归集再跑一遍。
-- **GitHub issue #1（Pierce 26610）已在 `dev` 解决**：条带按说明书 MAN0011769 录入为 116 / 66.2 / 45 / 35 / 25 / 18.4 / 14.4 kDa，7 条带、无加亮参考带。等合并发布后可回复并关闭。注意 issue 里把单位写成了 bp，蛋白 Ladder 实际是 kDa，回复时说明一下即可。
+- **已发布 v0.6.14**：整图方向、泳道名紧贴胶图、侧边文字自由定位、Pierce 26610。以标签 [`v0.6.14`](https://github.com/poplarity/GelFigure/tree/v0.6.14) 为准；上一个正式版保留在 [`release/0.6.13`](https://github.com/poplarity/GelFigure/tree/release/0.6.13)，请勿覆盖。
+- **v0.6.13 的内容也已发布**（红色文字与标注、常驻展开的“版式”、更新卡片和更新日志窗口）。不要把它们当作未完成的 dev 任务重做。准备新工作前仍须检查实时分支、工作区和用户最新要求；本节是接手快照。
+- **`dev` 与 `main` 目前一致**，没有待合并的功能改动。
+- **验证情况**：三引擎（Chromium、Firefox、WebKit）测试全绿，`check-updates.mjs`、`bundle-onefile.mjs`、`release-notes.mjs` 均通过。但用的是合成演示胶与模拟手机视口；**本机没有真实胶图**，而 v0.6.14 改了检测路径（`App.setOrient` 的四分之一转会重新检测，镜像后泳道顺序要重排），真实胶图回归集仍需维护者自己跑。
+- **GitHub issue #1（Pierce 26610）** 已在 v0.6.14 解决并随版本发布：条带按说明书 MAN0011769 录入为 116 / 66.2 / 45 / 35 / 25 / 18.4 / 14.4 kDa，7 条带、无加亮参考带。注意 issue 里把单位写成了 bp，蛋白 Ladder 实际是 kDa。
 
 ## 在另一台电脑继续 / Continuing on another computer
 

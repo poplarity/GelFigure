@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.14] - 2026-10-28
+
+Whole-image orientation, gel-hugging lane names and freely placed side text.
+
 **中文摘要**
 - 新增整图方向调整：水平/垂直翻转、顺时针/逆时针 90°。图像在导入后即可摆正，不必先到别的软件里旋转再导入。
 - 泳道名现在紧贴胶图，条件行堆叠在泳道名**上方**；增加条件行不再把 Marker 泳道名推离图像。需要旧版排法（条件行贴胶、泳道名在其上）可在“版式”里打开开关。
@@ -351,7 +355,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.13...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.14...HEAD
+[0.6.14]: https://github.com/poplarity/GelFigure/compare/v0.6.13...v0.6.14
 [0.6.13]: https://github.com/poplarity/GelFigure/compare/v0.6.12...v0.6.13
 [0.6.12]: https://github.com/poplarity/GelFigure/compare/v0.6.11...v0.6.12
 [0.6.11]: https://github.com/poplarity/GelFigure/compare/v0.6.10...v0.6.11
