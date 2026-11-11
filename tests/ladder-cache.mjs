@@ -59,6 +59,7 @@ export async function ladderCacheChecks(browser,base,root){
       });assert.deepEqual(r,{n:1,same:true,dedup:true,invalid:true,unchanged:true,oldSizes:[8000,4000,1000],models:3,keys:['custom','favorites','gelfigureMarkerLibrary','version']});
       await p.locator('#customLadderAdv').evaluate(e=>e.open=true);await p.locator('#customName').fill('UI marker');await p.locator('#customSizes').fill('6000,3000,1000');await p.locator('#btnSaveLadder').click();
       await p.waitForFunction(()=>Ladders.all().some(l=>l.name==='UI marker')&&Ladders.cacheStatus==='saved');
+      await p.locator('#btnMarkerLib').click();
       const dl=p.waitForEvent('download');await p.locator('#btnBackupLadders').click();assert.equal((await dl).suggestedFilename(),'GelFigure_markers.json');
       await p.locator('#ladderLibraryInput').setInputFiles({name:'models.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({gelfigureMarkerLibrary:1,version:1,custom:[{id:'imported_test',name:'Imported marker',sizes:[200,100,50],kind:'protein'}],favorites:['imported_test']}))});
       await p.waitForFunction(()=>!!Ladders.get('imported_test'));assert(await p.evaluate(()=>Ladders.isFavorite('imported_test')));
@@ -89,7 +90,7 @@ export async function ladderCacheChecks(browser,base,root){
       let p=await open(c,url);const id=await p.evaluate(async()=>{const l=Ladders.saveCustom('Offline ladder',Ladders.get('gr1kbplus').sizes,'dna');Ladders.setFavorites([l.id]);await Ladders.flush();return l.id;});await p.close();
       p=await open(c,url+'?demo=1&lang=en');await p.waitForFunction(()=>document.title.startsWith('READY '),null,{timeout:120000});
       assert(await p.evaluate(id=>!!Ladders.get(id)&&Ladders.isFavorite(id),id));
-      await p.setViewportSize({width:390,height:844});await p.locator('#mNav [data-view="panel"]').click();assert(await p.locator('#btnBackupLadders').isVisible());assert(await p.locator('#btnImportLadders').isVisible());
+      await p.setViewportSize({width:390,height:844});await p.locator('#mNav [data-view="panel"]').click();await p.locator('#customLadderAdv').evaluate(e=>e.open=true);await p.locator('#btnMarkerLib').click();assert(await p.locator('#btnBackupLadders').isVisible());assert(await p.locator('#btnImportLadders').isVisible());
       assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth),390);
     }finally{await c.close();}
   });

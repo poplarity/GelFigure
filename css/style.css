@@ -6,9 +6,11 @@
   --r: 9px; --r-sm: 6px; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 14px rgba(16,24,40,.07);
 }
 * { box-sizing: border-box; }
+html { color-scheme: light; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { margin: 0; height: 100%; }
 body { font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--text); background: var(--bg); display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent-bg); color: var(--text); }
 button, input, select, textarea { font: inherit; color: inherit; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #cdd3da; border-radius: 6px; border: 3px solid transparent; background-clip: content-box; }
@@ -42,7 +44,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .icon-btn.lang-btn { width: auto; min-width: 30px; padding: 0 8px; font-size: 12px; font-weight: 600; }
 .dlg-body a { color: var(--accent, #2f6feb); }
 .empty a { color: var(--accent); }
-#dpiTop { width: auto; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #e6ecf3; border-radius: var(--r-sm); padding: 5px 6px; }
+#dpiTop { width: auto; padding: 5px 24px 5px 7px; border: 1px solid rgba(255,255,255,.16); color: #e6ecf3; border-radius: var(--r-sm);
+  background: rgba(255,255,255,.08) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23c8d3e0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 7px center; }
 #dpiTop option { color: #000; }
 .split { display: inline-flex; }
 .split .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
@@ -69,6 +72,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn.sm { padding: 4px 9px; font-size: 12.3px; }
 .btn.big { padding: 9px 14px; font-size: 13.5px; }
 input[type=number], input[type=text], select, textarea { border: 1px solid #d3d8de; border-radius: var(--r-sm); padding: 5px 8px; background: #fff; width: 100%; transition: border-color .12s, box-shadow .12s; }
+/* Safari draws a native select that ignores padding and comes out ~10px shorter than the inputs beside it,
+   so the arrow is drawn here and the control is sized by the box model like every other field. */
+select { appearance: none; -webkit-appearance: none; padding-right: 24px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b7480' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; }
+select::-ms-expand { display: none; }
+select:disabled { cursor: default; opacity: .55; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 input[type=range] { flex: 1; min-width: 80px; width: 100%; -webkit-appearance: none; height: 4px; border-radius: 3px; background: #dfe3e8; outline: none; box-shadow: none; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1.5px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.2); cursor: pointer; }
@@ -103,10 +113,13 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 #preview { margin: auto; padding: 24px; }
 #preview svg { display: block; background: #fff; box-shadow: 0 2px 16px rgba(16,24,40,.13); }
 #preview .ed { cursor: text; }
-#preview .ed:hover { filter: drop-shadow(0 0 0.6px #2f6feb) drop-shadow(0 0 0.6px #2f6feb); }
+/* WebKit renders no CSS drop-shadow() on inline SVG groups at all, so the edit highlight was invisible in
+   Safari. An SVG filter carried in the document works in every engine and keeps the same soft glow;
+   ui.js adds these <defs> to the preview only, so exports are untouched. */
+#preview .ed:hover { filter: url(#gf-glow-hover); }
 #preview g[data-edit="cond"] { cursor: pointer; }
 #preview g[data-edit="arrow"] { cursor: ns-resize; }
-#preview .ed.active { filter: drop-shadow(0 0 1px #2f6feb) drop-shadow(0 0 1px #2f6feb); }
+#preview .ed.active { filter: url(#gf-glow-active); }
 #preview.arming image[data-edit="gel"] { cursor: crosshair; }
 #preview .ghost-group { pointer-events: none; }
 .mode-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: #16202c; color: #fff; border-radius: 999px;
@@ -134,7 +147,7 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inline-label { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .range-row { color: var(--muted); font-size: 12.5px; flex-wrap: nowrap; }
-.range-row select { width: auto; min-width: 60px; padding: 4px 6px; }
+.range-row select { width: auto; min-width: 60px; padding: 4px 24px 4px 6px; }
 .hint { color: var(--faint); font-size: 11.5px; margin: 6px 0 0; line-height: 1.55; }
 .hint code, .lead code { background: #f1f3f6; padding: 1px 4px; border-radius: 4px; }
 .adv { margin-top: 8px; }
@@ -259,6 +272,9 @@ body.dragging #dropHint.hidden { display: flex !important; z-index: 5; }
 .fed-bar .fed-hint { white-space:normal; }
 .fed-bar .red-choice { color:#ffb3b3; }
 .annotation-color-field { flex-wrap:wrap; margin:7px 0; }
+.annotation-weight-field { display:inline-flex; align-items:center; gap:6px; margin:7px 0; }
+select.annotation-weight { width:144px; max-width:100%; min-height:30px; background-color:#fff; color:var(--text); font-size:12px; font-weight:400; }
+.fed-bar .annotation-weight-field { margin:0 0 0 6px; color:#fff; }
 select.annotation-color { width:auto; max-width:100%; }
 select.annotation-color.is-red { color:#d32f2f; }
 .fed-bar [aria-pressed=true] { background:#2f6feb; }
@@ -370,7 +386,7 @@ select.annotation-color.is-red { color:#d32f2f; }
 .marker-ref-head { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 .marker-ref-head button { background: none; border: 0; font-size: 19px; line-height: 1; color: var(--muted); cursor: pointer; padding: 3px; }
 .marker-ref-lane { color: var(--muted); margin: 3px 0 6px; }
-.marker-reference-card select { font-size: 11.5px; padding: 5px 2px; min-height: 30px; margin-bottom: 7px; }
+.marker-reference-card select { font-size: 11.5px; padding: 5px 22px 5px 6px; min-height: 30px; margin-bottom: 7px; }
 .marker-ref-note { display: block; font-size: 10.5px; color: var(--muted); line-height: 1.5; margin: 6px 0; }
 .marker-ref-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 .marker-ref-actions .btn { flex: 1; font-size: 11px; padding: 5px 3px; }

@@ -75,7 +75,7 @@
       <label class="btn primary big"><span data-en="Choose file">选择文件</span><input type="file" id="fileInput2" accept=".tif,.tiff,.png,.jpg,.jpeg,.bmp,.gelfig,image/*" multiple hidden></label>
       <button class="btn big" id="btnDemo" data-en="Try the example">看看示例</button>
       <button class="btn big" id="btnHistoryStart" data-en="Open a recent project">打开历史项目</button>
-      <p class="hint d-only" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.14/GelFigure-v0.6.14.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
+      <p class="hint d-only" id="offlineDownload"><a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.15/GelFigure-v0.6.15.html" data-en="Download for offline use — one HTML file">下载离线版：只需一个 HTML 文件</a><br><span data-en="Save to your computer, then open in your browser. No installation or extraction.">保存到电脑，用浏览器打开；不用安装、不用解压。</span></p>
       <button class="updates-start" id="btnUpdatesStart"><span data-app-version></span><span data-en="Release history">更新日志</span></button>
       <div id="draftBox" class="draft hidden">
         <div><span data-en="Your most recent project:">最近一次的项目：</span><b id="draftName"></b><br><span class="muted small" id="draftTime"></span></div>
@@ -208,17 +208,13 @@
         <details class="adv" id="customLadderAdv">
           <summary data-en="Custom ladder">自定义 Ladder</summary>
           <div class="field"><input type="text" id="customName" placeholder="名称" data-en-placeholder="Name"></div>
-          <div class="field"><input type="text" id="customSizes" placeholder="条带大小，逗号分隔：5000,3000,2000,1000,500（DNA 胶填 bp，蛋白胶填 kDa）" data-en-placeholder="Band sizes, comma separated: 5000,3000,2000,1000,500 (bp for DNA gels, kDa for protein)"></div>
+          <div class="field"><input type="text" id="customSizes" placeholder="条带大小：5000bp, 3000bp, 2000bp（也支持 5kb / 100kDa；只写数字 = 当前胶的类型）" data-en-placeholder="Band sizes: 5000bp, 3000bp, 2000bp (5kb / 100kDa also work; bare numbers use the current gel type)"></div>
+          <p class="hint" id="customParse" role="status" aria-live="polite"></p>
           <button class="btn sm" id="btnSaveLadder" data-en="Save and use">保存并使用</button>
           <div id="customList" class="list"></div>
         </details>
+        <button class="btn sm ghost" id="btnMarkerLib" data-en="Manage marker library…">Marker 库管理…</button>
         <p class="hint" id="ladderCacheStatus" role="status" aria-live="polite"></p>
-        <div class="field inline" style="flex-wrap:wrap">
-          <button class="btn sm ghost" id="btnBackupLadders" data-en="Back up marker library">备份 Marker 库</button>
-          <button class="btn sm ghost" id="btnImportLadders" data-en="Import marker library">导入 Marker 库</button>
-          <input type="file" id="ladderLibraryInput" accept=".json,application/json" hidden>
-        </div>
-        <p class="hint" data-en="Custom models and favourites are cached together. A different browser or offline HTML file may use separate storage; back up the library to move it. Backups contain models and favourites only, not images.">自定义型号与常用收藏一起缓存。换浏览器或换离线 HTML 文件可能使用不同缓存，可通过备份迁移；备份仅含型号和收藏，不含图片。</p>
       </section>
 
       <!-- annotations -->
@@ -231,6 +227,7 @@
           <button class="tool" id="btnAddBox"><span class="ti">⬚</span><span data-en="Region box">区域框</span><small data-en="Frame bands; optional zoom inset">框出条带，可放大展示</small></button>
           <button class="tool" id="btnAddBracket"><span class="ti">]</span><span data-en="Side bracket">侧边括号</span><small data-en="A size range: smear, (Ub)n, dimer">一段区域：拖尾、多聚体</small></button>
           <button class="tool" id="btnAddLabel"><span class="ti">T</span><span data-en="Side text">侧边文字</span><small data-en="Stain, antibody, exposure">染色、抗体、曝光时间</small></button>
+          <button class="tool" id="btnAddNote"><span class="ti">T</span><span data-en="Free text box">自由文本框</span><small data-en="Place it, then drag it anywhere on the gel">点胶图放置，之后可自由拖动</small></button>
         </div>
         <div id="annoList" class="list"></div>
       </section>
@@ -252,11 +249,10 @@
           </div>
           <p class="hint" data-en="Group labels that still collide move up a row. For fonts and sizes, use the toolbar above the figure or click an annotation.">仍会相撞的分组文字会自动错开到上一行。字体与字号在成图上方调整，也可点标注单独设置。</p>
           <div class="field inline wrap">
-            <label class="switch"><input type="checkbox" id="unitHeader" checked><span id="unitHeaderLbl" data-en="Marker units (bp)">Marker 单位 (bp)</span></label>
             <label class="switch"><input type="checkbox" id="laneNumbers"><span data-en="Lane numbers">泳道编号</span></label>
             <label class="switch"><input type="checkbox" id="frame"><span data-en="Frame">边框</span></label>
             <label class="switch"><input type="checkbox" id="groupTicks"><span data-en="Group line ends">分组线端点</span></label>
-            <label class="switch"><input type="checkbox" id="laneNamesAboveConditions"><span data-en="Conditions above lane names">条件行在泳道名上方</span></label>
+            <label class="switch"><input type="checkbox" id="laneNamesAboveConditions"><span data-en="Lane names above conditions">泳道名在条件行上方</span></label>
           </div>
           <p class="hint" data-en="Lane names stay next to the gel; condition rows stack above them. Tick the box to put the condition matrix nearest the gel instead (lane names above it).">泳道名紧贴胶图，条件行依次叠在泳道名上方。勾选后改为条件矩阵贴近胶图、泳道名在其上方。</p>
           <div class="field inline">
@@ -287,7 +283,7 @@
         <div id="dropHint">
           <div class="dh-icon">▣</div>
           <div class="dh-text" data-en="Drop the gel image here">把胶图拖到这里</div>
-          <div class="dh-sub" data-en="A .tif straight from the imager works">成像仪导出的 .tif 直接拖进来</div>
+          <div class="dh-sub" data-en="A .tif straight from the imager works; or paste a copied image with ⌘V / Ctrl+V">成像仪导出的 .tif 直接拖进来；也可用 ⌘V / Ctrl+V 粘贴复制的图片</div>
         </div>
       </div>
       <!-- touch: what a keyboard shortcut does on a computer, for the selected lane / arrow -->
@@ -439,6 +435,7 @@
  <div class="fed-row" role="group" aria-label="文字颜色" data-en-title="Text colour">
   <span class="fed-lbl" data-en="Colour">颜色</span>
   <button data-format="autoColor" id="fedColorDefault" data-en="Default">默认</button><button data-format="red" id="fedRed" class="red-choice" data-en="● Red">● 标红</button>
+  <span id="fedWeightControl"></span>
  </div>
  <div id="fedTextTools" class="fed-row hidden" role="toolbar" aria-label="名称格式">
   <button data-format="normal" id="fedNormal" data-en="Upright">正体</button><button data-format="italic" id="fedItalic" data-en="Italic">斜体</button>
@@ -482,7 +479,7 @@
   </div>
   <div data-en-html="
   <h3>Offline use: download just one file</h3>
-  <p>Download <a href='https://github.com/poplarity/GelFigure/releases/download/v0.6.14/GelFigure-v0.6.14.html'>GelFigure-v0.6.14.html</a>, save it to your computer, then double-click to open in your browser. No installation or ZIP extraction. The repository's index.html alone is not the complete tool.</p>
+  <p>Download <a href='https://github.com/poplarity/GelFigure/releases/download/v0.6.15/GelFigure-v0.6.15.html'>GelFigure-v0.6.15.html</a>, save it to your computer, then double-click to open in your browser. No installation or ZIP extraction. The repository's index.html alone is not the complete tool.</p>
   <p>Recent projects in the top bar or File menu (⋯ on a phone) keeps images and edits in this browser, including all exposures. You can rename, delete and reopen them without re-detection. Importing another image keeps the previous project. Clearing browser data removes the cache.</p>
   <p>For a backup or another computer, use File → Save project (⋯ on a phone). A .gelfig file contains the selected exposure and its annotations; keep other exposure files separately. If caching fails, save a project file before switching images.</p>
   <h3>Fastest way to a figure</h3>
@@ -518,7 +515,7 @@
   <p class='muted small d-only'>Shortcuts: Ctrl+Z undo · Ctrl+Shift+Z redo · Space+drag pan · wheel zoom · H remove/restore lane · Esc cancel</p>
   <p class='muted small'>Open source (MIT): <a href='https://github.com/poplarity/GelFigure' target='_blank' rel='noopener'>github.com/poplarity/GelFigure</a> — bug reports and ladder additions welcome.</p>">
   <h3>离线使用：只下载一个文件</h3>
-  <p>下载 <a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.14/GelFigure-v0.6.14.html">GelFigure-v0.6.14.html</a>，保存到电脑，双击用浏览器打开即可。不用安装、不用解压。仓库里的 index.html 单独下载不包含完整工具。</p>
+  <p>下载 <a href="https://github.com/poplarity/GelFigure/releases/download/v0.6.15/GelFigure-v0.6.15.html">GelFigure-v0.6.15.html</a>，保存到电脑，双击用浏览器打开即可。不用安装、不用解压。仓库里的 index.html 单独下载不包含完整工具。</p>
   <p>顶栏或“文件 → 历史项目”（手机在右上角 ⋯）可打开本浏览器缓存的图片和编辑进度，包括全部曝光。支持改名、删除，恢复时不会重新识别；导入下一张图会保留上一张的进度。清理浏览器数据会清除缓存。</p>
   <p>备份或换电脑时，请用“文件 → 保存项目”（手机在 ⋯）。.gelfig 保存当前曝光的原图和标注，其他曝光的原文件请另行保留。缓存失败时，建议先保存项目文件再切换图片。</p>
   <h3>最快的出图方式</h3>
@@ -554,6 +551,18 @@
   <p class="muted small d-only">快捷键：Ctrl+Z 撤销 · Ctrl+Shift+Z 重做 · 空格+拖动 平移 · 滚轮 缩放 · H 剪除/恢复泳道 · Esc 取消当前操作</p>
   <p class="muted small">开源（MIT）：<a href="https://github.com/poplarity/GelFigure" target="_blank" rel="noopener">github.com/poplarity/GelFigure</a> —— 欢迎反馈问题、补充 Ladder 型号。</p>
   </div>
+</div></div>
+
+<div id="markerLibDlg" class="dlg hidden"><div class="dlg-body">
+  <button class="dlg-x" id="btnMarkerLibClose" title="关闭" data-en-title="Close">×</button>
+  <h3 data-en="Marker library">Marker 库管理</h3>
+  <p class="hint" data-en="Custom models and favourites are cached together. A different browser or offline HTML file may use separate storage; back up the library to move it. Backups contain models and favourites only, not images.">自定义型号与常用收藏一起缓存。换浏览器或换离线 HTML 文件可能使用不同缓存，可通过备份迁移；备份仅含型号和收藏，不含图片。</p>
+  <div class="field inline" style="flex-wrap:wrap">
+    <button class="btn sm ghost" id="btnBackupLadders" data-en="Back up marker library">备份 Marker 库</button>
+    <button class="btn sm ghost" id="btnImportLadders" data-en="Import marker library">导入 Marker 库</button>
+    <input type="file" id="ladderLibraryInput" accept=".json,application/json" hidden>
+  </div>
+  <div class="actions"><button class="btn sm primary" id="btnMarkerLibDone" data-en="Done">完成</button></div>
 </div></div>
 
 <div id="preflightDlg" class="dlg hidden"><div class="dlg-body pf">

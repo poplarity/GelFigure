@@ -49,6 +49,19 @@
     App.cacheStatus = value; App.cacheError = error ? error.message : '';
     G.dispatchEvent(new Event('gelfigure-cache'));
   }
+  // Safari throws away script-written storage after seven days without a visit (ITP). Asking for
+  // persistence is the only way project history survives a week away; it fails silently elsewhere.
+  let persistAsked = false;
+  function requestPersistence() {
+    if (persistAsked) return;
+    persistAsked = true;
+    try {
+      if (!navigator.storage || !navigator.storage.persist) return;
+      navigator.storage.persisted()
+        .then(p => { if (!p) navigator.storage.persist().catch(() => {}); })
+        .catch(() => {});
+    } catch (_) { /* storage manager unavailable */ }
+  }
   function migrate(st, next) {
     const rq = st.get('meta');
     success(rq, () => {
@@ -79,6 +92,7 @@
   App.saveDraft = async function () {
     clearTimeout(timer);
     if (!App.S || !App.srcBuffer) return true;
+    requestPersistence();
     if (!App.projectId) App.newCachedProject();
     // Capture before awaiting. A queued save must never read the next project's pixels or settings.
     const state = App.snapshot(), projectId = App.projectId, gen = generation;

@@ -9,7 +9,7 @@
   const PREF_KEY = 'gelfig.prefs';
 
   const defaultStyle = () => ({
-    gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontFamily: 'Arial', fontPt: 7, lineWidthPt: 0.5, labelAngle: 'auto', laneItalic:false,laneNumbers: false, frame: false,
+    gelWidthMm: 45, autoWidth: true, mmPerLane: 5.5, fontFamily: 'Arial', fontPt: 7, fontWeight: 400, lineWidthPt: 0.5, labelAngle: 'auto', laneItalic:false,laneNumbers: false, frame: false,
     panelLetter: '', panelPt: 8, spliceStyle: 'gap', spliceGapPt: 1.5, tickLenPt: 2.5, labelGapPt: 2.5,
     unitHeader: true, groupTicks: false, dpi: 600, laneNumberMode: 'well',
     // lane names sit directly above the gel and condition rows stack above them, so adding a row
@@ -20,14 +20,20 @@
     lanePt: null, markerPt: null, groupFit: 'wrap', minFontPt: 5
   });
 
-  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily), labelAngle: G.Render.labelAngle(style && style.labelAngle),laneItalic:style?.laneItalic===true });
+  const WEIGHTS = [400, 500, 600, 700];
+  const normalWeight = v => WEIGHTS.includes(+v) ? +v : 400;
+  const normalStyle = style => Object.assign(defaultStyle(), style || {}, { fontFamily: G.Render.fontName(style && style.fontFamily), fontWeight: normalWeight(style && style.fontWeight), labelAngle: G.Render.labelAngle(style && style.labelAngle),laneItalic:style?.laneItalic===true });
 
   /* Side text `at` (0..1 along the gel edge). Absent means centred — and `+null` is 0, so test for a
    * value explicitly rather than with Number.isFinite(+v). */
   const atOf = v => (v != null && v !== '' && Number.isFinite(+v) ? Math.min(1, Math.max(0, +v)) : null);
+  const angleOf = v => (v != null && v !== '' && Number.isFinite(+v) ? +v : null);
 
   const App = {
     S: null,            // serialisable state
+    // The automatic angle belongs to this orientation and must survive undo/project restore.
+    get autoRotation() { return this.S?.autoRotation; },
+    set autoRotation(v) { if (this.S) this.S.autoRotation = v; },
     src: null, rot: null, rotFor: null,
     rawSrc: null, rawRGB: null,   // pixels exactly as decoded, before the D4 orientation is applied
     fullCanvas: document.createElement('canvas'),
@@ -53,7 +59,7 @@
   App.defaultStyle = defaultStyle;
   App.onDropFile = null;   // set by the UI layer
 
-  App.VERSION = '0.6.14';
+  App.VERSION = '0.6.15';
   App.prefs = prefs;
   App.setPref = function (k, v) { const p = prefs(); p[k] = v; G.PrefStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 
@@ -135,7 +141,7 @@
       gelType: null,          // 'dna' | 'protein'; decided from the image below, the user can override
       markers: [],
       groups: [], conditions: [], arrows: [],
-      boxes: [], brackets: [], labels: [],
+      boxes: [], brackets: [], labels: [], notes: [],
       style: normalStyle(p.style),
       saturatedInCrop: 0
     };
@@ -348,6 +354,22 @@
    * going from angle d1 to d2 maps a point p to R(d2-d1)(p - centre) + centre (same canvas size).
    * Lanes are vertical lines, so they are mapped at the crop's vertical centre; marker bands at
    * their lane; arrows at the crop's horizontal centre. Nothing is re-detected, nothing is lost. */
+  // Text stays readable at its chosen angle; anchors and arrow directions follow the gel.
+  function carryNotes(notes, point) {
+    (notes || []).forEach(n => {
+      const p = point(n.x, n.y), key = n.kind === 'arrow' ? 'angle' : n.arrow ? 'arrowAngle' : null;
+      if (key) {
+        const a = (angleOf(n[key]) ?? (key === 'arrowAngle' ? -90 : 0)) * Math.PI / 180;
+        const q = point(n.x + Math.cos(a), n.y + Math.sin(a));
+        n[key] = Math.round(Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI * 1e8) / 1e8;
+      }
+      n.x = p.x; n.y = p.y;
+    });
+  }
+  function rotationPoint(w, h, deg) {
+    const a = deg * Math.PI / 180, co = Math.cos(a), si = Math.sin(a), cx = (w - 1) / 2, cy = (h - 1) / 2;
+    return (x, y) => ({ x: co * (x - cx) - si * (y - cy) + cx, y: si * (x - cx) + co * (y - cy) + cy });
+  }
   App.setRotation = function (deg) {
     const S = App.S;
     deg = Math.max(-App.MAX_ROT, Math.min(App.MAX_ROT, Math.round((+deg || 0) * 10) / 10));
@@ -363,6 +385,7 @@
     (S.brackets || []).forEach(b => { b.y1 = T(ccx, b.y1).y; b.y2 = T(ccx, b.y2).y; });
     // a box keeps its size; its centre moves with the gel
     (S.boxes || []).forEach(b => { const c2 = T(b.x + b.w / 2, b.y + b.h / 2); b.x = c2.x - b.w / 2; b.y = c2.y - b.h / 2; });
+    carryNotes(S.notes, T);
     S.lanes.forEach(l => { l.x = T(l.x, ccy).x; });
     const nc = T(ccx, ccy);
     const w = Math.min(c.w, W), h = Math.min(c.h, H);
@@ -774,12 +797,15 @@
 
     if (swap) {
       // re-detect on the turned gel; keep what the user typed, in lane order
-      const names = S.lanes.map(l => ({ name: l.name, nameRuns: l.nameRuns, nameStyle: l.nameStyle, hidden: !!l.hidden, markerExcluded: !!l.markerExcluded }));
-      const conds = S.conditions.map(c => ({ name: c.name, pt: c.pt, color: c.color, values: S.lanes.map((_, i) => c.values[i] || '') }));
+      const names = S.lanes.map(l => ({ name: l.name, nameRuns: l.nameRuns, nameStyle: l.nameStyle, weight: l.weight, hidden: !!l.hidden, markerExcluded: !!l.markerExcluded }));
+      const conds = S.conditions.map(c => ({ name: c.name, pt: c.pt, color: c.color, weight: c.weight, values: S.lanes.map((_, i) => c.values[i] || '') }));
+      const notes = S.notes || [], noteWidth = S.crop.w;
+      const unrotate = rotationPoint(oldW, oldH, -S.rotation);
+      carryNotes(notes, (x, y) => { const p = unrotate(x, y); return E.orientPoint(E.orientCode(next), p.x, p.y, oldW, oldH); });
       const keepStyle = S.style, keepMode = S.displayMode, keepLevels = S.levels, keepRot = S.rotation;
       S.orient = E.orientId(target);
       S.crop = { x: 0, y: 0, w: App.rawSrc.w, h: App.rawSrc.h };
-      S.lanes = []; S.markers = []; S.groups = []; S.arrows = []; S.boxes = []; S.brackets = []; S.labels = []; S.conditions = [];
+      S.lanes = []; S.markers = []; S.groups = []; S.arrows = []; S.boxes = []; S.brackets = []; S.labels = []; S.notes = []; S.conditions = [];
       S.style = keepStyle; S.displayMode = keepMode; S.levels = keepLevels; S.rotation = keepRot;
       App.selLane = -1; App.selArrow = -1;
       if (E.orientSwap(S.orient)) S.rotation = 0;   // a quarter turn makes the deskew angle meaningless
@@ -793,9 +819,16 @@
         l.name = s.name; l.hidden = s.hidden;
         if (s.nameRuns && G.NameText.plain(G.NameText.normalize(s.nameRuns)) === l.name) l.nameRuns = G.NameText.normalize(s.nameRuns);
         if (s.nameStyle) l.nameStyle = G.NameText.style(s.nameStyle);
+        if (s.weight) l.weight = s.weight;
         if (s.markerExcluded) l.markerExcluded = true;
       }
       conds.forEach(c => { c.values = S.lanes.map((_, i) => c.values[i] || ''); S.conditions.push(c); });
+      carryNotes(notes, rotationPoint(App.src.w, App.src.h, S.rotation));
+      notes.forEach(n => {
+        const key = n.kind === 'arrow' ? 'len' : 'arrowLen';
+        if (n.kind === 'arrow' || n.arrow) n[key] = (+n[key] || (key === 'len' ? .12 : .18)) * noteWidth / Math.max(1, S.crop.w);
+      });
+      S.notes = notes;
       App.autoRotation = S.rotation;
       // one turn = one undo step: drop the intermediate snapshot autoAll pushed with empty lanes
       if (App.hist.length === hBefore + 1) App.hist.splice(hBefore, 1);
@@ -804,12 +837,18 @@
     }
 
     // ---- no quarter turn: every coordinate goes through the same D4 element ----
-    const code = target;
+    // Coordinates already have the current orientation; apply only the requested operation.
+    const code = E.orientCode(next);
     const P = (x, y) => E.orientPoint(code, x, y, oldW, oldH);
     const flipX = P(1, 0).x < P(0, 0).x;      // a mirror reverses the direction of +x
     const flipY = P(0, 1).y < P(0, 0).y;      // so does a 180° turn for +y
     const swapSide = o => { if (flipX) { if (o.side === 'left') o.side = 'right'; else if (o.side === 'right') o.side = 'left'; } };
-    S.orient = E.orientId(code);
+    S.orient = E.orientId(target);
+    // A reflection reverses deskew too: F R(a) = R(-a) F. Keep image and annotations aligned.
+    if (flipX !== flipY) {
+      S.rotation = -S.rotation;
+      if (Number.isFinite(S.autoRotation)) S.autoRotation = -S.autoRotation;
+    }
     App.ensureSrc();
     const c1 = P(S.crop.x, S.crop.y), c2 = P(S.crop.x + S.crop.w - 1, S.crop.y + S.crop.h - 1);
     S.crop = {
@@ -825,6 +864,7 @@
       b.x = Math.min(q1.x, q2.x); b.y = Math.min(q1.y, q2.y);
       b.w = Math.abs(q2.x - q1.x); b.h = Math.abs(q2.y - q1.y);
     });
+    carryNotes(S.notes, P);
     // after a mirror, lane order must still run left to right; reorderLanes carries markers,
     // condition values and groups along with the lanes
     App.sortLanesIfNeeded();
@@ -844,8 +884,10 @@
     const def = App.defaultLadder(kind);
     const id = ladderId && G.Ladders.get(ladderId) && G.Ladders.kindOf(G.Ladders.get(ladderId)) === kind ? ladderId : fav || prefOk || def;
     // the remembered unit belongs to whichever gel type was open last; never carry kDa into a DNA gel
-    const prefUnit = App.prefUnit === 'kDa' || App.prefUnit === 'kb' || App.prefUnit === 'auto' ? App.prefUnit : 'bp';
-    return { lane, ladderId: id, unit: kind === 'protein' ? 'kDa' : (prefUnit === 'kDa' ? 'bp' : prefUnit), side: 'auto', bands: [] };
+    const prefUnit = ['kDa', 'kb', 'auto', 'bp-inline', 'kb-inline', 'kDa-inline', 'none'].includes(App.prefUnit) ? App.prefUnit : 'bp';
+    const protein = prefUnit === 'kDa' || prefUnit === 'kDa-inline';
+    const proteinUnit = prefUnit === 'kDa-inline' ? 'kDa-inline' : prefUnit === 'none' ? 'none' : 'kDa';
+    return { lane, ladderId: id, unit: kind === 'protein' ? proteinUnit : (protein ? 'bp' : prefUnit), side: 'auto', bands: [] };
   };
 
   App.lanePeaks = function (i) {
@@ -1192,7 +1234,7 @@
     const S = App.S;
     const T = (s) => { if (App.debug) document.title = 'STAGE ' + s; };
     T('deskew');
-    if (fresh) App.autoDeskew();
+    if (fresh) { App.autoDeskew(); App.autoRotation = S.rotation; }
     T('crop');
     App.autoCrop();
     T('levels');
@@ -1299,13 +1341,13 @@
     const groups = S.groups.map((g, k) => {
       const a = Math.min(g.from, g.to), b = Math.max(g.from, g.to);
       const ins = keep.filter(i => i >= a && i <= b);
-      return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, pt: g.pt, color:g.color, k } : null;
+      return ins.length ? { from: remap.get(ins[0]), to: remap.get(ins[ins.length - 1]), text: g.text, pt: g.pt, color:g.color, weight:g.weight, k } : null;
     }).filter(Boolean);
     return {
       preview: !!preview, bright: App.isColour() ? App.displayDark() : S.bright,
       crop: S.crop, levels: App.displayLevels(), style: Object.assign({}, S.style, { gelWidthMm: App.gelWidthMm() }), file: S.file,
-      lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:G.NameText.style(S.lanes[i].nameStyle),hidden: S.lanes[i].hidden, src: i })),
-      conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt, color:c.color })),
+      lanes: keep.map(i => ({ x: S.lanes[i].x - cx, name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:G.NameText.style(S.lanes[i].nameStyle),weight:S.lanes[i].weight,hidden: S.lanes[i].hidden, src: i })),
+      conditions: S.conditions.map(c => ({ name: c.name, values: keep.map(i => c.values[i] || ''), pt: c.pt, color:c.color, weight:c.weight })),
       groups,
       markers: S.markers.filter(m => remap.has(m.lane) && !S.lanes[m.lane].hidden).map(m => Object.assign({}, m, {
         lane: remap.get(m.lane), src: S.markers.indexOf(m),
@@ -1321,13 +1363,16 @@
         const a = Math.max(Math.min(b.y1, b.y2) - cy, 0), z = Math.min(Math.max(b.y1, b.y2) - cy, S.crop.h);
         return z - a > 1 ? Object.assign({}, b, { y1: a, y2: z, k }) : null;
       }).filter(Boolean),
-      labels: (S.labels || []).map((t, k) => Object.assign({}, t, { k })).filter(t => t.text || preview)
+      labels: (S.labels || []).map((t, k) => Object.assign({}, t, { k })).filter(t => t.text || preview),
+      // in-gel notes are stored in rotated-image pixels like boxes; the renderer works on the crop
+      notes: (S.notes || []).map((n, k) => Object.assign({}, n, { x: n.x - cx, y: n.y - cy, k }))
+        .filter(n => n.x >= -20 && n.x <= S.crop.w + 20 && n.y >= -20 && n.y <= S.crop.h + 20)
     };
   };
 
-  // remove one of the free annotations; sel = {kind: 'box' | 'bracket' | 'label', k}
+  // remove one of the free annotations; sel = {kind: 'box' | 'bracket' | 'label' | 'note', k}
   App.removeAnno = function (sel) {
-    const list = { box: App.S.boxes, bracket: App.S.brackets, label: App.S.labels }[sel && sel.kind];
+    const list = { box: App.S.boxes, bracket: App.S.brackets, label: App.S.labels, note: App.S.notes }[sel && sel.kind];
     if (list && list[sel.k]) list.splice(sel.k, 1);
   };
 
@@ -1467,17 +1512,25 @@
     const lanes = [];
     for (let i = r[0]; i <= r[1]; i++) {
       const m = S.markers.find(x => x.lane === i);
-      lanes.push({ name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:S.lanes[i].nameStyle?G.NameText.style(S.lanes[i].nameStyle):undefined,hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side, color:m.color==='red'?'red':undefined, redBands:m.bands.filter(b=>b.color==='red').map(b=>b.bp) } : null });
+      lanes.push({ name: S.lanes[i].name,nameRuns:S.lanes[i].nameRuns,nameStyle:S.lanes[i].nameStyle?G.NameText.style(S.lanes[i].nameStyle):undefined,weight:S.lanes[i].weight||undefined,hidden: !!S.lanes[i].hidden, marker: m ? { ladderId: m.ladderId, unit: m.unit, side: m.side, weight:m.weight||undefined, color:m.color==='red'?'red':undefined, redBands:m.bands.filter(b=>b.color==='red').map(b=>b.bp) } : null });
     }
     return { gelfigTemplate: 3, app: 'GelFigure ' + App.VERSION, gelType: App.gelKind(), lanes,
       // custom ladders travel with the template, so another computer gets the same Markers
       ladders: G.Ladders.defsFor(S.markers.map(m => m.ladderId)),
-      groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text, pt: g.pt || null, color:g.color })),
-      conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || ''), pt: c.pt || null, color:c.color })),
+      groups: S.groups.map(g => ({ from: rel(g.from), to: rel(g.to), text: g.text, pt: g.pt || null, weight: g.weight || null, color:g.color })),
+      conditions: S.conditions.map(c => ({ name: c.name, values: lanes.map((l, k) => c.values[r[0] + k] || ''), pt: c.pt || null, weight: c.weight || null, color:c.color })),
       arrows: S.arrows.map(a => ({ text: a.text, side: a.side, size: !!a.size, sizeText: a.sizeText || '', sym: a.sym || 'arrow', bp: App.estimateBp(a.y), pt: a.pt || null, color:a.color })),
       // side text travels as is; brackets by the sizes they span (positions differ between gels)
-      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, at: atOf(t.at), pt: t.pt || null, color:t.color })),
-      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null, color:b.color })).filter(b => b.bp1 && b.bp2),
+      labels: (S.labels || []).map(t => ({ text: t.text, pos: t.pos, at: atOf(t.at), angle: angleOf(t.angle), pt: t.pt || null, weight: t.weight || null, color:t.color })),
+      // notes are positioned as fractions of the crop, so they land in the same place on another gel
+      notes: (S.notes || []).map(n => ({ text: n.text || '', kind: n.kind === 'arrow' ? 'arrow' : 'text',
+        fx: (n.x - S.crop.x) / Math.max(1, S.crop.w), fy: (n.y - S.crop.y) / Math.max(1, S.crop.h),
+        angle: Number.isFinite(+n.angle) ? +n.angle : 0, len: n.kind === 'arrow' ? (+n.len || 0.12) : null,
+        arrow: n.arrow === true, arrowAngle: Number.isFinite(+n.arrowAngle) ? +n.arrowAngle : -90,
+        arrowLen: +n.arrowLen || 0.18, bg: n.bg === 'white' ? 'white' : 'none', border: n.border === true,
+        align: n.align === 'left' || n.align === 'right' ? n.align : 'center',
+        pt: n.pt || null, weight: n.weight || null, color: n.color })),
+      brackets: (S.brackets || []).map(b => ({ text: b.text, side: b.side, bp1: App.estimateBp(b.y1), bp2: App.estimateBp(b.y2), pt: b.pt || null, weight: b.weight || null, color:b.color })).filter(b => b.bp1 && b.bp2),
       // recorded for reference only: each gel is straightened on its own
       rotation: S.rotation,
       style: S.style, displayMode: App.isColour() ? 'colour' : 'gray' };
@@ -1509,15 +1562,16 @@
     if (tl.length && r[0] + tl.length - 1 !== r[1]) { App.setLaneRange(r[0], Math.min(S.lanes.length - 1, r[0] + tl.length - 1)); r = App.laneRange(); }
     const abs = k => Math.min(S.lanes.length - 1, r[0] + k);
     tl.forEach((l,k)=>{const i=abs(k),lane=S.lanes[i];lane.name=l.name||'';lane.hidden=!!l.hidden;
-      delete lane.nameRuns;delete lane.nameStyle;
+      delete lane.nameRuns;delete lane.nameStyle;delete lane.weight;
+      if(WEIGHTS.includes(+l.weight))lane.weight=+l.weight;
       if(Array.isArray(l.nameRuns)&&G.NameText.plain(G.NameText.normalize(l.nameRuns))===lane.name)lane.nameRuns=G.NameText.normalize(l.nameRuns);
       if(l.nameStyle&&Object.keys(G.NameText.style(l.nameStyle)).length)lane.nameStyle=G.NameText.style(l.nameStyle);
     });
-    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto', userAssigned: true, ladderLocked: true, ...(l.marker.color==='red'?{color:'red'}:{}) }) : null)).filter(Boolean);
+    const mk = tl.map((l, k) => (l.marker ? Object.assign(App.newMarker(abs(k), l.marker.ladderId), { unit: l.marker.unit || App.sizeUnit(), side: l.marker.side || 'auto', ...(WEIGHTS.includes(+l.marker.weight)?{weight:+l.marker.weight}:{}), userAssigned: true, ladderLocked: true, ...(l.marker.color==='red'?{color:'red'}:{}) }) : null)).filter(Boolean);
     // Applying a saved marker choice is explicit, just like choosing its lane/model in the UI.
     mk.forEach(m => { delete S.lanes[m.lane].markerExcluded; });
     if (mk.length) S.markers = mk;
-    const ptOf = o => ({...(o && +o.pt > 0 ? { pt: +o.pt } : {}),...(o?.color==='red'?{color:'red'}:{})});
+    const ptOf = o => ({...(o && +o.pt > 0 ? { pt: +o.pt } : {}), ...(o && WEIGHTS.includes(+o.weight) ? { weight: +o.weight } : {}),...(o?.color==='red'?{color:'red'}:{})});
     S.groups = (t.groups || []).map(g => Object.assign({ from: abs(g.from), to: abs(g.to), text: g.text || '' }, ptOf(g)));
     S.conditions = (t.conditions || []).map(c => Object.assign({ name: c.name, values: S.lanes.map((l, i) => (i >= r[0] && i - r[0] < (c.values || []).length ? c.values[i - r[0]] : '')) }, ptOf(c)));
     S.style = normalStyle(t.style);
@@ -1535,7 +1589,17 @@
       return Object.assign({ text: a.text, side: a.side, size: a.size !== false, sizeText: a.sizeText || '', sym: a.sym || 'arrow', y }, ptOf(a));
     });
     S.labels = (t.labels || []).map(x => Object.assign(
-      { text: x.text || '', pos: x.pos || 'left', at: atOf(x.at) }, ptOf(x)));
+      { text: x.text || '', pos: x.pos || 'left', at: atOf(x.at), angle: angleOf(x.angle) }, ptOf(x)));
+    // notes arrive as crop fractions; a style applied to a differently cropped gel still lands sensibly
+    S.notes = (t.notes || []).map(x => Object.assign({
+      text: x.text || '', kind: x.kind === 'arrow' ? 'arrow' : 'text',
+      x: S.crop.x + Math.min(1, Math.max(0, +x.fx || 0)) * S.crop.w,
+      y: S.crop.y + Math.min(1, Math.max(0, +x.fy || 0)) * S.crop.h,
+      angle: Number.isFinite(+x.angle) ? +x.angle : 0, len: +x.len || 0.12,
+      arrow: x.arrow === true, arrowAngle: Number.isFinite(+x.arrowAngle) ? +x.arrowAngle : -90,
+      arrowLen: +x.arrowLen || 0.18, bg: x.bg === 'white' ? 'white' : 'none', border: x.border === true,
+      align: x.align === 'left' || x.align === 'right' ? x.align : 'center'
+    }, ptOf(x)));
     const mb = (S.markers[0] || { bands: [] }).bands.filter(k => k.matched);
     S.brackets = (t.brackets || []).map(b => {
       const y1 = mb.length >= 2 ? predictY(b.bp1, mb) : null, y2 = mb.length >= 2 ? predictY(b.bp2, mb) : null;
@@ -1553,9 +1617,19 @@
   }
   function unb64(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
   async function gz(text, inflate) {
-    if (typeof CompressionStream === 'undefined') return null;
-    const stream = new Blob([text]).stream().pipeThrough(inflate ? new DecompressionStream('gzip') : new CompressionStream('gzip'));
-    return new Response(stream)[inflate ? 'text' : 'blob']();
+    const Ctor = inflate ? G.DecompressionStream : G.CompressionStream;
+    if (typeof Ctor === 'undefined') {
+      // Saving falls back to plain JSON; opening a gzip project has no fallback, so say why.
+      if (!inflate) return null;
+      throw new Error(L('这个浏览器版本解不开压缩的项目文件，请升级 Safari，或改用未压缩的 .json 项目文件',
+        'This browser cannot decompress project files. Update Safari, or open an uncompressed .json project.'));
+    }
+    try {
+      return await new Response(new Blob([text]).stream().pipeThrough(new Ctor('gzip')))[inflate ? 'text' : 'blob']();
+    } catch (err) {
+      if (!inflate) return null;
+      throw new Error(L('项目文件解压失败，文件可能已损坏', 'The project file could not be decompressed; it may be damaged'));
+    }
   }
   App.projectData = function () {
     const S = App.S;
@@ -1598,7 +1672,7 @@
     App.S.style = normalStyle(App.S.style);
     // Old projects were displayed in grayscale; reopening must not silently change their appearance.
     App.S.displayMode = App.S.displayMode === 'colour' && App.hasColour() ? 'colour' : 'gray';
-    ['boxes', 'brackets', 'labels'].forEach(k => { if (!Array.isArray(App.S[k])) App.S[k] = []; });   // older projects
+    ['boxes', 'brackets', 'labels', 'notes'].forEach(k => { if (!Array.isArray(App.S[k])) App.S[k] = []; });   // older projects
     // projects made before protein mode existed carry no gelType: take it from the marker ladder
     if (App.S.gelType !== 'dna' && App.S.gelType !== 'protein') {
       const l = (App.S.markers[0] || {}).ladderId && G.Ladders.get(App.S.markers[0].ladderId);
@@ -1606,11 +1680,14 @@
     }
     App.gelDetection = { kind: App.S.gelType, confidence: 1, reasons: [], manual: true };
     App._colorStats = input.img.colorStats || null;
-    if (App.S.markers.some(m => m.unit === 'bp' || m.unit === 'kb' || m.unit === 'auto') && G.Ladders.kindOf(G.Ladders.get(App.S.markers[0].ladderId)) === 'protein')
+    if (App.S.markers.some(m => /^(bp|kb|auto|bp-inline|kb-inline)$/.test(m.unit)) && G.Ladders.kindOf(G.Ladders.get(App.S.markers[0].ladderId)) === 'protein')
       App.S.markers.forEach(m => { m.unit = 'kDa'; });
+    // a unit the current gel type cannot show (older files, hand-edited projects) falls back to the bare base unit
+    const units = App.gelKind() === 'protein' ? ['kDa', 'kDa-inline', 'none'] : ['bp', 'kb', 'auto', 'bp-inline', 'kb-inline', 'none'];
+    App.S.markers.forEach(m => { if (!units.includes(m.unit)) m.unit = App.sizeUnit(); });
     App.loadWarnings = input.img.warnings || [];
     App.initial = initial || App.snapshot();
-    App.autoRotation = autoRotation != null ? autoRotation : state.rotation;
+    App.autoRotation = autoRotation != null ? autoRotation : state.autoRotation ?? state.rotation;
     App.hist = [App.snapshot()]; App.future = [];
     App.ensureRot();
     App.emit('loaded');

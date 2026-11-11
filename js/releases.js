@@ -1,6 +1,15 @@
 /* Short bilingual release summaries, newest first. Keep the first version equal to App.VERSION.
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
+  {version:'0.6.15',date:'2026-11-11',zh:[
+    '改进桌面 Safari 的编辑高亮和控件显示，统一逐项字重菜单；支持直接粘贴胶图。',
+    'Marker 面板可选逐条单位；新增可拖动的多行文本框、引导箭头和侧边文字自由旋转。',
+    '修复泳道编号导出缺失，并改进可靠匹配后淡蛋白 Marker 条带的恢复。'
+  ],en:[
+    'Desktop Safari editing highlights and controls, consistent per-item font weights, and clipboard image paste.',
+    'Inline marker units, draggable multiline text boxes with leader arrows, and freely rotated side text.',
+    'Lane numbers survive export; faint protein-marker peaks can be recovered after a reliable ladder match.'
+  ]},
   {version:'0.6.14',date:'2026-10-28',zh:[
     '新增整图方向：水平/垂直翻转、顺时针/逆时针 90°，导入后直接摆正。',
     '泳道名紧贴胶图，条件行在其上方；增加条件行不再把 Marker 名称推离图片。',

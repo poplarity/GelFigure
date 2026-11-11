@@ -12,7 +12,12 @@
   const popPositions=new Map();let popDrag=null;
   const current=()=>S()&&S().markers.includes(active)?active:null;
   const index=m=>S().markers.indexOf(m);
-  const size=(bp,m)=>G.Ladders.fmt(bp,m?.unit==='kDa'?'kDa':'bp')+' '+(m?.unit==='kDa'?'kDa':'bp');
+  const size=(bp,m)=>{
+    const u=m?.unit||(App.gelKind()==='protein'?'kDa':'bp');
+    if(G.Ladders.isInlineUnit(u)||u==='auto'||u==='none')return G.Ladders.fmt(bp,u);
+    const k=u==='kDa'?'kDa':u==='kb'?'kb':'bp';
+    return G.Ladders.fmt(bp,u)+' '+k;
+  };
   function closePicker(){endPopDrag(picker);picker.classList.add('hidden');bandTarget=null;}
   function closeLabels(){endPopDrag(labels);labels.classList.add('hidden');labelTarget=null;}
   function close(){active=null;selected=null;card.classList.add('hidden');closePicker();if(App.mode==='marker-band')G.FigEdit.setMode(null);}
@@ -27,15 +32,25 @@
     card.style.maxHeight=Math.max(40,box.height-Math.max(10,top)-bottom-10)+'px';
     return {top,bottom};
   }
-  const layoutObserver=new ResizeObserver(()=>{if(current())layout();});
+  // Safari reports "ResizeObserver loop completed with undelivered notifications" when a callback writes
+  // the very box being observed. Coalescing to the next frame settles in one pass instead of looping.
+  let layoutFrame=0;
+  const layoutObserver=new ResizeObserver(()=>{
+    if(layoutFrame)return;
+    layoutFrame=requestAnimationFrame(()=>{layoutFrame=0;if(current())layout();});
+  });
   [$('editorBox'),$('modeBanner'),$('selBar')].forEach(el=>layoutObserver.observe(el));
   function movePop(pop,x,y,remember=false){
     const v=window.visualViewport,left=(v?.offsetLeft||0)+8,top=(v?.offsetTop||0)+8;
     const width=v?.width||innerWidth,height=v?.height||innerHeight;
-    pop.style.maxWidth=Math.max(1,width-16)+'px';pop.style.maxHeight=Math.max(1,height-16)+'px';
+    const maxW=Math.max(1,width-16)+'px',maxH=Math.max(1,height-16)+'px';
+    if(pop.style.maxWidth!==maxW)pop.style.maxWidth=maxW;
+    if(pop.style.maxHeight!==maxH)pop.style.maxHeight=maxH;
     const r=pop.getBoundingClientRect();
     const pos={x:E.clamp(x,left,Math.max(left,left+width-r.width-16)),y:E.clamp(y,top,Math.max(top,top+height-r.height-16))};
-    pop.style.left=pos.x+'px';pop.style.top=pos.y+'px';
+    // assigning an unchanged value still marks the box dirty and re-fires the observer
+    if(pop.style.left!==pos.x+'px')pop.style.left=pos.x+'px';
+    if(pop.style.top!==pos.y+'px')pop.style.top=pos.y+'px';
     if(remember)popPositions.set(pop,pos);
   }
   function place(pop,rect){
@@ -71,7 +86,11 @@
   window.addEventListener('resize',()=>{endPopDrag();keepPopsVisible();});
   window.visualViewport?.addEventListener('resize',keepPopsVisible);
   window.visualViewport?.addEventListener('scroll',keepPopsVisible);
-  const popObserver=new ResizeObserver(keepPopsVisible);[picker,labels].forEach(pop=>popObserver.observe(pop));
+  let popFrame=0;
+  const popObserver=new ResizeObserver(()=>{
+    if(popFrame)return;
+    popFrame=requestAnimationFrame(()=>{popFrame=0;keepPopsVisible();});
+  });[picker,labels].forEach(pop=>popObserver.observe(pop));
   function diagram(lad,m){
     const ks=lad.sizes,H=Math.max(200,ks.length*18),span=Math.max(1e-6,Math.log(ks[0])-Math.log(ks[ks.length-1]));
     let last=-20;const ys=ks.map(k=>(last=Math.max(10+(Math.log(ks[0])-Math.log(k))/span*H,last+15))),height=ys[ys.length-1]+16;
@@ -133,7 +152,7 @@
     closeLabels();bandTarget={marker:m,state:S()};const lad=G.Ladders.get(m.ladderId);if(!lad)return;
     picker.innerHTML=`<div class="marker-pop-head">${popTitle(L('这条带的大小','Band size'))}<button class="btn sm ghost" id="markerBandClose" aria-label="${L('关闭','Close')}">×</button></div>
       <div class="marker-size-grid">${lad.sizes.map(bp=>`<button data-band-size="${bp}" class="${bp===oldBp?'selected ':''}${(lad.ref||[]).includes(bp)?'reference':''}">${bp}</button>`).join('')}</div>
-      <p class="hint">${L('按所选型号标注；橙色为参考带。','Sizes from the selected ladder; orange = reference bands.')} ${m.unit==='kDa'?'kDa':'bp'}</p>
+      <p class="hint">${L('按所选型号标注；橙色为参考带。','Sizes from the selected ladder; orange = reference bands.')} ${App.gelKind()==='protein'?'kDa':'bp'}</p>
       ${oldBp!=null?`<div class="actions"><button class="btn sm" id="markerBandHide">${L('隐藏标签','Hide label')}</button><button class="btn sm danger" id="markerBandDelete">${L('删除标记','Delete mark')}</button></div>`:''}`;
     const q=G.Editor.toScr(S().lanes[m.lane].x,y),r=$('editor').getBoundingClientRect();place(picker,{right:r.left+q.x,top:r.top+q.y});$('markerBandClose').onclick=closePicker;
     picker.querySelectorAll('[data-band-size]').forEach(b=>b.onclick=()=>placeBand(m,+b.dataset.bandSize,y,oldBp));
@@ -150,15 +169,19 @@
     const m=S()?.markers[mi];if(!m)return;const at=(anchor||$('preview')).getBoundingClientRect();UI.flushPending();closePicker();closeLabels();const bp=m.bands[bi]?.bp;labelTarget={marker:m,state:S(),bp};
     labels.innerHTML=`<div class="marker-pop-head">${popTitle(L('Marker · 泳道','Marker · lane')+' '+(m.lane+1))}<button class="btn sm ghost" id="markerPopClose" aria-label="${L('关闭','Close')}">×</button></div>
       <label class="inline-label">${L('Marker 字号','Marker font')} <input id="markerPopPt" class="num" type="number" min="4" max="14" step="0.5" value="${S().style.markerPt||''}" placeholder="${S().style.fontPt}"> pt</label>
+      ${G.FigEdit.weightField('markerPopWeight', m.weight)}
       ${G.FigEdit.colorField('markerPopColor',m.color,L('此 Marker 颜色','This marker colour'))}
       ${bp!=null?G.FigEdit.colorField('markerBandColor',m.bands[bi].color,L('所选大小颜色','Selected size colour'),L('跟随此 Marker','Follow this marker')):''}
       ${bp!=null?`<div class="marker-selected-actions"><b>${esc(size(bp,m))}</b><button class="btn sm" id="markerHideOne">${L('隐藏标签','Hide label')}</button><button class="btn sm danger" id="markerDeleteOne">${L('删除标记','Delete mark')}</button></div>`:''}
-      <div class="marker-pop-options"><label>${L('单位','Unit')}<select id="markerPopUnit">${(App.gelKind()==='protein'?['kDa']:['bp','kb','auto']).map(u=>`<option value="${u}">${u==='auto'?'bp / kb':u}</option>`).join('')}</select></label><label>${L('标签位置','Label side')}<select id="markerPopSide"><option value="auto">${L('自动','Auto')}</option><option value="left">${L('左','Left')}</option><option value="right">${L('右','Right')}</option></select></label></div>
+      <div class="marker-pop-options"><label>${L('单位','Unit')}<select id="markerPopUnit">${(App.gelKind()==='protein'
+        ?[['kDa',L('kDa（表头）','kDa (header)')],['kDa-inline',L('55 kDa（每个数字带单位）','55 kDa (unit on each)')],['none',L('不显示单位','No unit')]]
+        :[['bp',L('bp（表头）','bp (header)')],['kb',L('kb（表头）','kb (header)')],['auto',L('bp / kb 自动','bp / kb auto')],['bp-inline',L('5000 bp（每个数字带单位）','5000 bp (unit on each)')],['kb-inline',L('5 kb（每个数字带单位）','5 kb (unit on each)')],['none',L('不显示单位','No unit')]]).map(([u,t])=>`<option value="${u}">${t}</option>`).join('')}</select></label><label>${L('标签位置','Label side')}<select id="markerPopSide"><option value="auto">${L('自动','Auto')}</option><option value="left">${L('左','Left')}</option><option value="right">${L('右','Right')}</option></select></label></div>
       <p class="hint">${L('勾选只控制显示，隐藏仍保留校准；删除会移除该定位点。','Visibility keeps calibration; Delete removes the anchor too.')}</p>
       <div class="marker-pop-bands">${m.bands.map(b=>`<label class="switch"><input type="checkbox" data-visible-size="${b.bp}" ${b.show?'checked':''} ${b.excluded?'disabled':''}>${esc(G.Ladders.fmt(b.bp,m.unit))}</label>`).join('')}</div>
       <div class="actions"><button class="btn sm" id="markerPopGuide">${L('定位条带 / 图例','Locate bands / reference')}</button><button class="btn sm danger" id="markerRemoveLane">${L('取消此 Marker','Remove marker role')}</button></div>`;
-    place(labels,at);$('markerPopClose').onclick=closeLabels;$('markerPopUnit').value=m.unit;$('markerPopSide').value=m.side;
+    place(labels,at);$('markerPopClose').onclick=closeLabels;$('markerPopUnit').value=m.unit;$('markerPopSide').value=m.side;$('markerPopWeight').value=String(m.weight||400);
     $('markerPopPt').onchange=e=>{S().style.markerPt=e.target.value===''?null:E.clamp(+e.target.value||7,4,14);App.commit();};
+    $('markerPopWeight').onchange=e=>{const w=+e.target.value;if(w===400)delete m.weight;else m.weight=w;App.commit();};
     G.FigEdit.bindColor('markerPopColor',m,true);
     if(bp!=null)G.FigEdit.bindColor('markerBandColor',()=>m.bands.find(b=>b.bp===bp),true);
     $('markerPopUnit').onchange=e=>{m.unit=e.target.value;App.commit();};$('markerPopSide').onchange=e=>{m.side=e.target.value;App.commit();};

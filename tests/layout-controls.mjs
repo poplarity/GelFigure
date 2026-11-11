@@ -21,6 +21,68 @@ export async function layoutControlChecks(browser,base,root,engine){
       }
       await p.screenshot({path:path.join(dir,'header-901.png')});await p.setViewportSize({width:1440,height:960});
     });
+    await check('selects are field height and draw their own arrow, not the engine default',async()=>{
+      // Safari's native select ignores padding and lands ~10px shorter than the input beside it.
+      const r=await p.evaluate(()=>{
+        const vis=e=>{const b=e.getBoundingClientRect();return b.width>4&&b.height>4&&getComputedStyle(e).visibility!=='hidden';};
+        const selects=[...document.querySelectorAll('select')].filter(vis).map(e=>{
+          const cs=getComputedStyle(e);return {id:e.id,appearance:cs.appearance,arrow:cs.backgroundImage!=='none',h:+e.getBoundingClientRect().height.toFixed(1),pr:parseFloat(cs.paddingRight)};
+        });
+        const fields=[...document.querySelectorAll('input[type=text],input[type=number]')].filter(vis).map(e=>+e.getBoundingClientRect().height.toFixed(1));
+        return {selects,fields,dpi:document.getElementById('dpiTop')?document.getElementById('dpiTop').getBoundingClientRect().height:0};
+      });
+      assert(r.selects.length>=1,JSON.stringify(r));
+      for(const s of r.selects){assert.equal(s.appearance,'none',`${s.id||'select'} still uses the native appearance`);assert(s.arrow,`${s.id||'select'} has no drawn arrow`);assert(s.pr>=20,`${s.id||'select'} leaves no room for the arrow (${s.pr}px)`);}
+      if(r.fields.length){const ref=Math.max(...r.fields);for(const s of r.selects)assert(Math.abs(s.h-ref)<=2,`select ${s.h}px vs field ${ref}px`);}
+      assert(r.dpi>=28,`top-bar dpi select is ${r.dpi}px tall`);
+    });
+    await check('hover and edit highlight paint the glyph in every engine, and never reach an export',async()=>{
+      // Safari renders nothing for CSS drop-shadow() on an inline SVG group; the highlight is an SVG
+      // filter, so this asserts actual pixels rather than the computed style.
+      const blue=async clip=>{
+        const shot=await p.screenshot({clip});
+        return p.evaluate(async b64=>{
+          const img=new Image();img.src='data:image/png;base64,'+b64;await img.decode();
+          const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);
+          const d=x.getImageData(0,0,c.width,c.height).data;let n=0;
+          for(let i=0;i<d.length;i+=4) if(d[i+2]-d[i]>40&&d[i+2]>120) n++;
+          return n;
+        },shot.toString('base64'));
+      };
+      // A figure that re-renders between measuring and pointing replaces the node under the cursor,
+      // so the hover is re-applied to a freshly located element before each reading.
+      const where=()=>p.evaluate(()=>{
+        const gs=[...document.querySelectorAll('#preview [data-edit="lane"]')].filter(e=>{const b=e.getBoundingClientRect();return b.width>6&&b.height>6;});
+        if(!gs.length) return null;const b=gs[0].getBoundingClientRect();
+        return {cx:b.x+b.width/2,cy:b.y+b.height/2,clip:{x:b.x-10,y:b.y-10,width:b.width+20,height:b.height+20}};
+      });
+      const hovered=async()=>{
+        for(let i=0;i<12;i++){
+          const s=await where();if(!s) return null;
+          await p.mouse.move(s.cx,s.cy);
+          if(await p.evaluate(()=>!!document.querySelector('#preview [data-edit="lane"]:hover'))) return s;
+          await p.waitForTimeout(60);
+        }
+        return null;
+      };
+      await p.mouse.move(4,4);await p.waitForTimeout(150);const idleSpot=await where();
+      assert(idleSpot,'no lane name on the figure to hover');
+      const idle=await blue(idleSpot.clip);
+      const spot=await hovered();
+      assert(spot,'the lane name never reported :hover');
+      await p.waitForTimeout(120);const hover=await blue((await where()).clip);
+      assert(hover>idle+20,`hover highlight paints nothing (${idle} -> ${hover} accent pixels)`);
+      await p.evaluate(()=>{const g=[...document.querySelectorAll('#preview [data-edit="lane"]')].find(e=>e.getBoundingClientRect().width>6);g.classList.add('active');});
+      await p.waitForTimeout(150);const active=await blue((await where()).clip);
+      assert(active>idle+20,`edit highlight paints nothing (${idle} -> ${active} accent pixels)`);
+      await p.mouse.move(4,4);await p.evaluate(()=>document.querySelectorAll('#preview .ed.active').forEach(e=>e.classList.remove('active')));
+      const clean=await p.evaluate(async()=>{
+        const saved=App.lastExport||null;const f=App.buildFigure(false);
+        return {exported:/gf-glow/.test(f.svg),preview:/gf-glow/.test(document.getElementById('preview').innerHTML),saved:!!saved};
+      });
+      assert.equal(clean.exported,false,'the glow filter leaked into the exported SVG');
+      assert.equal(clean.preview,true,'the preview carries its own filter definitions');
+    });
     await check('automatic angle retains the existing short/long/narrow lane rules',async()=>{
       const r=await p.evaluate(()=>{
         const S=App.S;S.lanes.forEach(l=>l.name='A');Object.assign(S.style,{labelAngle:'auto',autoWidth:true,mmPerLane:5.5});App.commit();

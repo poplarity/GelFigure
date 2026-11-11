@@ -86,7 +86,7 @@ export async function figureOrderChecks(browser, base, root, engine) {
       });
       assert.deepEqual(r.mirrored.names.slice().reverse(), r.names0, 'mirroring should reverse the lane order and keep every name');
       assert.equal(r.mirrored.markers, r.m0); assert.equal(r.mirrored.lanes, r.n0);
-      assert.deepEqual(r.back, r.names0.slice().reverse(), 'mirroring again returns the lanes to their original left-to-right order');
+      assert.deepEqual(r.back, r.names0, 'mirroring again returns the lanes to their original left-to-right order');
     });
 
     await check('a quarter turn re-detects lanes and keeps the names in order', async () => {

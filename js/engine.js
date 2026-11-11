@@ -770,6 +770,9 @@
     ws.sort((a, b) => a - b);
     return {
       ys: P.map(p => p.y), vs: P.map(p => p.v), X: L.sizes.map(s => Math.log(s)), n: L.sizes.length,
+      // Keep faint detected peaks out of model selection. A reliable protein match may recover an
+      // isolated one at a missing band's predicted position, without letting noise choose a model.
+      weak: L.peaks.filter(p => p.v >= vmax * 0.05 && p.v < vmax * 0.12),
       anchors: L.anchors || [], bandW: ws.length ? ws[ws.length >> 1] : null, pitch: L.pitch || null
     };
   }
@@ -1019,8 +1022,27 @@
     };
   }
 
+  function recoverWeakBands(res, D, h) {
+    const known = res.filter(r => r.matched || r.anchored);
+    if (known.length < 4 || known.length < D.n * 0.6 || !D.weak.length) return;
+    const used = new Set();
+    res.forEach((r, k) => {
+      if (r.matched || r.anchored || r.y < 0 || r.y >= h) return;
+      const gap = Math.min(k ? r.y - res[k - 1].y : Infinity, k + 1 < res.length ? res[k + 1].y - r.y : Infinity);
+      const radius = Math.min(Math.max(2, h * 0.015), gap * 0.25);
+      const nearby = D.weak.filter(p => p.y >= 0 && p.y < h && Math.abs(p.y - r.y) <= radius);
+      // Ambiguous peaks, absent bands and peaks already used by an anchor stay unmatched. Never
+      // refit the curve or move strong/manual matches just to accommodate a faint candidate.
+      if (nearby.length !== 1) return;
+      const p = nearby[0];
+      if (used.has(p) || known.some(q => Math.abs(q.y - p.y) < 2)) return;
+      res[k] = { y: p.y, matched: true }; used.add(p);
+    });
+  }
+
   function finalize(m, D, h, chain, ref, mode) {
     const res = (chain && chainAssign(m, D, h, ref, mode)) || assign(m, D, h, modeTol(mode).assTol, mode).res;
+    if (chain && mode === 'protein') recoverWeakBands(res, D, h);
     const inRange = res.filter(r => r.y >= -2 && r.y <= h + 2).length;
     const nm = res.filter(r => r.matched).length;
     let mono = true;

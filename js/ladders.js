@@ -165,18 +165,71 @@
   }
 
   // number formatting by unit; v is the size in the unit's own base (bp for DNA, kDa for protein).
-  // Like 'kb', 'kDa' is a bare number: the unit goes in the column header (rendered as "(kDa)").
+  // 'bp' / 'kb' / 'kDa' are bare numbers: the unit goes in the column header ("(bp)").
+  // '-inline' variants repeat the unit after every number ("5000 bp", "5 kb", "55 kDa"), which is
+  // how many hand-written marker lists are labelled; those suppress the header.
+  const INLINE_UNITS = ['bp-inline', 'kb-inline', 'kDa-inline'];
+  const isInlineUnit = unit => INLINE_UNITS.includes(unit);
+  const proteinNumber = v => (v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100);
+  const kbNumber = v => (Math.round(v / 100) / 10).toString();
   function fmt(v, unit) {
-    const k = unit === 'kDa' ? 'kDa' : (unit === 'kb' ? 'kb' : 'bp');
-    if (k === 'kDa') return String(v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100);
-    if (k === 'kb') { const kb = v / 1000; return (Math.round(kb * 100) / 100).toString(); }
+    if (unit === 'none') return String(v);
+    const k = unit === 'kDa' || unit === 'kDa-inline' ? 'kDa' : (unit === 'kb' || unit === 'kb-inline' ? 'kb' : 'bp');
+    if (k === 'kDa') return proteinNumber(v) + (unit === 'kDa-inline' ? ' kDa' : '');
+    if (k === 'kb') return kbNumber(v) + (unit === 'kb-inline' ? ' kb' : '');
+    if (unit === 'bp-inline') return v + ' bp';
     if (unit === 'auto') return v >= 1000 ? (Math.round(v / 10) / 100) + ' kb' : v + ' bp';
     return String(v);
   }
 
+  /* Band-size entry as people actually write it: "5000bp, 3000bp", "5 kb / 1.5kb", "100 kDa".
+   * Units may be attached or spaced; kb is converted to bp for storage. With no unit at all the
+   * gel's own base unit is assumed. Mistakes are reported in words rather than saved as NaN. */
+  function parseSizes(text, defaultKind) {
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) throw new Error(G.L('请输入条带大小，例如 5000bp, 3000bp', 'Enter band sizes, e.g. 5000bp, 3000bp'));
+    const chunks = raw.split(/[,，;；、+\n\/／|]+/).map(t => t.trim()).filter(Boolean);
+    // Join only a recognised unit to its preceding number; bare runs remain separate sizes.
+    const tokens = [];
+    for (const ch of chunks) {
+      const words = ch.split(/\s+/).filter(Boolean);
+      for (let i = 0; i < words.length; i++) {
+        if (/^[0-9]*\.?[0-9]+$/.test(words[i]) && /^(kbp|kb|bp|kda|kd|da|k)$/i.test(words[i + 1] || '')) tokens.push(words[i] + words[++i]);
+        else tokens.push(words[i]);
+      }
+    }
+    const nums = [], bad = [];
+    for (const tok of tokens) {
+      const m = tok.match(/^([0-9]*\.?[0-9]+)\s*(kbp|kb|bp|kda|kd|da|k)?$/i);
+      if (!m) { bad.push(tok); continue; }
+      const v = Number(m[1]), u = (m[2] || '').toLowerCase();
+      if (!Number.isFinite(v) || v <= 0) { bad.push(tok); continue; }
+      const unit = u === 'kb' || u === 'kbp' || u === 'k' ? 'kb' : u === 'bp' ? 'bp' : u === 'kda' || u === 'kd' ? 'kDa' : u === 'da' ? 'Da' : '';
+      nums.push({ v: unit === 'kb' ? v * 1000 : unit === 'Da' ? v / 1000 : v, unit });
+    }
+    if (bad.length) throw new Error(G.L(`无法识别：${bad.join('、')}。可用写法：5000、5000bp、5kb、100kDa`, `Could not read: ${bad.join(', ')}. Use 5000, 5000bp, 5kb or 100kDa`));
+    if (nums.length < 2) throw new Error(G.L('至少需要 2 个条带大小', 'At least 2 band sizes are needed'));
+    const explicitDna = nums.some(n => n.unit === 'bp' || n.unit === 'kb'), explicitProtein = nums.some(n => n.unit === 'kDa' || n.unit === 'Da');
+    // a bare number follows the current gel type, so it never turns a protein gel into a mix
+    const bare = nums.some(n => !n.unit);
+    const dna = explicitDna || (bare && defaultKind !== 'protein'), protein = explicitProtein || (bare && defaultKind === 'protein');
+    if (dna && protein) throw new Error(G.L('bp 和 kDa 不能混用：DNA 胶用 bp/kb，蛋白胶用 kDa', 'Do not mix bp and kDa: use bp/kb for DNA gels and kDa for protein gels'));
+    const kind = protein ? 'protein' : dna ? 'dna' : (defaultKind === 'protein' ? 'protein' : 'dna');
+    const want = defaultKind === 'protein' ? 'protein' : 'dna';
+    if ((dna || protein) && kind !== want) throw new Error(want === 'protein'
+      ? G.L('输入的是 bp/kb，但当前是蛋白胶；请先在第 1 步切换到 DNA 胶', 'Those are bp/kb sizes but this is a protein gel; switch to DNA in step 1 first')
+      : G.L('输入的是 kDa，但当前是 DNA 胶；请先在第 1 步切换到蛋白胶', 'Those are kDa sizes but this is a DNA gel; switch to protein in step 1 first'));
+    const sizes = [...new Set(nums.map(n => n.v))].sort((a, b) => b - a);
+    if (sizes.length < 2) throw new Error(G.L('至少需要 2 个不同的条带大小', 'At least 2 distinct band sizes are needed'));
+    if (sizes.length > 100) throw new Error(G.L('最多 100 条带', 'At most 100 bands'));
+    // remember how it was written: a list typed entirely in kb is offered back as kb
+    const unit = protein ? 'kDa' : nums.every(n => n.unit === 'kb') ? 'kb' : 'bp';
+    return { sizes, kind, unit, count: sizes.length };
+  }
+
   G.Ladders = {
     all, get, saveCustom, importDef, removeCustom, defsFor, favorites, favoritesOf, setFavorites,
-    isFavorite, toggleFavorite, ordered, fmt, kindOf, unitOf, unitOfKind,
+    isFavorite, toggleFavorite, ordered, fmt, parseSizes, isInlineUnit, INLINE_UNITS, kindOf, unitOf, unitOfKind,
     ready, flush:()=>cache.flush(), backup, importLibrary, get cacheStatus(){return cache.status;}
   };
 })(window);

@@ -113,6 +113,30 @@
     e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
     if (e.dataTransfer.files.length) load(e.dataTransfer.files);
   });
+  // Paste an image straight into the drop zone (⌘V / Ctrl+V after a screenshot or "Copy image").
+  // Text fields keep their normal paste; a copied project or plain text is left alone.
+  function pasteName(f, i) {
+    const ext = (f.type.split('/')[1] || 'png').replace('svg+xml', 'svg').replace('jpeg', 'jpg').replace('tiff', 'tif');
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `pasted_gel_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}${i ? '_' + (i + 1) : ''}.${ext}`;
+  }
+  window.addEventListener('paste', e => {
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    const dt = e.clipboardData;
+    if (!dt) return;
+    let files = [];
+    for (const it of dt.items || []) {
+      if (it.kind !== 'file' || !/^image\//.test(it.type)) continue;
+      const f = it.getAsFile(); if (f) files.push(f);
+    }
+    // Safari exposes copied images only through files, and always with an empty type in some versions
+    if (!files.length) files = [...(dt.files || [])].filter(f => /^(image\/|$)/.test(f.type));
+    if (!files.length) return;
+    e.preventDefault();
+    load(files.map((f, i) => f.name ? f : new File([f], pasteName(f, i), { type: f.type || 'image/png' })));
+    toast(L('已粘贴图片', 'Image pasted'));
+  });
 
   /* ---------- draft restore (offered on the start screen) ---------- */
   async function offerDraft() {
@@ -465,19 +489,42 @@
     toast(n ? L(`找到 ${n} 个 Marker 泳道`, `Found ${n} marker lane${n > 1 ? 's' : ''}`) : L('出图范围内没找到明显的 Marker 泳道', 'No clear marker lane in the figure range'));
   });
   $('btnAddMarker').onclick = () => { if (S()) G.MarkerUI.pickLane(); };
+  // live feedback for the size field: people paste "5000bp, 3000bp" straight from their notes
+  function customParse() {
+    if (!S()) return null;
+    const el = $('customParse'), text = $('customSizes').value.trim();
+    if (!text) { el.textContent = ''; el.classList.remove('warn-text'); return null; }
+    try {
+      const r = G.Ladders.parseSizes(text, App.gelKind());
+      el.classList.remove('warn-text');
+      el.textContent = L(`识别到 ${r.count} 条带（${r.unit}）：`, `Read ${r.count} bands (${r.unit}): `) + r.sizes.map(v => G.Ladders.fmt(v, r.unit + '-inline')).join(', ');
+      return r;
+    } catch (e) {
+      el.classList.add('warn-text'); el.textContent = e.message; return null;
+    }
+  }
+  $('customSizes').addEventListener('input', customParse);
   $('btnSaveLadder').onclick = async () => {
     const name = $('customName').value.trim();
-    const sizes = $('customSizes').value.trim().split(/[,，\s]+/).map(Number),state=S(),kind=App.gelKind();
+    const state = S(), kind = App.gelKind();
+    let parsed;
+    try { parsed = G.Ladders.parseSizes($('customSizes').value, kind); }
+    catch (e) { $('customParse').classList.add('warn-text'); $('customParse').textContent = e.message; toast(e.message, 4500); return; }
     $('btnSaveLadder').disabled=true;
     try{
-      await G.Ladders.ready;const lad=G.Ladders.saveCustom(name,sizes,kind);
+      await G.Ladders.ready;const lad=G.Ladders.saveCustom(name,parsed.sizes,kind);
       if(!G.Ladders.isFavorite(lad.id))G.Ladders.toggleFavorite(lad.id);
       if(state&&state===S()&&state.markers.length){const m=state.markers[0];m.ladderId=lad.id;m.bands=[];m.ladderLocked=true;App.alignMarker(0);App.commit();}
       renderFavs();const saved=await G.Ladders.flush();
+      $('customSizes').value='';$('customParse').textContent='';
       toast(saved?L('Marker 已存入本机库并加入常用，下次打开仍可选择','Marker saved locally and added to favourites; available next time'):
         L('Marker 本次可用，但未能存入本机；请点“备份 Marker 库”保存','Marker available for this session but not cached; use Back up marker library'),saved?3200:6500);
     }catch(e){toast(e.message,4500);}finally{$('btnSaveLadder').disabled=false;}
   };
+  $('btnMarkerLib').onclick = () => $('markerLibDlg').classList.remove('hidden');
+  $('btnMarkerLibClose').onclick = () => $('markerLibDlg').classList.add('hidden');
+  $('btnMarkerLibDone').onclick = () => $('markerLibDlg').classList.add('hidden');
+  $('markerLibDlg').addEventListener('click', e => { if (e.target === $('markerLibDlg')) $('markerLibDlg').classList.add('hidden'); });
   $('btnBackupLadders').onclick=async()=>{await G.Ladders.ready;G.Export.download(new Blob([JSON.stringify(G.Ladders.backup(),null,2)],{type:'application/json'}),'GelFigure_markers.json');};
   $('btnImportLadders').onclick=()=>$('ladderLibraryInput').click();
   $('ladderLibraryInput').onchange=async e=>{
@@ -566,8 +613,8 @@
         <div class="row2">
           <select data-f="side"><option value="auto">${L('标签：自动分侧', 'Labels: auto side')}</option><option value="left">${L('标签在左', 'Labels left')}</option><option value="right">${L('标签在右', 'Labels right')}</option></select>
           <select data-f="unit">${App.gelKind() === 'protein'
-            ? `<option value="kDa">kDa</option>`
-            : `<option value="bp">bp</option><option value="kb">kb</option><option value="auto">bp/kb</option>`}</select>
+            ? `<option value="kDa">${L('kDa（表头）', 'kDa (header)')}</option><option value="kDa-inline">${L('55 kDa（每个数字带单位）', '55 kDa (unit on each)')}</option>`
+            : `<option value="bp">${L('bp（表头）', 'bp (header)')}</option><option value="kb">${L('kb（表头）', 'kb (header)')}</option><option value="auto">${L('bp / kb 自动', 'bp / kb auto')}</option><option value="bp-inline">${L('5000 bp（每个数字带单位）', '5000 bp (unit on each)')}</option><option value="kb-inline">${L('5 kb（每个数字带单位）', '5 kb (unit on each)')}</option>`}</select>
         </div>
         <details class="adv" data-lane="${m.lane}"${openWas.has(String(m.lane)) ? ' open' : ''}><summary>${L(`条带（显示 ${shown}/${m.bands.length}）`, `Bands (${shown}/${m.bands.length} shown)`)}</summary>
           <div class="list">${m.bands.map((b, k) => `<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" ${b.show ? 'checked' : ''} ${b.excluded ? 'disabled' : ''}></label>
@@ -634,7 +681,7 @@
       <button class="btn sm ghost" data-aed="${k}" style="flex:1;justify-content:flex-start">${{ star: '* ', hash: '# ', dagger: '† ' }[a.sym] || ''}${esc(App.arrowLabel(a) || L('（未命名）', '(unnamed)'))}</button><button class="x" data-adel="${k}" title="${L('删除', 'Delete')}" aria-label="${L('删除', 'Delete')}">×</button></div>`));
     st.conditions.forEach((c, r) => rows.push(`<div class="item"><span class="kind">${L('条件', 'Condition')}</span>
       <input type="text" data-c="${r}" value="${esc(c.name)}" placeholder="${L('条件名，如 EcoRI', 'Condition, e.g. EcoRI')}"><button class="x" data-cdel="${r}">×</button></div>`));
-    const KIND = { box: L('区域框', 'Box'), bracket: L('括号', 'Bracket'), label: L('文字', 'Text') };
+    const KIND = { box: L('区域框', 'Box'), bracket: L('括号', 'Bracket'), label: L('文字', 'Text'), note: L('胶内', 'In-gel') };
     const POS = { left: L('左侧', 'left'), right: L('右侧', 'right'), below: L('下方', 'below') };
     // where along the gel edge the text sits; only worth showing once it is off centre
     const atNote = t => {
@@ -649,7 +696,14 @@
     };
     (st.boxes || []).forEach((b, k) => rows.push(qrow('box', k, b.text, b.zoom >= 2 ? L(`放大 ×${b.zoom}`, `×${b.zoom} inset`) : '')));
     (st.brackets || []).forEach((b, k) => rows.push(qrow('bracket', k, b.text, '')));
-    (st.labels || []).forEach((t, k) => rows.push(qrow('label', k, t.text, [POS[t.pos] || '', atNote(t)].filter(Boolean).join(' · '))));
+    (st.labels || []).forEach((t, k) => rows.push(qrow('label', k, t.text, [POS[t.pos] || '', atNote(t), Number.isFinite(+t.angle) ? `${Math.round(+t.angle)}°` : ''].filter(Boolean).join(' · '))));
+    (st.notes || []).forEach((n, k) => {
+      const legacy = n.kind === 'arrow';
+      const label = n.text || (legacy ? L('箭头', 'Arrow') : L('文本框', 'Text box'));
+      const note = legacy ? L('箭头', 'arrow')
+        : [L('文本框', 'text box'), n.arrow ? L('带箭头', 'with arrow') : ''].filter(Boolean).join(' · ');
+      rows.push(qrow('note', k, label, note));
+    });
     const box = $('annoList');
     box.innerHTML = rows.join('');
     // a one-line field: line breaks of a group label show as ↵ and come back as breaks
@@ -699,7 +753,7 @@
     const value=G.Render.labelAngle(e.target.value);e.target.value=value;setAngle(value,true);
   });
   $('laneAngleNumber').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();e.target.blur();}});
-  ['unitHeader', 'laneNumbers', 'frame', 'groupTicks', 'laneNamesAboveConditions'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
+  ['laneNumbers', 'frame', 'groupTicks', 'laneNamesAboveConditions'].forEach(id => $(id).addEventListener('change', done(e => { S().style[id] = e.target.checked; })));
   $('panelLetter').addEventListener('change', done(e => { S().style.panelLetter = e.target.value.trim(); }));
   $('laneNumberMode').addEventListener('change', done(e => { S().style.laneNumberMode = e.target.value; }));
   // journal column width = total figure width (labels included): solve for the gel width
@@ -809,8 +863,7 @@
     ['lanePt', 'markerPt'].forEach(id => { $(id).value = y[id] || ''; $(id).placeholder = y.fontPt; });
     $('groupFit').value = y.groupFit || 'wrap'; $('minFontPt').value = y.minFontPt || 5;
     $('minFontRow').classList.toggle('hidden', (y.groupFit || 'wrap') !== 'shrink');
-    ['unitHeader', 'laneNumbers', 'frame', 'groupTicks', 'laneNamesAboveConditions'].forEach(id => { $(id).checked = !!y[id]; });
-    $('unitHeaderLbl').textContent = L(`Marker 单位 (${App.sizeUnit()})`, `Marker units (${App.sizeUnit()})`);
+    ['laneNumbers', 'frame', 'groupTicks', 'laneNamesAboveConditions'].forEach(id => { $(id).checked = !!y[id]; });
     $('panelLetter').value = y.panelLetter || '';
     $('dpiTop').value = String(y.dpi);
     $('stLayout').textContent = `${App.gelWidthMm()} mm · ${y.fontPt} pt`;
@@ -854,6 +907,17 @@
     if (now - lastLive >= gap) { lastLive = now; updatePreview(); }
     else liveTimer = setTimeout(() => { lastLive = performance.now(); updatePreview(); }, gap);
   }
+  // Safari draws nothing for a CSS drop-shadow() on an inline SVG group, so the edit highlight is an SVG
+  // filter instead. It lives here, in the preview markup only: exported files must not carry it.
+  // The region is a percentage of the element's box, so a thin arrow still gets its glow.
+  const GLOW_DEFS = '<defs>'
+    + '<filter id="gf-glow-hover" x="-30%" y="-30%" width="160%" height="160%">'
+    + '<feDropShadow dx="0" dy="0" stdDeviation=".6" flood-color="#2f6feb"/>'
+    + '<feDropShadow dx="0" dy="0" stdDeviation=".6" flood-color="#2f6feb"/></filter>'
+    + '<filter id="gf-glow-active" x="-30%" y="-30%" width="160%" height="160%">'
+    + '<feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#2f6feb"/>'
+    + '<feDropShadow dx="0" dy="0" stdDeviation="1" flood-color="#2f6feb"/></filter>'
+    + '</defs>';
   function updatePreview() {
     const st = S();
     let f;
@@ -862,6 +926,7 @@
     buildMs = buildMs ? buildMs * 0.6 + (performance.now() - t0) * 0.4 : performance.now() - t0;
     lastFig = f;
     $('preview').innerHTML = f.svg;
+    $('preview').querySelector('svg')?.insertAdjacentHTML('afterbegin', GLOW_DEFS);
     const svg = $('preview').querySelector('svg'), box = $('previewBox').getBoundingClientRect();
     const pad = 2 * (parseFloat(getComputedStyle($('preview')).paddingLeft) || 24);
     const k = Math.max(0.5, Math.min((box.width - pad) / f.w, (box.height - pad) / f.h, 4)) * figZoom;

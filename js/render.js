@@ -19,6 +19,11 @@
   const annotationColor = (value, fallback = '#000') => value === 'red' ? '#d32f2f' : fallback;
 
   const mctx = document.createElement('canvas').getContext('2d');
+  // Font weight: 400 / 500 / 600 / 700 depending on whether the face has them; browsers synthesise
+  // the rest. `true` / `false` are the older bold flag and still mean 700 / 400.
+  const WEIGHTS = [400, 500, 600, 700];
+  const weightOf = w => w === true ? 700 : w === false || w == null || w === '' ? 400 : WEIGHTS.includes(+w) ? +w : 400;
+  const weightAttr = w => { const n = weightOf(w); return n === 400 ? '' : ` font-weight="${n}"`; };
   // label markup: *italic* segments
   function parseRuns(text) {
     const parts = String(text).split('*');
@@ -27,7 +32,7 @@
   function measureText(text, pt, bold, family) {
     let w = 0;
     for (const r of parseRuns(text)) {
-      mctx.font = `${r.it ? 'italic ' : ''}${bold ? 'bold ' : ''}${pt * 4}px ${fontStack(family)}`;
+      mctx.font = `${r.it ? 'italic ' : ''}${weightOf(bold)} ${pt * 4}px ${fontStack(family)}`;
       w += mctx.measureText(r.t).width / 4;
     }
     return w;
@@ -35,46 +40,48 @@
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   const PH_FILL = '#b4bcc6';   // grey placeholders in the preview (never exported)
   let usedMin = Infinity;      // smallest font size actually printed in the current build (pre-flight check)
-  function textEl(text, x, y, pt, anchor, extra) {
+  let curWeight = 400;         // figure-wide weight, set by build(); per-item weights override it
+  function textEl(text, x, y, pt, anchor, extra, weight) {
     const runs = parseRuns(text).map(r => r.it ? `<tspan font-style="italic">${esc(r.t)}</tspan>` : esc(r.t)).join('');
     if (!(extra || '').includes(PH_FILL) && String(text).trim()) usedMin = Math.min(usedMin, pt);
-    return `<text x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${extra || ''}>${runs}</text>`;
+    return `<text x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${weightAttr(weight == null ? curWeight : weight)}${extra || ''}>${runs}</text>`;
   }
-  function nameMetrics(lane,pt,family,italic){
+  function nameMetrics(lane,pt,family,italic,weight){
+    const wt=weightOf(weight==null?curWeight:weight);
     let width=0,ascent=0,descent=0,left=0,right=0;
     const runs=G.NameText.runs(lane).map(r=>{
       const size=r.script?pt*.72:pt,shift=r.script==='sup'?-pt*.4:r.script==='sub'?pt*.22:0,it=r.italic??italic;
-      mctx.font=`${it?'italic ':''}${size*4}px ${fontStack(family)}`;const m=mctx.measureText(r.text),w=m.width/4;
+      mctx.font=`${it?'italic ':''}${wt} ${size*4}px ${fontStack(family)}`;const m=mctx.measureText(r.text),w=m.width/4;
       left=Math.min(left,width-(m.actualBoundingBoxLeft||0)/4);right=Math.max(right,width+(m.actualBoundingBoxRight||m.width)/4);
       ascent=Math.max(ascent,(m.actualBoundingBoxAscent||size*4*.85)/4-shift);
       descent=Math.max(descent,(m.actualBoundingBoxDescent||0)/4+shift);width+=w;
       return {...r,pt:size,shift,italic:it};
     });return {runs,width,ascent,descent,left,right:Math.max(right,width)};
   }
-  function nameTextEl(metrics,x,y,pt,anchor,extra){
+  function nameTextEl(metrics,x,y,pt,anchor,extra,weight){
     let prev=0;
     const text=metrics.runs.map(r=>{
       const dy=r.shift-prev;prev=r.shift;usedMin=Math.min(usedMin,r.pt);
       // dy keeps one horizontal text chunk/anchor. PPTX uses the semantic baseline offset too.
       return `<tspan font-size="${f(r.pt)}" font-style="${r.italic?'italic':'normal'}"${r.color==='red'?' fill="'+annotationColor(r.color)+'"':''} dy="${f(dy)}" data-name-baseline="${f(-r.shift)}">${esc(r.text)}</tspan>`;
     }).join('');
-    return `<text data-lane-name="1" x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${extra||''}>${text}</text>`;
+    return `<text data-lane-name="1" x="${f(x)}" y="${f(y)}" font-size="${f(pt)}" text-anchor="${anchor}"${weightAttr(weight == null ? curWeight : weight)}${extra||''}>${text}</text>`;
   }
   function f(v) { return (Math.round(v * 100) / 100).toString(); }
 
   // ---- multi-line labels ----
   const LEAD = 1.18;   // line spacing, × font size
   // several lines whose last baseline is y (they stack upwards from the line they label)
-  function textLines(lines, x, y, pt, anchor, extra) {
+  function textLines(lines, x, y, pt, anchor, extra, weight) {
     // Keep the semantic paragraph for editable exports; this group has no visual effect in SVG.
-    return '<g data-pptx-lines="1">' + lines.map((t, i) => textEl(t, x, y - (lines.length - 1 - i) * pt * LEAD, pt, anchor, extra)).join('') + '</g>';
+    return '<g data-pptx-lines="1">' + lines.map((t, i) => textEl(t, x, y - (lines.length - 1 - i) * pt * LEAD, pt, anchor, extra, weight)).join('') + '</g>';
   }
   /* Break a label into lines no wider than maxW (pt). Typed line breaks (\n) are kept. Chinese /
    * Japanese characters may break anywhere, other words after a space, "-" or "/". *italic* runs are
    * closed at the end of a line and reopened on the next, so every line renders on its own. */
   const CJK = '\\u2E80-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF\\u3000-\\u303F';
   const TOKENS = new RegExp(`\\*|[${CJK}]|\\s+|[^\\s*${CJK}]+?[-/]|[^\\s*${CJK}]+`, 'g');
-  function wrapText(text, pt, maxW, family) {
+  function wrapText(text, pt, maxW, family, weight) {
     const out = [];
     let it = false;
     String(text).split('\n').forEach(par => {
@@ -82,7 +89,7 @@
       const line = (s, endIt) => (startIt ? '*' : '') + s.replace(/\s+$/, '') + (endIt ? '*' : '');
       for (const t of par.match(TOKENS) || []) {
         if (t === '*') { cur += t; it = !it; continue; }
-        if (cur.trim() && measureText(line(cur + t, it), pt, false, family) > maxW) {
+        if (cur.trim() && measureText(line(cur + t, it), pt, weight, family) > maxW) {
           out.push(line(cur, it));
           startIt = it;
           cur = /^\s+$/.test(t) ? '' : t;
@@ -93,12 +100,12 @@
     return out.filter((l, i, a) => l.replace(/\*/g, '').trim() || a.length === 1);
   }
   // as few lines as wrapText needs, but evened out: "仕达酱 / 离开" rather than "仕达酱离 / 开"
-  function balancedWrap(text, pt, maxW, family) {
-    const first = wrapText(text, pt, maxW, family);
+  function balancedWrap(text, pt, maxW, family, weight) {
+    const first = wrapText(text, pt, maxW, family, weight);
     if (first.length < 2) return first;
     let lo = maxW * 0.2, hi = maxW, best = first;
     for (let i = 0; i < 14; i++) {
-      const mid = (lo + hi) / 2, l = wrapText(text, pt, mid, family);
+      const mid = (lo + hi) / 2, l = wrapText(text, pt, mid, family, weight);
       if (l.length <= first.length) { hi = mid; best = l; } else lo = mid;
     }
     return best;
@@ -191,12 +198,14 @@
     usedMin = Infinity;
     // per-item sizes: an item's own pt wins, then the row-wide size (lane names, marker labels), then the figure font
     const st = S.style, pt = st.fontPt, lw = st.lineWidthPt;
+    curWeight = 400;   // legacy global weight is ignored; every item carries its own weight
     const family = fontName(st.fontFamily), FONT = fontStack(family);
-    const measure = (text, size, bold) => measureText(text, size, bold, family);
-    const vertical = (text, size) => {
+    const measure = (text, size, weight) => measureText(text, size, weight == null ? curWeight : weight, family);
+    const vertical = (text, size, weight) => {
+      const wt = weightOf(weight == null ? curWeight : weight);
       let ascent = 0, descent = 0;
       for (const r of parseRuns(text)) {
-        mctx.font = `${r.it ? 'italic ' : ''}${size * 4}px ${FONT}`;
+        mctx.font = `${r.it ? 'italic ' : ''}${wt} ${size * 4}px ${FONT}`;
         const m = mctx.measureText(r.t);
         ascent = Math.max(ascent, Number.isFinite(m.fontBoundingBoxAscent) ? m.fontBoundingBoxAscent / 4 : Math.max((m.actualBoundingBoxAscent || 0) / 4, size * 0.85));
         descent = Math.max(descent, Number.isFinite(m.fontBoundingBoxDescent) ? m.fontBoundingBoxDescent / 4 : Math.max((m.actualBoundingBoxDescent || 0) / 4, size * 0.45));
@@ -240,7 +249,8 @@
       if (markers[1].side === 'auto') sides[1] = 'right';
     }
     const shownBands = mk => mk.bands.filter(b => b.show && b.y != null && b.y >= 0 && b.y <= Hpx);
-    const unitMarkers = st.unitHeader ? markers.filter(mk => mk.unit !== 'auto' && shownBands(mk).length) : [];
+    // Inline units ("5000 bp") carry the unit on every number, so they must not also print a header
+    const unitMarkers = markers.filter(mk => mk.unit !== 'auto' && mk.unit !== 'none' && !G.Ladders.isInlineUnit(mk.unit) && shownBands(mk).length);
     const hasUnits = unitMarkers.length > 0;
     const firstBandY = hasUnits ? Math.min(...unitMarkers.flatMap(mk => shownBands(mk).map(b => b.y * sc))) : Infinity;
     const unitRowY = Math.min(mp + 1, firstBandY - mp * 1.2);
@@ -251,7 +261,14 @@
     if (st.laneNumbers && vis.length) {
       // default: the well number, so the figure matches the notebook even after lanes are cut
       let n = 0;
-      vis.forEach(o => { n++; const num = st.laneNumberMode === 'seq' ? n : (o.l.src != null ? o.l.src : o.i) + 1; els.push(textEl(String(num), X(o.i), yTop, pt, 'middle')); });
+      vis.forEach(o => {
+        n++; const num = String(st.laneNumberMode === 'seq' ? n : (o.l.src != null ? o.l.src : o.i) + 1), x = X(o.i);
+        els.push(textEl(num, x, yTop, pt, 'middle'));
+        // Numbers need their own bounds: unnamed lanes have preview-only placeholders, which used
+        // to conceal the missing export margin and leave the entire number row outside the SVG.
+        const half = measure(num, pt) / 2, v = vertical(num, pt);
+        grow(x - half, yTop - v.ascent, x + half, yTop + v.descent);
+      });
       yTop -= pt * 1.25;
     }
     // condition rows (+/- matrix), bottom row closest to the gel
@@ -292,8 +309,9 @@
       const chosen = labelAngle(st.labelAngle);
       const labels = vis.map((o, k) => {
         const own = G.NameText.style(o.l.nameStyle), size = own.pt || lp;
-        const metrics = nameMetrics(o.l.name ? o.l : { name: names[k] }, size, family, !!st.laneItalic);
-        return { own, size, metrics };
+        const weight = weightOf(o.l.weight == null ? curWeight : o.l.weight);
+        const metrics = nameMetrics(o.l.name ? o.l : { name: names[k] }, size, family, !!st.laneItalic, weight);
+        return { own, size, metrics, weight };
       });
       const angle0 = chosen === 'auto' ? autoAngle(labels.map(l => l.metrics), pitch, lp, family) : +chosen;
       angle = angle0;
@@ -304,21 +322,21 @@
         const t = names[vi];
         if (!t.trim()) return;
         const extra = o.l.name ? '' : phStyle, src = o.l.src != null ? o.l.src : o.i;
-        const { own, size, metrics } = labels[vi], tw = metrics.width, x = X(o.i);
+        const { own, size, metrics, weight } = labels[vi], tw = metrics.width, x = X(o.i);
         const tilt = own.angle == null ? angle0 : own.angle === 'auto' ? autoAngle([metrics], pitch, size, family) : +own.angle;
         if (o.l.name && tilt === 0 && tw > pitch * 1.02) wideHorizontal = true;
         if (o.l.name && tilt !== 0 && pitch < size * 1.15) narrowTilt = true;
         const rad = tilt * Math.PI / 180, sn = Math.sin(rad), cs = Math.cos(rad);
         if (tilt === 0 || !o.l.name) {
           // placeholders stay horizontal: a rotated lone digit reads like a stray glyph
-          els.push(ed(`data-edit="lane" data-src="${src}"`, o.l.name ? nameTextEl(metrics, x, baseline, size, 'middle', extra) : textEl(t, x, baseline, size, 'middle', extra)));
+          els.push(ed(`data-edit="lane" data-src="${src}"`, o.l.name ? nameTextEl(metrics, x, baseline, size, 'middle', extra, weight) : textEl(t, x, baseline, size, 'middle', extra)));
           grow(x - tw / 2 + metrics.left, baseline - Math.max(size, metrics.ascent), x - tw / 2 + metrics.right, baseline + metrics.descent);
           hMax = Math.max(hMax, size, metrics.ascent);
         } else {
           anyTilt = true;
           // rotated text grows up-right from the lane centre; offset so the text's centre line sits on the lane
           const ox = x + size * .35 * sn, oy = baseline;
-          els.push(ed(`data-edit="lane" data-src="${src}"`, `<g transform="translate(${f(ox)},${f(oy)}) rotate(${-tilt})">${nameTextEl(metrics, 0, 0, size, 'start', extra)}</g>`));
+          els.push(ed(`data-edit="lane" data-src="${src}"`, `<g transform="translate(${f(ox)},${f(oy)}) rotate(${-tilt})">${nameTextEl(metrics, 0, 0, size, 'start', extra, weight)}</g>`));
           hMax = Math.max(hMax, tw * sn + size * cs * .8, tw * sn + metrics.ascent * cs);
           for (const xx of [metrics.left, metrics.right]) for (const yy of [-Math.max(size, metrics.ascent), metrics.descent]) { const gx = ox + xx * cs + yy * sn, gy = oy - xx * sn + yy * cs; grow(gx, gy, gx, gy); }
         }
@@ -329,18 +347,18 @@
     };
     const drawConditions = () => {
       for (let k = conds.length - 1; k >= 0; k--) {
-        const c = conds[k], cp = c.pt || pt;
+        const c = conds[k], cp = c.pt || pt, cw = weightOf(c.weight == null ? curWeight : c.weight);
         vis.forEach(o => {
           const v = c.values[o.i], src = o.l.src != null ? o.l.src : o.i;
           // a wide invisible hit area makes each cell easy to click in the preview
           const hit = P ? `<rect x="${f(X(o.i) - Math.min(pitch, 20) * 0.45)}" y="${f(yTop - cp)}" width="${f(Math.min(pitch, 20) * 0.9)}" height="${f(cp * 1.25)}" fill="transparent"/>` : '';
-          if (v) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl(v, X(o.i), yTop, cp, 'middle', ` fill="${annotationColor(c.color)}"`)));
-          else if (P) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl('·', X(o.i), yTop, cp, 'middle', phStyle)));
+          if (v) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl(v, X(o.i), yTop, cp, 'middle', ` fill="${annotationColor(c.color)}"`, cw)));
+          else if (P) els.push(ed(`data-edit="cond" data-r="${c.r}" data-src="${src}"`, hit + textEl('·', X(o.i), yTop, cp, 'middle', phStyle, cw)));
         });
         const nm = c.name || (P ? G.L('条件', 'Condition') : '');
         if (nm) {
-          els.push(ed(`data-edit="condname" data-r="${c.r}"`, textEl(nm, rowNameX, yTop, cp, 'end', c.name ? ` fill="${annotationColor(c.color)}"` : phStyle)));
-          grow(rowNameX - measure(nm, cp), yTop - cp, 0, yTop);
+          els.push(ed(`data-edit="condname" data-r="${c.r}"`, textEl(nm, rowNameX, yTop, cp, 'end', c.name ? ` fill="${annotationColor(c.color)}"` : phStyle, cw)));
+          grow(rowNameX - measure(nm, cp, cw), yTop - cp, 0, yTop);
         }
         yTop -= cp * 1.3;
       }
@@ -364,18 +382,18 @@
         });
         if (!runs.length) runs.push([X(a) - half, X(b) + half]);
         const x0 = runs[0][0], x1 = runs[runs.length - 1][1], cx = (x0 + x1) / 2;
-        const gp = g.pt || pt, text = g.text || (P ? G.L('点击输入', 'Click to type') : '');
+        const gp = g.pt || pt, gw = weightOf(g.weight == null ? curWeight : g.weight), text = g.text || (P ? G.L('点击输入', 'Click to type') : '');
         let size = gp, lines = text ? String(text).split('\n') : [];
-        const widest = () => Math.max(0, ...lines.map(t => measure(t, size)));
+        const widest = () => Math.max(0, ...lines.map(t => measure(t, size, gw)));
         const room = Math.max(x1 - x0, gp * 2);
         if (g.text && widest() > room) {
-          if (fit === 'wrap') lines = balancedWrap(g.text, size, room, family);
+          if (fit === 'wrap') lines = balancedWrap(g.text, size, room, family, gw);
           else if (fit === 'shrink') size = Math.max(Math.min(minPt, gp), gp * room / widest());
         }
         const tw = widest();
         // from the line up to the top of the text
         const h = lines.length ? size * 0.3 + (lines.length - 1) * size * LEAD + size : pt;
-        return { g, k, runs, x0, x1, cx, size, lines, tw, h, placeholder: !g.text, ext0: Math.min(x0, cx - tw / 2), ext1: Math.max(x1, cx + tw / 2) };
+        return { g, k, runs, x0, x1, cx, size, gw, lines, tw, h, placeholder: !g.text, ext0: Math.min(x0, cx - tw / 2), ext1: Math.max(x1, cx + tw / 2) };
       });
       // neighbouring groups' lines are 0.16 pitch apart by design: a small margin keeps them on one tier
       const tiers = groupTiers(items, pt * 0.25);
@@ -393,7 +411,7 @@
           }
         });
         if (o.lines.length) {
-          els.push(ed(`data-edit="group" data-k="${o.g.k != null ? o.g.k : o.k}"`, textLines(o.lines, o.cx, y - o.size * 0.3, o.size, 'middle', o.placeholder ? phStyle : ` fill="${col}"`)));
+          els.push(ed(`data-edit="group" data-k="${o.g.k != null ? o.g.k : o.k}"`, textLines(o.lines, o.cx, y - o.size * 0.3, o.size, 'middle', o.placeholder ? phStyle : ` fill="${col}"`, o.gw)));
           grow(o.cx - o.tw / 2, y - o.h, o.cx + o.tw / 2, y);
         }
         grow(o.x0, y - pt, o.x1, y);
@@ -414,15 +432,15 @@
       shown.forEach(b => {
         const col = annotationColor(b.color, annotationColor(mk.color));
         const attrs = `data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="${mk.bands.indexOf(b)}"`;
-        const y = b.y * sc, label = G.Ladders.fmt(b.bp, mk.unit);
-        const tw = measure(label, mp); maxTw = Math.max(maxTw, tw);
+        const y = b.y * sc, label = G.Ladders.fmt(b.bp, mk.unit), mw = weightOf(mk.weight == null ? curWeight : mk.weight);
+        const tw = measure(label, mp, mw); maxTw = Math.max(maxTw, tw);
         if (side === 'left') {
           if (!off) els.push(`<line x1="${f(-tick - 1)}" y1="${f(y)}" x2="${f(-1)}" y2="${f(y)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
-          els.push(ed(attrs, textEl(label, -tick - 2.5 - off, y + mp * 0.35, mp, 'end', ` fill="${col}"`)));
+          els.push(ed(attrs, textEl(label, -tick - 2.5 - off, y + mp * 0.35, mp, 'end', ` fill="${col}"`, mw)));
           grow(-tick - 2.5 - off - tw, y - mp, 0, y + mp);
         } else {
           if (!off) els.push(`<line x1="${f(W + 1)}" y1="${f(y)}" x2="${f(W + 1 + tick)}" y2="${f(y)}" stroke="${col}" stroke-width="${f(lw)}"/>`);
-          els.push(ed(attrs, textEl(label, W + tick + 2.5 + off, y + mp * 0.35, mp, 'start', ` fill="${col}"`)));
+          els.push(ed(attrs, textEl(label, W + tick + 2.5 + off, y + mp * 0.35, mp, 'start', ` fill="${col}"`, mw)));
           grow(W, y - mp, W + tick + 2.5 + off + tw, y + mp);
         }
       });
@@ -430,12 +448,12 @@
         overlap(G.L('部分 Marker 标签间距过小会重叠，可点"精简标签"或手动取消勾选', 'Some marker labels are too close and overlap; click "Thin labels" or untick some')); break;
       }
       // the unit header is as wide as the unit actually in use: "(kDa)" is wider than "(bp)"
-      const unitText = st.unitHeader && mk.unit !== 'auto' ? `(${mk.unit === 'kb' ? 'kb' : mk.unit === 'kDa' ? 'kDa' : 'bp'})` : '';
-      const unitW = unitText ? measure(unitText, mp) : 0;
+      const unitText = mk.unit !== 'auto' && mk.unit !== 'none' && !G.Ladders.isInlineUnit(mk.unit) ? `(${mk.unit === 'kb' || mk.unit === 'kb-inline' ? 'kb' : mk.unit === 'kDa' || mk.unit === 'kDa-inline' ? 'kDa' : 'bp'})` : '';
+      const unitW = unitText ? measure(unitText, mp, weightOf(mk.weight == null ? curWeight : mk.weight)) : 0;
       if (unitText && shown.length) {
         const ux = side === 'left' ? -tick - 2.5 - off : W + tick + 2.5 + off;
         const uy = unitRowY;
-        els.push(ed(`data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="-1"`, textEl(unitText, ux, uy, mp, side === 'left' ? 'end' : 'start', ` fill="${annotationColor(mk.color)}"`)));
+        els.push(ed(`data-edit="marker" data-marker="${mk.src != null ? mk.src : mi}" data-band="-1"`, textEl(unitText, ux, uy, mp, side === 'left' ? 'end' : 'start', ` fill="${annotationColor(mk.color)}"`, weightOf(mk.weight == null ? curWeight : mk.weight))));
         grow(side === 'left' ? ux - unitW : ux, uy - mp * 1.2, side === 'left' ? 0 : ux + unitW, uy + mp * 0.3);
       }
       extent[side] = tick + 2.5 + off + Math.max(maxTw, unitW);
@@ -485,7 +503,7 @@
     brackets.forEach((b, k) => {
       const side = b.side || defSide, y1 = b.y1 * sc, y2 = b.y2 * sc, bp = b.pt || pt;
       const label = b.text || (P ? G.L('点击输入', 'Click to type') : '');
-      const tw = label ? measure(label, bp) : 0, tk = pt * 0.45;
+      const tw = label ? measure(label, bp, b.weight) : 0, tk = pt * 0.45;
       // clear of whatever already sits on that side at these heights (marker labels, arrows, brackets)
       let off = 2.5;
       occ[side].filter(o => !(y2 < o.y0 - pt * 0.3 || y1 > o.y1 + pt * 0.3)).forEach(o => { off = Math.max(off, o.ext + 2.5); });
@@ -495,7 +513,7 @@
       const ty = (y1 + y2) / 2 + bp * 0.35, tx = xb + dir * 2;
       const hit = P ? `<rect x="${f(Math.min(xb - dir * tk, tx + dir * tw) - 1)}" y="${f(y1 - 1)}" width="${f(tk + 2 + tw + 2)}" height="${f(y2 - y1 + 2)}" fill="transparent"/>` : '';
       els.push(ed(attrs, hit + `<path d="${path}" fill="none" stroke="${annotationColor(b.color)}" stroke-width="${f(lw)}"/>` +
-        (label ? textEl(label, tx, ty, bp, side === 'right' ? 'start' : 'end', b.text ? ` fill="${annotationColor(b.color)}"` : phStyle) : '')));
+        (label ? textEl(label, tx, ty, bp, side === 'right' ? 'start' : 'end', b.text ? ` fill="${annotationColor(b.color)}"` : phStyle, b.weight) : '')));
       const end = off + tk + 2 + tw;
       occ[side].push({ y0: y1, y1: y2, ext: end });
       if (side === 'right') { grow(W, y1, W + end, y2); reach.right = Math.max(reach.right, end); }
@@ -521,7 +539,8 @@
       // in the preview only the frame is clickable, so clicks inside still reach the gel (arrow tool)
       const hitB = P ? `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="transparent" stroke-width="${f(pt * 0.9)}" pointer-events="stroke"/>` : '';
       els.push(ed(attrs, hitB + `<rect x="${f(x0)}" y="${f(y0)}" width="${f(bw)}" height="${f(bh)}" fill="none" stroke="${col}" stroke-width="${sw}"${dash}/>` +
-        (label ? textEl(label, lx, ly, bp, 'start', ` fill="${lcol}"`) : '')));
+        (label ? textEl(label, lx, ly, bp, 'start', ` fill="${lcol}"`, b.weight) : '')));
+      if (label) grow(lx, ly - bp, lx + measure(label, bp, b.weight), ly + bp * .3);
       const z = +b.zoom || 0;
       if (z >= 2) {
         // enlarged copy of the boxed region, right of everything, from the same raster (no resampling
@@ -537,16 +556,78 @@
         els.push(ed(attrs, `<svg x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" viewBox="${f(x0)} ${f(y0)} ${f(bw)} ${f(bh)}" preserveAspectRatio="none" overflow="hidden">` +
           `<image x="0" y="0" width="${f(W)}" height="${f(H)}" preserveAspectRatio="none" href="${imgHref}" xlink:href="${imgHref}"/></svg>` +
           `<rect x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" fill="none" stroke="${annotationColor(b.color)}" stroke-width="${sw}"${dash}/>` +
-          (label ? textEl(label, ix, iy - bp * 0.3, bp, 'start', ` fill="${annotationColor(b.color)}"`) : '')));
-        grow(ix, iy - (label ? bp * 1.3 : 0), ix + iw, iy + ih);
+          (label ? textEl(label, ix, iy - bp * 0.3, bp, 'start', ` fill="${annotationColor(b.color)}"`, b.weight) : '')));
+        grow(ix, iy - (label ? bp * 1.3 : 0), ix + Math.max(iw, label ? measure(label, bp, b.weight) : 0), iy + ih);
         insetY = iy + ih + pt * 1.6;
       }
     });
 
-    /* ---- side text: stain / antibody / exposure, vertical beside the gel or a line below it ----
+    /* ---- notes drawn inside the gel: free text and arrows placed by the user ----
+     * Coordinates are crop-relative and independent of the lane splices for y; x goes through
+     * gel.map so a note stays on its lane when another lane is cut. Arrow angle is the direction
+     * its head points (0° = right, 90° = down); `len` is a fraction of the crop width. */
+    const noteColor = n => annotationColor(n.color, darkBg ? '#fff' : '#000');
+    (S.notes || []).forEach((n, k) => {
+      const np = n.pt || pt, ang = Number.isFinite(+n.angle) ? +n.angle : 0, rad = ang * Math.PI / 180;
+      const cs = Math.cos(rad), sn = Math.sin(rad), attrs = `data-edit="note" data-k="${n.k != null ? n.k : k}"`;
+      // legacy arrow-only note (kept so old projects keep working)
+      if (n.kind === 'arrow') {
+        const len = Math.max(4, Math.abs(+n.len || 0.12) * S.crop.w) * sc;
+        const hx = gel.map(n.x) * sc, hy = n.y * sc;
+        const hs = Math.max(1.4, np * 0.42), tailX = hx - cs * len, tailY = hy - sn * len;
+        const bxk = hx - cs * hs * 1.5, byk = hy - sn * hs * 1.5;      // arrowhead base centre
+        const w1x = bxk + sn * hs, w1y = byk - cs * hs, w2x = bxk - sn * hs, w2y = byk + cs * hs;
+        els.push(ed(attrs, `<line x1="${f(tailX)}" y1="${f(tailY)}" x2="${f(bxk)}" y2="${f(byk)}" stroke="${noteColor(n)}" stroke-width="${f(Math.max(lw, 0.4))}"/>` +
+          `<path d="M${f(hx)},${f(hy)} L${f(w1x)},${f(w1y)} L${f(w2x)},${f(w2y)} Z" fill="${noteColor(n)}"/>`));
+        grow(tailX, tailY, tailX, tailY); grow(hx, hy, hx, hy);
+        return;
+      }
+      const x = gel.map(n.x) * sc, y = n.y * sc;
+      const raw = String(n.text || ''), text = raw || (P ? G.L('点击输入', 'Click to type') : '');
+      const lines = text ? text.split('\n') : [];
+      const v = vertical(lines[0] || 'x', np, n.weight), lh = np * LEAD;
+      const tw = Math.max(0, ...lines.map(t => measure(t, np, n.weight)));
+      const th = lines.length ? v.ascent + v.descent + (lines.length - 1) * lh : 0;
+      const pad = (n.bg && n.bg !== 'none') || n.border ? np * 0.35 : 0;
+      const bw = tw + pad * 2, bh = th + pad * 2;
+      const align = n.align === 'left' ? 'left' : n.align === 'right' ? 'right' : 'center';
+      const anchor = align === 'center' ? 'middle' : align === 'left' ? 'start' : 'end';
+      const tx = align === 'center' ? 0 : align === 'left' ? -bw / 2 + pad : bw / 2 - pad;
+      if (n.arrow) {
+        const aa = Number.isFinite(+n.arrowAngle) ? +n.arrowAngle : -90, ar = aa * Math.PI / 180;
+        const acs = Math.cos(ar), asn = Math.sin(ar);
+        const len = Math.max(np * 1.5, Math.abs(+n.arrowLen || 0.18) * S.crop.w) * sc;
+        const hx = x + acs * len, hy = y + asn * len;
+        const edgeX = Math.abs(acs) > 1e-6 && bw ? (bw / 2) / Math.abs(acs) : Infinity;
+        const edgeY = Math.abs(asn) > 1e-6 && bh ? (bh / 2) / Math.abs(asn) : Infinity;
+        const td = Math.min(edgeX, edgeY, len);
+        const tailX = x + acs * td, tailY = y + asn * td;
+        const hs = Math.max(1.4, np * 0.42), bxk = hx - acs * hs * 1.5, byk = hy - asn * hs * 1.5;
+        const w1x = bxk + asn * hs, w1y = byk - acs * hs, w2x = bxk - asn * hs, w2y = byk + acs * hs;
+        els.push(ed(attrs, `<line x1="${f(tailX)}" y1="${f(tailY)}" x2="${f(bxk)}" y2="${f(byk)}" stroke="${noteColor(n)}" stroke-width="${f(Math.max(lw, 0.4))}"/>` +
+          `<path d="M${f(hx)},${f(hy)} L${f(w1x)},${f(w1y)} L${f(w2x)},${f(w2y)} Z" fill="${noteColor(n)}"/>`));
+        grow(tailX, tailY, tailX, tailY); grow(hx, hy, hx, hy);
+      }
+      if (!lines.length) return;
+      const col = annotationColor(n.color, n.bg === 'white' ? '#000' : darkBg ? '#fff' : '#000'), extra = raw ? ` fill="${col}"` : phStyle;
+      let inner = '';
+      if ((n.bg && n.bg !== 'none') || n.border) {
+        inner += `<rect x="${f(-bw / 2)}" y="${f(-bh / 2)}" width="${f(bw)}" height="${f(bh)}" rx="${f(np * 0.15)}" fill="${n.bg === 'white' ? '#fff' : 'none'}"${n.border ? ` stroke="${col}" stroke-width="${f(Math.max(lw, 0.4))}"` : ''}/>`;
+      }
+      inner += textLines(lines, tx, -th / 2 + v.ascent + (lines.length - 1) * lh, np, anchor, extra, n.weight);
+      els.push(ed(attrs, `<g transform="translate(${f(x)},${f(y)}) rotate(${f(ang)})">${inner}</g>`));
+      if (bw) for (const [lx, ly] of [[-bw / 2, -bh / 2], [bw / 2, -bh / 2], [bw / 2, bh / 2], [-bw / 2, bh / 2]]) {
+        const gx = x + lx * cs - ly * sn, gy = y + lx * sn + ly * cs;
+        grow(gx, gy, gx, gy);
+      }
+    });
+
+    /* ---- side text: stain / antibody / exposure, beside the gel or a line below it ----
      * `at` (0..1) moves the text along the gel edge: vertically for left/right, horizontally for
      * below. It is eased so the whole label stays on the gel, which also makes 0/0.5/1 read as
-     * top/middle/bottom. Absent (every project written before this field) means centred. */
+     * top/middle/bottom. Absent (every project written before this field) means centred.
+     * `angle` is free: it defaults to -90 / 90 / 0 for left / right / below. The side labels are
+     * pushed out by their rotated half-width, so any angle still starts outside the gel. */
     let belowY = Math.max(H, box.y1) + pt * 1.3;
     const alongGel = (t, len, span) => {
       const v = t.at;
@@ -557,30 +638,32 @@
     (S.labels || []).forEach((t, k) => {
       const text = t.text || (P ? G.L('点击输入文字', 'Click to type') : '');
       if (!text) return;
-      const pt = t.pt || st.fontPt;   // this label's own size
+      const lp = t.pt || st.fontPt;   // this label's own size
       const attrs = `data-edit="label" data-k="${t.k != null ? t.k : k}"`, extra = t.text ? ` fill="${annotationColor(t.color)}"` : phStyle;
-      const tw = measure(text, pt);
-      if (t.pos === 'below') {
-        const x = W * alongGel(t, tw, W);
-        els.push(ed(attrs, textEl(text, x, belowY, pt, 'middle', extra)));
-        grow(x - tw / 2, belowY - pt, x + tw / 2, belowY + pt * 0.3);
-        belowY += pt * 1.3;
-      } else if (t.pos === 'right') {
-        const x = box.x1 + pt * 0.45, y = H * alongGel(t, tw, H);
-        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(y)}) rotate(90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
-        grow(x, y - tw / 2, x + pt * 1.05, y + tw / 2);
-      } else {
-        const x = box.x0 - pt * 0.45, y = H * alongGel(t, tw, H);
-        els.push(ed(attrs, `<g transform="translate(${f(x)},${f(y)}) rotate(-90)">${textEl(text, 0, 0, pt, 'middle', extra)}</g>`));
-        grow(x - pt * 1.05, y - tw / 2, x, y + tw / 2);
+      const tw = measure(text, lp, t.weight), v = vertical(text, lp, t.weight);
+      const defaultAngle = t.pos === 'right' ? 90 : t.pos === 'below' ? 0 : -90;
+      const ang = t.angle != null && t.angle !== '' && Number.isFinite(+t.angle) ? Math.max(-180, Math.min(180, +t.angle)) : defaultAngle;
+      const rad = ang * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad), vh = Math.max(v.ascent, v.descent);
+      const hw = tw / 2 * Math.abs(cs) + vh * Math.abs(sn);   // rotated half-width
+      const hh = tw / 2 * Math.abs(sn) + vh * Math.abs(cs);   // rotated half-height
+      let x, y;
+      if (t.pos === 'below') { x = W * alongGel(t, hw * 2, W); y = belowY + v.ascent * Math.abs(cs) + tw / 2 * Math.abs(sn); }
+      else if (t.pos === 'right') { x = box.x1 + lp * 0.45 + hw; y = H * alongGel(t, hh * 2, H); }
+      else { x = box.x0 - lp * 0.45 - hw; y = H * alongGel(t, hh * 2, H); }
+      els.push(ed(attrs, `<g transform="translate(${f(x)},${f(y)}) rotate(${f(ang)})">${textEl(text, 0, 0, lp, 'middle', extra, t.weight)}</g>`));
+      for (const [lx, ly] of [[-tw / 2, -v.ascent], [tw / 2, -v.ascent], [tw / 2, v.descent], [-tw / 2, v.descent]]) {
+        const gx = x + lx * cs - ly * sn, gy = y + lx * sn + ly * cs;
+        grow(gx, gy, gx, gy);
       }
+      if (t.pos === 'below' && Math.abs(ang) < 1) belowY += lp * 1.3;
+      else if (t.pos === 'below') belowY += hh * 2 + lp * 0.3;
     });
 
     // panel letter
     if (st.panelLetter) {
       const px = box.x0 - 2, py = box.y0 - 1;
-      els.push(textEl(st.panelLetter, px, py + st.panelPt, st.panelPt, 'end', ' font-weight="bold"'));
-      grow(px - measure(st.panelLetter, st.panelPt, true), py, px, py + st.panelPt);
+      els.push(textEl(st.panelLetter, px, py + st.panelPt, st.panelPt, 'end', '', 700));
+      grow(px - measure(st.panelLetter, st.panelPt, 700), py, px, py + st.panelPt);
     }
 
     const m = 2;

@@ -28,12 +28,14 @@
         : L('在左侧原图上从上往下拖，选出括号覆盖的区域（如拖尾、多聚体）', 'On the image on the left, drag from top to bottom over the region the bracket covers (smear, oligomers …)'))
       : m === 'marker-lane' ? L('点原图中的 Marker 泳道，或点成图上的泳道名；选中后可核对型号和条带', 'Click the marker lane on the image, or its name on the figure; then review the ladder and bands')
       : m === 'marker-band' ? L('点黄色 Marker 泳道的实际条带选大小，或先点参考图大小再定位；拖黄线微调', 'Click a band on the yellow marker lane to choose its size, or choose a reference size first; drag yellow lines to adjust')
+      : m === 'note' ? L('点胶图上要写字的位置（原图或成图都行），然后输入文字', 'Click where the text should go on the gel (either view), then type it')
       : m === 'lane' ? L('点一下要加泳道的位置（红框内）', 'Tap where the new lane goes (inside the red box)') : '';
     $('btnAddArrow').classList.toggle('on', m === 'arrow');
     $('btnAddGroup').classList.toggle('on', m === 'group');
     $('btnAddBox').classList.toggle('on', m === 'box');
     $('btnAddBracket').classList.toggle('on', m === 'bracket');
-    prev.classList.toggle('arming', m === 'arrow');
+    $('btnAddNote').classList.toggle('on', m === 'note');
+    prev.classList.toggle('arming', m === 'arrow' || m === 'note');
     if (G.MarkerUI) G.MarkerUI.modeChanged(m);
     G.Editor.draw();
   }
@@ -42,6 +44,7 @@
   $('btnAddGroup').onclick = () => { if (S()) setMode(App.mode === 'group' ? null : 'group'); };
   $('btnAddBox').onclick = () => { if (S()) setMode(App.mode === 'box' ? null : 'box'); };
   $('btnAddBracket').onclick = () => { if (S()) setMode(App.mode === 'bracket' ? null : 'bracket'); };
+  $('btnAddNote').onclick = () => { if (S()) setMode(App.mode === 'note' ? null : 'note'); };
   $('btnAddLabel').onclick = () => {
     if (!S()) return;
     // the first side text goes on the left (where blot panels name the stain / antibody), later ones below
@@ -86,11 +89,29 @@
     requestAnimationFrame(() => arrowPopover(k, prev.querySelector(`g[data-edit="arrow"][data-k="${k}"]`)));
   };
 
+  /* A free text box lives inside the gel image (x, y in rotated-image pixels). It can carry an
+   * optional leader arrow; the box itself stays freely draggable in both views. */
+  App.placeNote = function (mode, x, y) {
+    S().notes.push({ x, y, kind: 'text', text: '', angle: 0, arrow: false, arrowAngle: -90, arrowLen: 0.18, bg: 'none', border: false, align: 'center' });
+    const k = S().notes.length - 1;
+    App.selAnno = { kind: 'note', k };
+    setMode(null);
+    App.commit();
+    requestAnimationFrame(() => annoPopover('note', k, prev.querySelector(`g[data-edit="note"][data-k="${k}"]`)));
+  };
+
   /* ---------- inline text editor (with a size / line-break bar) ---------- */
   let edit = null;   // { kind, id, orig }
   const bar = $('fedBar');
+  // One menu for every item's typography; explicit colours keep it readable on the dark bar.
+  function weightField(id, value) {
+    return `<label class="inline-label annotation-weight-field" for="${id}"><span data-en="Weight" data-zh="字重">${L('字重', 'Weight')}</span><select id="${id}" class="annotation-weight">${[
+      [400, '常规', 'Regular'], [500, '中等', 'Medium'], [600, '半粗', 'Semibold'], [700, '粗体', 'Bold']
+    ].map(([w, zh, en]) => `<option value="${w}" data-en="${en} · ${w}" data-zh="${zh} · ${w}"${(+value || 400) === w ? ' selected' : ''}>${L(zh, en)} · ${w}</option>`).join('')}</select></label>`;
+  }
+  $('fedWeightControl').innerHTML = weightField('fedWeight', 400);
   function nameEditSnapshot(){
-    const lane=S().lanes[edit.id];return {data:JSON.parse(JSON.stringify({name:lane.name,nameRuns:lane.nameRuns,nameStyle:lane.nameStyle,lanePt:S().style.lanePt})),runs:G.NameText.normalize(edit.runs),a:fed.selectionStart,z:fed.selectionEnd};
+    const lane=S().lanes[edit.id];return {data:JSON.parse(JSON.stringify({name:lane.name,nameRuns:lane.nameRuns,nameStyle:lane.nameStyle,weight:lane.weight,lanePt:S().style.lanePt})),runs:G.NameText.normalize(edit.runs),a:fed.selectionStart,z:fed.selectionEnd};
   }
   function recordNameEdit(){
     if(edit?.kind!=='lane'||!edit.stack||edit.composing)return;
@@ -103,7 +124,7 @@
     e.preventDefault();e.stopPropagation();
     const redo=e.key.toLowerCase()==='y'||e.shiftKey,at=edit.cursor+(redo?1:-1);if(at<0||at>=edit.stack.length)return true;
     edit.cursor=at;const snap=edit.stack[at],lane=S().lanes[edit.id];
-    for(const k of ['name','nameRuns','nameStyle']){if(snap.data[k]===undefined)delete lane[k];else lane[k]=JSON.parse(JSON.stringify(snap.data[k]));}
+    for(const k of ['name','nameRuns','nameStyle','weight']){if(snap.data[k]===undefined)delete lane[k];else lane[k]=JSON.parse(JSON.stringify(snap.data[k]));}
     S().style.lanePt=snap.data.lanePt??null;edit.runs=G.NameText.normalize(snap.runs);fed.value=G.NameText.plain(edit.runs);fed.focus({preventScroll:true});fed.setSelectionRange(snap.a,snap.z);syncBar();autoRows();App.refresh();return true;
   }
   const getVal = (kind, id) => kind === 'lane' ? S().lanes[id].name : kind === 'group' ? S().groups[id].text : S().conditions[id].name;
@@ -145,6 +166,9 @@
       $(id).setAttribute('aria-pressed',String(!!r.length&&r.every(v=>(v.color==='red')===red)));$(id).disabled=!!edit.composing;
     }
     if (edit.kind === 'lane') $('fedMarker').textContent = S().markers.some(m => m.lane === edit.id) ? L('Marker 设置', 'Marker settings') : L('设为 Marker', 'Use as marker');
+    const weight = String((edit.kind === 'lane' ? S().lanes[edit.id].weight : editedObject().weight) || 400);
+    $('fedWeight').value = weight;
+    fed.style.fontWeight = weight;
     $('fedHint').textContent = edit.kind === 'group' && !coarse.matches ? L('Shift+Enter 换行', 'Shift+Enter: new line') : '';
   }
   function placeBar() {
@@ -165,7 +189,7 @@
     if (!el) return;
     const r = el.getBoundingClientRect();
     edit = { kind, id, orig: getVal(kind, id) || '',state:S() };
-    edit.origColor=editedObject().color;
+    edit.origColor=editedObject().color;edit.origWeight=editedObject().weight;
     if(kind==='lane'){
       edit.original=JSON.parse(JSON.stringify(S().lanes[id]));edit.origLanePt=S().style.lanePt;edit.runs=G.NameText.runs(S().lanes[id]);
     }
@@ -195,11 +219,12 @@
     if(e.state!==S()){fed.classList.add('hidden');bar.classList.add('hidden');return;}
     if(e.kind==='lane'){
       const lane=S().lanes[e.id];if(!lane)return;
-      if(revert){for(const key of ['name','nameRuns','nameStyle']){if(e.original[key]===undefined)delete lane[key];else lane[key]=e.original[key];}S().style.lanePt=e.origLanePt;}
+      if(revert){for(const key of ['name','nameRuns','nameStyle','weight']){if(e.original[key]===undefined)delete lane[key];else lane[key]=e.original[key];}S().style.lanePt=e.origLanePt;}
       else G.NameText.write(lane,G.NameText.edit(e.runs,clean(e.kind,fed.value)));
     }else if (revert) {
       setVal(e.kind, e.id, e.orig);const o=e.kind==='group'?S().groups[e.id]:S().conditions[e.id];
       if(e.origColor===undefined)delete o.color;else o.color=e.origColor;
+      if(e.origWeight===undefined)delete o.weight;else o.weight=e.origWeight;
     }
     else setVal(e.kind, e.id, clean(e.kind, fed.value));
     fed.classList.add('hidden'); bar.classList.add('hidden');
@@ -253,6 +278,12 @@
     if(e.key==='Escape'&&!composing(e)&&edit){e.preventDefault();e.stopPropagation();closeEd(true);}
   });
   $('fedLaneSettings').addEventListener('toggle',()=>{if(edit)placeBar();});
+  $('fedWeight').onchange=e=>{
+    if(!edit)return;const w=+e.target.value,o=edit.kind==='lane'?S().lanes[edit.id]:editedObject();
+    if(w===400)delete o.weight;else o.weight=w;
+    if(edit.kind==='lane')recordNameEdit();else App.commit();
+    syncBar();App.refresh();G.Editor.draw();
+  };
   $('fedOwn').onchange=e=>{
     if(!edit||edit.kind!=='lane')return;const lane=S().lanes[edit.id];
     if(e.target.checked)lane.nameStyle={pt:curSize(),angle:String(G.UI.lastFig()?.angle||0)};else delete lane.nameStyle;
@@ -319,7 +350,7 @@
 
   /* ---------- box / bracket / side-text popover ---------- */
   function annoPopover(kind, k, anchor) {
-    const list = { box: S().boxes, bracket: S().brackets, label: S().labels }[kind], a = list && list[k];
+    const list = { box: S().boxes, bracket: S().brackets, label: S().labels, note: S().notes }[kind], a = list && list[k];
     if (!a) return;
     closeEd(false);
     popK = -1; popAnno = { kind, k };
@@ -336,25 +367,92 @@
       body = `<div class="field"><input type="text" id="qText" placeholder="${L('如 (Ub)n、Smear、Dimer、IgG HC', 'e.g. (Ub)n, Smear, Dimer, IgG HC')}" value="${esc(a.text)}"></div>
         <div class="field inline"><label class="inline-label">${L('位置', 'Side')}</label>${sel('qSide', [['', L('自动', 'Auto')], ['right', L('右侧', 'Right')], ['left', L('左侧', 'Left')]], a.side || '')}</div>
         <p class="hint">${L('上下两端在原图上拖青色虚线调整。', 'Drag the teal dashed lines on the image to set its top and bottom.')}</p>`;
+    } else if (kind === 'note') {
+      const arrow = a.kind === 'arrow';
+      const ang = Number.isFinite(+a.angle) ? +a.angle : 0;
+      if (arrow) {
+        title = L('胶内箭头', 'Arrow on gel');
+        body = `<div class="field inline"><label class="inline-label">${L('角度', 'Angle')} <input type="number" id="qAngle" class="num" min="-180" max="180" step="5" value="${Math.round(ang)}">°</label>`
+          + `<label class="inline-label">${L('长度', 'Length')} <input type="range" id="qLen" min="2" max="60" step="1" value="${Math.round((+a.len || 0.14) * 100)}"><output id="qLenOut">${Math.round((+a.len || 0.14) * 100)}%</output></label></div>
+          <p class="hint">${L('箭头指向点击的位置；角度 0° 向右、90° 向下。在原图上拖动箭头可移动它。', 'The head sits where you clicked; 0° points right, 90° down. Drag the arrow on the image to move it.')}</p>`;
+      } else {
+        title = L('自由文本框', 'Free text box');
+        const aa = Number.isFinite(+a.arrowAngle) ? +a.arrowAngle : -90, al = Math.round((+a.arrowLen || 0.18) * 100);
+        body = `<div class="field"><textarea id="qText" rows="2" placeholder="${L('写在胶图上的文字，可换行；如 5% input、IgG HC', 'Text on the gel; line breaks allowed, e.g. 5% input, IgG HC')}">${esc(a.text || '')}</textarea></div>
+          <div class="field inline">
+            <label class="inline-label">${L('旋转', 'Rotate')} <input type="number" id="qAngle" class="num" min="-180" max="180" step="5" value="${Math.round(ang)}">°</label>
+            <label class="inline-label">${L('对齐', 'Align')}<select id="qAlign" style="width:auto"><option value="center"${(a.align || 'center') === 'center' ? ' selected' : ''}>${L('居中', 'Centre')}</option><option value="left"${a.align === 'left' ? ' selected' : ''}>${L('左', 'Left')}</option><option value="right"${a.align === 'right' ? ' selected' : ''}>${L('右', 'Right')}</option></select></label>
+            <label class="inline-label">${L('背景', 'Background')}<select id="qBg" style="width:auto"><option value="none"${(a.bg || 'none') === 'none' ? ' selected' : ''}>${L('透明', 'Transparent')}</option><option value="white"${a.bg === 'white' ? ' selected' : ''}>${L('白底', 'White')}</option></select></label>
+            <label class="switch"><input type="checkbox" id="qBorder"${a.border ? ' checked' : ''}><span>${L('边框', 'Border')}</span></label>
+          </div>
+          <div class="field inline">
+            <label class="switch"><input type="checkbox" id="qArrow"${a.arrow ? ' checked' : ''}><span>${L('加指向箭头', 'Add arrow')}</span></label>
+            <span id="qArrowFields" class="${a.arrow ? '' : 'hidden'}">
+              <label class="inline-label">${L('箭头角度', 'Arrow angle')} <input type="number" id="qArrowAngle" class="num" min="-180" max="180" step="5" value="${Math.round(aa)}">°</label>
+              <label class="inline-label">${L('长度', 'Length')} <input type="range" id="qArrowLen" min="4" max="70" step="1" value="${al}"><output id="qArrowLenOut">${al}%</output></label>
+            </span>
+          </div>
+          <p class="hint">${L('文本框可在原图或成图上自由拖动；箭头角度 0° 向右、90° 向下。文字留空时只显示箭头。', 'Drag the box freely on either view; 0° points right, 90° down. Empty text shows only the arrow.')}</p>`;
+      }
     } else {
       title = L('侧边文字', 'Side text');
       const av = a.at != null && a.at !== '' && Number.isFinite(+a.at) ? Math.min(1, Math.max(0, +a.at)) : 0.5;
       const at = Math.round(av * 100);
+      const defAngle = a.pos === 'right' ? 90 : a.pos === 'below' ? 0 : -90;
+      const ang = a.angle != null && a.angle !== '' && Number.isFinite(+a.angle) ? Math.round(+a.angle) : defAngle;
       body = `<div class="field"><input type="text" id="qText" placeholder="${L('如 Coomassie、EtBr、IB: anti-HA、30 s', 'e.g. Coomassie, EtBr, IB: anti-HA, 30 s')}" value="${esc(a.text)}"></div>
-        <div class="field inline"><label class="inline-label">${L('位置', 'Position')}</label>${sel('qPos', [['left', L('左侧竖排', 'Left, vertical')], ['right', L('右侧竖排', 'Right, vertical')], ['below', L('胶图下方', 'Below the gel')]], a.pos || 'left')}</div>
+        <div class="field inline"><label class="inline-label">${L('位置', 'Position')}</label>${sel('qPos', [['left', L('左侧竖排', 'Left, vertical')], ['right', L('右侧竖排', 'Right, vertical')], ['below', L('胶图下方', 'Below the gel')]], a.pos || 'left')}
+          <label class="inline-label">${L('旋转', 'Rotate')} <input type="number" id="qAngle" class="num" min="-180" max="180" step="5" value="${ang}">°</label></div>
         <div class="field"><label class="inline-label">${a.pos === 'below' ? L('左右位置', 'Across the gel') : L('上下位置', 'Along the gel')}</label>
           <input type="range" id="qAt" min="0" max="100" step="1" value="${at}"><output id="qAtOut">${at}%</output></div>
-        <p class="hint">${L('用于注明染色方法、抗体或曝光时间；拖动滑杆可让它避开 Marker 数字或其它文字。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. Drag the slider so it clears the marker numbers or other text. *italic* works as in lane names.')}</p>`;
+        <p class="hint">${L('用于注明染色方法、抗体或曝光时间；拖动滑杆可让它避开 Marker 数字或其它文字。角度可自由旋转（默认左 -90°、右 90°、下方 0°）。*斜体* 写法同泳道名。', 'For the stain, antibody or exposure time. Drag the slider so it clears the marker numbers or other text. The angle is free (default −90° left, 90° right, 0° below). *italic* works as in lane names.')}</p>`;
     }
-    pop.innerHTML = `<h4>${title}</h4>${body}${ptField('qPt', a.pt)}${colorField('qColor',a.color)}
+    pop.innerHTML = `<h4>${title}</h4>${body}${ptField('qPt', a.pt)}${weightField('qWeight', a.weight)}${colorField('qColor',a.color)}
       <div class="actions"><button class="btn sm danger" id="qDel">${L('删除', 'Delete')}</button><button class="btn sm primary" id="qOk">${L('完成', 'Done')}</button></div>`;
     placePop(anchor);
     const upd = () => App.refresh();
     const q = id => pop.querySelector('#' + id);
     bindPt(q('qPt'), a);
     bindColor('qColor',a);
-    q('qText').addEventListener('input', e => { a.text = e.target.value; upd(); G.Editor.draw(); });
-    q('qText').addEventListener('keydown', e => { if (e.key === 'Enter' && !composing(e)) closePop(); });
+    if (q('qWeight')) q('qWeight').addEventListener('change', e => { const w = +e.target.value; if (w === 400) delete a.weight; else a.weight = w; upd(); G.Editor.draw(); });
+    if (q('qText')) {
+      q('qText').addEventListener('input', e => { a.text = e.target.value; upd(); G.Editor.draw(); });
+      q('qText').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !composing(e)) closePop(); });
+    }
+    if (q('qAngle')) {
+      q('qAngle').addEventListener('input', e => {
+        if (e.target.value.trim() === '' || !Number.isFinite(+e.target.value)) { delete a.angle; upd(); return; }
+        a.angle = clamp(Math.round(+e.target.value), -180, 180); upd(); G.Editor.draw();
+      });
+      q('qAngle').addEventListener('change', () => App.commit());
+    }
+    if (q('qLen')) {
+      const out = q('qLenOut');
+      q('qLen').addEventListener('input', e => { a.len = +e.target.value / 100; if (out) out.textContent = e.target.value + '%'; upd(); });
+      q('qLen').addEventListener('change', () => App.commit());
+    }
+    if (q('qAlign')) q('qAlign').onchange = e => { a.align = e.target.value; upd(); App.commit(); };
+    if (q('qBg')) q('qBg').onchange = e => { a.bg = e.target.value; upd(); App.commit(); };
+    if (q('qBorder')) q('qBorder').onchange = e => { a.border = e.target.checked; upd(); App.commit(); };
+    if (q('qArrow')) {
+      const fields = q('qArrowFields');
+      const syncArrow = () => { if (fields) fields.classList.toggle('hidden', !q('qArrow').checked); };
+      q('qArrow').onchange = e => {
+        a.arrow = e.target.checked;
+        if (a.arrow) { if (!Number.isFinite(+a.arrowAngle)) a.arrowAngle = -90; if (!(a.arrowLen > 0)) a.arrowLen = 0.18; }
+        syncArrow(); upd(); App.commit();
+      };
+      syncArrow();
+    }
+    if (q('qArrowAngle')) {
+      q('qArrowAngle').addEventListener('input', e => { if (e.target.value.trim() !== '' && Number.isFinite(+e.target.value)) { a.arrowAngle = clamp(Math.round(+e.target.value), -180, 180); upd(); } });
+      q('qArrowAngle').addEventListener('change', () => App.commit());
+    }
+    if (q('qArrowLen')) {
+      const out = q('qArrowLenOut');
+      q('qArrowLen').addEventListener('input', e => { a.arrowLen = +e.target.value / 100; if (out) out.textContent = e.target.value + '%'; upd(); });
+      q('qArrowLen').addEventListener('change', () => App.commit());
+    }
     if (q('qDash')) q('qDash').addEventListener('change', e => { a.dash = e.target.value === '1'; upd(); G.Editor.draw(); });
     if (q('qZoom')) q('qZoom').addEventListener('change', e => { a.zoom = +e.target.value; upd(); G.Editor.draw(); });
     if (q('qSide')) q('qSide').addEventListener('change', e => { a.side = e.target.value; upd(); });
@@ -369,7 +467,7 @@
     // by identity: other items may have been deleted while the popover was open
     q('qDel').onclick = () => { const i = list.indexOf(a); if (i >= 0) list.splice(i, 1); App.selAnno = null; popAnno = null; pop.classList.add('hidden'); App.commit(); };
     // a touch keyboard would cover the options: let the user tap the text field when wanted
-    if (!coarse.matches) setTimeout(() => q('qText').focus(), 0);
+    if (!coarse.matches && q('qText')) setTimeout(() => q('qText').focus(), 0);
   }
   function arrowPopover(k, anchor) {
     const a = S().arrows[k];
@@ -422,12 +520,26 @@
   document.addEventListener('mousedown', e => {
     if (!e.target.closest) { if (popK >= 0 || popAnno) closePop(); return; }
     if ((popK >= 0 || popAnno) && !pop.contains(e.target) && !e.target.closest('[data-aed]') && !e.target.closest('[data-qed]')
-      && !e.target.closest('g[data-edit="arrow"], g[data-edit="box"], g[data-edit="bracket"], g[data-edit="label"]') && e.target.id !== 'editor') closePop();
+      && !e.target.closest('g[data-edit="arrow"], g[data-edit="box"], g[data-edit="bracket"], g[data-edit="label"], g[data-edit="note"]') && e.target.id !== 'editor') closePop();
   });
 
   /* ---------- preview pointer handling ---------- */
-  let press = null, dragLabel = null;
+  let press = null, dragLabel = null, dragNote = null, noteDragged = false;
   const laneAt = (x, y) => { const el = document.elementFromPoint(x, y); const g = el && el.closest && el.closest('g[data-edit="lane"]'); return g ? +g.dataset.src : null; };
+  // preview coordinates: the figure is in points, while notes are stored in crop pixels. `_lastGel`
+  // already knows the splice mapping, so undo it instead of guessing a linear scale.
+  const noteFig = n => {
+    const gel = App._lastGel, st = S();
+    if (!gel || !st) return null;
+    const sc = st.style.gelWidthMm * G.Render.MM / gel.canvas.width;
+    return { gel, sc, x: gel.map(n.x - st.crop.x) * sc, y: (n.y - st.crop.y) * sc, w: gel.canvas.width * sc, h: gel.canvas.height * sc };
+  };
+  const noteInvX = (fx, gel, sc) => {
+    const px = fx / sc, segs = gel.segs || [];
+    for (const s of segs) if (px >= s.off && px <= s.off + (s.px1 - s.px0)) return s.x0 + (px - s.off);
+    const first = segs[0], last = segs[segs.length - 1];
+    return !first ? px : px < first.off ? first.x0 : last.x1;
+  };
   // where along the gel edge the pointer is (0..1): vertically beside the gel, across it below.
   // Uses the gel <image> in the preview, so zoom and phone scaling need no extra arithmetic.
   const labelAt = (e, t) => {
@@ -457,6 +569,17 @@
       const t = S().labels[+g.dataset.k];
       if (t) { dragLabel = { t, x: e.clientX, y: e.clientY, moved: false }; try { g.setPointerCapture && g.setPointerCapture(e.pointerId); } catch (_) {} }
     }
+    else if (g.dataset.edit === 'note') {
+      const n = S().notes[+g.dataset.k], svg = prev.querySelector('svg'), at = n && noteFig(n);
+      if (at && svg && svg.createSVGPoint && svg.getScreenCTM) {
+        const m = svg.getScreenCTM().inverse(), p = svg.createSVGPoint();
+        p.x = e.clientX; p.y = e.clientY;
+        const q = p.matrixTransform(m);
+        dragNote = { n, at, svg, m, x: e.clientX, y: e.clientY, x0: q.x, y0: q.y, moved: false };
+        noteDragged = false;
+        try { g.setPointerCapture && g.setPointerCapture(e.pointerId); } catch (_) {}
+      }
+    }
   });
   function makeGroup(a, b) {
     S().groups.push({ from: Math.min(a, b), to: Math.max(a, b), text: '' });
@@ -466,6 +589,20 @@
     requestAnimationFrame(() => openEd('group', k));
   }
   window.addEventListener('pointermove', e => {
+    if (dragNote) {
+      if (!dragNote.moved && Math.abs(e.clientX - dragNote.x) + Math.abs(e.clientY - dragNote.y) <= 6) return;
+      const st = App.S;
+      if (!st) return;
+      const q = dragNote.svg.createSVGPoint(); q.x = e.clientX; q.y = e.clientY;
+      const v = q.matrixTransform(dragNote.m);
+      const fx = Math.max(0, Math.min(dragNote.at.w, dragNote.at.x + v.x - dragNote.x0));
+      const fy = Math.max(0, Math.min(dragNote.at.h, dragNote.at.y + v.y - dragNote.y0));
+      dragNote.n.x = st.crop.x + noteInvX(fx, dragNote.at.gel, dragNote.at.sc);
+      dragNote.n.y = st.crop.y + fy / dragNote.at.sc;
+      dragNote.moved = true;
+      App.refresh();
+      return;
+    }
     if (dragLabel) {
       if (!dragLabel.moved && Math.abs(e.clientX - dragLabel.x) + Math.abs(e.clientY - dragLabel.y) <= 6) return;
       const v = labelAt(e, dragLabel.t);
@@ -478,6 +615,11 @@
     if (press.moved) { const l = laneAt(e.clientX, e.clientY); if (l != null) press.end = l; highlight(press.src, press.end); }
   });
   window.addEventListener('pointerup', e => {
+    if (dragNote) {
+      const d = dragNote; dragNote = null;
+      if (d.moved) { noteDragged = true; App.commit(); }
+      return;
+    }
     if (dragLabel) { const d = dragLabel; dragLabel = null; if (d.moved) App.commit(); return; }
     if (!press) return;
     const p = press; press = null;
@@ -498,11 +640,12 @@
     else if (!p.moved) openEd('lane', p.src);
   });
   // the browser took the touch for scrolling the figure
-  window.addEventListener('pointercancel', () => { if (press) { press = null; if (groupStart == null) highlight(null); } dragLabel = null; });
+  window.addEventListener('pointercancel', () => { if (press) { press = null; if (groupStart == null) highlight(null); } dragLabel = null; dragNote = null; });
   prev.addEventListener('click', e => {
+    if (noteDragged) { noteDragged = false; return; }
     if (!S()) return;
     const g = e.target.closest('[data-edit]');
-    if (!g) { if (App.mode === 'arrow') G.UI.toast(L('请点在凝胶图像上的条带', 'Click a band on the gel image')); return; }
+    if (!g) { if (App.mode === 'arrow' || App.mode === 'note' || App.mode === 'note-arrow') G.UI.toast(L('请点在凝胶图像上', 'Click on the gel image')); return; }
     const kind = g.dataset.edit;
     if (kind === 'marker') { G.MarkerUI.labelPopover(+g.dataset.marker, +g.dataset.band, g); return; }
     if (kind === 'group') openEd('group', +g.dataset.k);
@@ -512,15 +655,17 @@
       c.values[i] = cyc[c.values[i] || ''] != null ? cyc[c.values[i] || ''] : '';
       App.commit();
     } else if (kind === 'arrow') arrowPopover(+g.dataset.k, g);
-    else if (kind === 'box' || kind === 'bracket' || kind === 'label') { App.selAnno = { kind, k: +g.dataset.k }; annoPopover(kind, +g.dataset.k, g); G.Editor.draw(); }
-    else if (kind === 'gel' && (App.mode === 'arrow' || App.mode === 'marker-lane')) {
+    else if (kind === 'box' || kind === 'bracket' || kind === 'label' || kind === 'note') { App.selAnno = { kind, k: +g.dataset.k }; annoPopover(kind, +g.dataset.k, g); G.Editor.draw(); }
+    else if (kind === 'gel' && (App.mode === 'arrow' || App.mode === 'marker-lane' || App.mode === 'note' || App.mode === 'note-arrow')) {
       // map the click on the composed gel image back to raw-image coordinates
       const rect = g.getBoundingClientRect(), gel = App._lastGel, c = S().crop;
       const fx = (e.clientX - rect.left) / rect.width, fy = (e.clientY - rect.top) / rect.height;
       const px = fx * gel.canvas.width;
       const seg = gel.segs.find(s => px >= s.off && px <= s.off + (s.px1 - s.px0)) || gel.segs[0];
-      const x = c.x + seg.px0 + (px - seg.off);
-      if (App.mode === 'marker-lane') G.MarkerUI.pickAt(x); else App.placeArrow(x, c.y + fy * c.h);
+      const x = c.x + seg.px0 + (px - seg.off), y = c.y + fy * c.h;
+      if (App.mode === 'marker-lane') G.MarkerUI.pickAt(x);
+      else if (App.mode === 'arrow') App.placeArrow(x, y);
+      else App.placeNote(App.mode, x, y);
     }
   });
 
@@ -538,7 +683,7 @@
   App.on(w => { if (w === 'loaded') reset(); });
 
   G.FigEdit = {
-    setMode, arrowPopover, annoPopover, openEd, closePop, reset, colorField, bindColor,
+    setMode, arrowPopover, annoPopover, openEd, closePop, reset, colorField, bindColor, weightField,
     flush() { closeEd(false); closePop(); },
     afterRender() {
       if(edit){syncBar();placeBar();}

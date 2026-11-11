@@ -175,6 +175,33 @@
       ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x + 6, ya); ctx.lineTo(b.x + 12, ya); ctx.lineTo(b.x + 12, yb); ctx.lineTo(b.x + 6, yb); ctx.stroke();
       ctx.fillStyle = TEAL; ctx.fillText(br.text || G.L('括号', 'Bracket'), b.x + 16, (ya + yb) / 2 + 4);
     });
+    // notes written on the gel (orange: they belong to the image, not to the figure margin)
+    const ORANGE = '#ea580c';
+    (S.notes || []).forEach((n, k) => {
+      const p = toScr(n.x, n.y), sel = App.selAnno && App.selAnno.kind === 'note' && App.selAnno.k === k;
+      ctx.strokeStyle = ORANGE; ctx.fillStyle = ORANGE; ctx.lineWidth = sel ? 2.4 : 1.5;
+      if (n.kind === 'arrow') {
+        const rad = (+n.angle || 0) * Math.PI / 180, len = Math.max(4, Math.abs(+n.len || 0.12) * S.crop.w) * view.s;
+        const tx = p.x - Math.cos(rad) * len, ty = p.y - Math.sin(rad) * len;
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(p.x, p.y); ctx.stroke();
+        const hs = 7, bx = p.x - Math.cos(rad) * hs, by = p.y - Math.sin(rad) * hs;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(bx + Math.sin(rad) * hs, by - Math.cos(rad) * hs);
+        ctx.lineTo(bx - Math.sin(rad) * hs, by + Math.cos(rad) * hs); ctx.closePath(); ctx.fill();
+      } else {
+        if (n.arrow) {
+          const aa = Number.isFinite(+n.arrowAngle) ? +n.arrowAngle : -90, ar = aa * Math.PI / 180;
+          const len = Math.max(8, Math.abs(+n.arrowLen || 0.18) * S.crop.w) * view.s;
+          const hx = p.x + Math.cos(ar) * len, hy = p.y + Math.sin(ar) * len;
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(hx, hy); ctx.stroke();
+          const hs = 7, bx = hx - Math.cos(ar) * hs, by = hy - Math.sin(ar) * hs;
+          ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(bx + Math.sin(ar) * hs, by - Math.cos(ar) * hs);
+          ctx.lineTo(bx - Math.sin(ar) * hs, by + Math.cos(ar) * hs); ctx.closePath(); ctx.fill();
+        }
+        ctx.setLineDash([4, 3]); ctx.strokeRect(p.x - 7, p.y - 7, 14, 14); ctx.setLineDash([]);
+        ctx.font = '600 11px -apple-system, Segoe UI, Arial, sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText((n.text || G.L('自由文本框', 'Text box')).split('\n')[0], p.x + 11, p.y - 8);
+      }
+    });
     // rubber band while drawing a new box / bracket
     if (drag && drag.h.type === 'draw' && drag.cur) {
       const r0 = toScr(Math.min(drag.p0.x, drag.cur.x), Math.min(drag.p0.y, drag.cur.y)), r1 = toScr(Math.max(drag.p0.x, drag.cur.x), Math.max(drag.p0.y, drag.cur.y));
@@ -243,6 +270,22 @@
       const lo = Math.min(brs[k].y1, brs[k].y2), hi = Math.max(brs[k].y1, brs[k].y2);
       if (p.y >= lo && p.y <= hi && p.x > c.x + c.w && p.x < c.x + c.w + 18 / view.s) return { type: 'brmove', i: k };
     }
+    // in-gel notes: the arrow's line, or the little square around a text anchor
+    const notes = S.notes || [];
+    for (let k = notes.length - 1; k >= 0; k--) {
+      const n = notes[k];
+      if (n.kind === 'arrow') {
+        const rad = (+n.angle || 0) * Math.PI / 180, len = Math.max(4, Math.abs(+n.len || 0.12) * c.w);
+        if (nearSegment(p.x, p.y, n.x - Math.cos(rad) * len, n.y - Math.sin(rad) * len, n.x, n.y, tol * 1.6)) return { type: 'notemove', i: k };
+      } else {
+        if (n.arrow) {
+          const aa = Number.isFinite(+n.arrowAngle) ? +n.arrowAngle : -90, ar = aa * Math.PI / 180;
+          const len = Math.max(8, Math.abs(+n.arrowLen || 0.18) * c.w);
+          if (nearSegment(p.x, p.y, n.x, n.y, n.x + Math.cos(ar) * len, n.y + Math.sin(ar) * len, tol * 1.6)) return { type: 'notemove', i: k };
+        }
+        if (Math.abs(p.x - n.x) <= tol * 2.5 && Math.abs(p.y - n.y) <= tol * 2.5) return { type: 'notemove', i: k };
+      }
+    }
     const bh=bandHit(p,tol);if(bh)return bh;
     if (inY && S.lanes.length) { const i = nearestLane(p.x); if (Math.abs(p.x - S.lanes[i].x) <= tol) return { type: 'lane', i }; }
     if (inY && Math.abs(p.x - c.x) <= tol) return { type: 'crop', k: 'w' };
@@ -253,8 +296,12 @@
     if (inX && inY) return { type: 'inside' };
     return { type: 'pan' };
   }
-  function nearestLane(x) {
-    let best = 0, bd = Infinity;
+  function nearSegment(px, py, x1, y1, x2, y2, tol) {
+    const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2));
+    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy)) <= tol;
+  }
+  function nearestLane(x) {    let best = 0, bd = Infinity;
     App.S.lanes.forEach((l, i) => { const d = Math.abs(l.x - x); if (d < bd) { bd = d; best = i; } });
     return best;
   }
@@ -280,7 +327,7 @@
     if (h.type === 'lane') return 'ew-resize';
     if (h.type === 'band' || h.type === 'arrow' || h.type === 'brend') return 'ns-resize';
     if (h.type === 'boxsize') return 'nwse-resize';
-    if (h.type === 'cropmove' || h.type === 'boxmove' || h.type === 'brmove') return 'move';
+    if (h.type === 'cropmove' || h.type === 'boxmove' || h.type === 'brmove' || h.type === 'notemove') return 'move';
     return 'grab';
   }
 
@@ -295,6 +342,7 @@
     else if (h.type === 'arrow' && S.arrows[h.i]) S.arrows[h.i].y = d.y0;
     else if ((h.type === 'boxmove' || h.type === 'boxsize') && S.boxes[h.i]) Object.assign(S.boxes[h.i], d.orig);
     else if ((h.type === 'brend' || h.type === 'brmove') && S.brackets[h.i]) Object.assign(S.brackets[h.i], d.orig);
+    else if (h.type === 'notemove' && S.notes[h.i]) Object.assign(S.notes[h.i], d.orig);
     App.refresh();
   }
   const pinchDist = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
@@ -306,6 +354,7 @@
     if (p.y < c.y || p.y > c.y + c.h) return;
     if (mode === 'marker-band') { G.MarkerUI.point(p.x,p.y,free); return; }
     if (mode === 'arrow') { if (App.placeArrow) App.placeArrow(p.x, p.y); return; }
+    if (mode === 'note' || mode === 'note-arrow') { if (App.placeNote) App.placeNote(mode, p.x, p.y); return; }
     if (p.x < c.x || p.x > c.x + c.w) return;
     if (mode === 'marker-lane') { G.MarkerUI.pickAt(p.x); return; }
     App.selLane = App.addLane(p.x); App.selArrow = -1;
@@ -335,7 +384,7 @@
     if (pinch) return;
     const p = toImg(sx, sy);
     const markHit=App.mode==='marker-band'&&!spaceDown?bandHit(p,(touch?HIT_TOUCH:HIT)/view.s):null;
-    if (App.mode === 'arrow' || App.mode === 'lane' || App.mode === 'marker-lane' || App.mode==='marker-band'&&!spaceDown&&(!markHit||G.MarkerUI.pendingSize())) {
+    if (App.mode === 'arrow' || App.mode === 'lane' || App.mode === 'marker-lane' || App.mode === 'note' || App.mode === 'note-arrow' || App.mode==='marker-band'&&!spaceDown&&(!markHit||G.MarkerUI.pendingSize())) {
       // a mouse click acts at once; a finger may still pan or pinch first, so it acts on a clean tap
       if (touch) drag = { state:App.S,h: { type: 'pan' }, tap: App.mode, free:e.altKey,sx, sy, p0: p, moved: false, view0: Object.assign({}, view), touch };
       else tapAction(App.mode, p,e.altKey);
@@ -359,6 +408,7 @@
     else if (h.type === 'arrow') { App.selArrow = h.i; App.selLane = -1; drag.y0 = App.S.arrows[h.i].y; App.emit('select'); }
     else if (h.type === 'boxmove' || h.type === 'boxsize') { App.selAnno = { kind: 'box', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = Object.assign({}, App.S.boxes[h.i]); }
     else if (h.type === 'brend' || h.type === 'brmove') { App.selAnno = { kind: 'bracket', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = Object.assign({}, App.S.brackets[h.i]); }
+    else if (h.type === 'notemove') { App.selAnno = { kind: 'note', k: h.i }; App.selLane = App.selArrow = -1; drag.orig = { x: App.S.notes[h.i].x, y: App.S.notes[h.i].y }; }
     else if (h.type === 'band') { const b = App.S.markers[h.m].bands[h.i]; drag.y0 = b.y; drag.band0 = Object.assign({}, b); }
     else if (h.type === 'inside') {
       let best = -1, bd = Infinity;
@@ -399,7 +449,7 @@
         return;
       }
       if (App.mode==='marker-band'){const h=bandHit(toImg(sx,sy),HIT/view.s);hover=h;cv.style.cursor=h?'ns-resize':'crosshair';draw();return;}
-      if (App.mode === 'box' || App.mode === 'bracket' || App.mode === 'lane' || App.mode === 'marker-lane') { cv.style.cursor = 'crosshair'; return; }
+      if (App.mode === 'box' || App.mode === 'bracket' || App.mode === 'lane' || App.mode === 'marker-lane' || App.mode === 'note' || App.mode === 'note-arrow') { cv.style.cursor = 'crosshair'; return; }
       const h = hitTest(sx, sy, e.shiftKey);
       const changed = JSON.stringify(h) !== JSON.stringify(hover);
       hover = h; cv.style.cursor = cursorFor(h);
@@ -417,6 +467,7 @@
     if (h.type === 'boxsize') { const o = drag.orig, q = S.boxes[h.i]; q.w = Math.max(4, Math.min(rot.w - o.x, o.w + dx)); q.h = Math.max(4, Math.min(rot.h - o.y, o.h + dy)); draw(); App.refresh(); return; }
     if (h.type === 'brend') { S.brackets[h.i][h.end] = E_clamp(drag.orig[h.end] + dy, 0, rot.h); draw(); App.refresh(); return; }
     if (h.type === 'brmove') { const o = drag.orig, q = S.brackets[h.i]; q.y1 = E_clamp(o.y1 + dy, 0, rot.h); q.y2 = E_clamp(o.y2 + dy, 0, rot.h); draw(); App.refresh(); return; }
+    if (h.type === 'notemove') { const o = drag.orig, q = S.notes[h.i]; q.x = E_clamp(o.x + dx, 0, rot.w); q.y = E_clamp(o.y + dy, 0, rot.h); draw(); App.refresh(); return; }
     if (h.type === 'crop' || h.type === 'cropmove') {
       const c0 = drag.crop0;
       let x0 = c0.x, y0 = c0.y, x1 = c0.x + c0.w, y1 = c0.y + c0.h;
@@ -469,8 +520,8 @@
         if(App.mode==='marker-band'){lastTap=null;G.MarkerUI.editBand(d.h.m,d.h.i);return;}
         App.selLane=S.markers[d.h.m].lane;App.selArrow=-1;App.emit('select');draw();
       }
-      if ((d.h.type === 'boxmove' || d.h.type === 'boxsize' || d.h.type === 'brend' || d.h.type === 'brmove') && App.openAnno) {
-        App.openAnno(d.h.type.startsWith('box') ? 'box' : 'bracket', d.h.i);
+      if ((d.h.type === 'boxmove' || d.h.type === 'boxsize' || d.h.type === 'brend' || d.h.type === 'brmove' || d.h.type === 'notemove') && App.openAnno) {
+        App.openAnno(d.h.type === 'notemove' ? 'note' : d.h.type.startsWith('box') ? 'box' : 'bracket', d.h.i);
         draw(); return;
       }
       // Only two taps on the same existing marker open an editor; samples/gaps never add lanes.

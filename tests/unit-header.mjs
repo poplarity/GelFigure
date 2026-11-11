@@ -86,7 +86,7 @@ export async function unitHeaderChecks(browser,base,root,engine){
           show();const texts=Array.from(host.querySelectorAll('text')),unit=texts.find(t=>t.textContent==='(kDa)'),band=texts.find(t=>t.textContent==='250');
           const a=unit.getBoundingClientRect(),b=band.getBoundingClientRect(),clear=a.bottom<b.top;
           const condY=()=>+host.querySelector('[data-edit="condname"] text').getAttribute('y');const reserved=condY();
-          R.style.unitHeader=false;show();const noHeader=!host.textContent.includes('(kDa)'),unreserved=condY();
+          R.style.unitHeader=false;m.unit='none';show();const noHeader=!host.textContent.includes('(kDa)'),unreserved=condY();
           R.style.unitHeader=true;m.unit='auto';show();const auto=!host.textContent.includes('(kDa)'),autoY=condY();
           R.markers=[];show();const absent=condY();
           return {clear,noHeader,auto,reserved,unreserved,autoY,absent};

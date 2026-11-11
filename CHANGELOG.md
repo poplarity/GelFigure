@@ -4,6 +4,46 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.15] - 2026-11-11
+
+Desktop Safari compatibility, flexible text annotations and dependable lane-number exports.
+
+**中文摘要**
+- 修复桌面 Safari 的泳道名称等标注高亮和控件显示，统一逐项字重菜单并显示当前选项；支持直接粘贴胶图。
+- Marker 单位设置移至 Marker 面板，支持 `5000 bp` 等逐条单位；导入和备份收进库管理窗口，侧边文字可自由旋转。
+- 新增可拖动的多行自定义文本框，支持背景、边框、对齐和引导箭头；文字与标注随胶图方向调整。
+- 修复泳道编号在导出时消失，以及可靠匹配后遗漏淡蛋白 Marker 条带的问题。淡条带修复已通过合成图回归，原反馈的真实胶图和 Marker 型号尚未核验。
+
+### Added
+- Paste a gel image straight from the clipboard with ⌘V / Ctrl+V; it is loaded like a dropped file, and an unnamed clipboard image becomes `pasted_gel_<date>.png`.
+- The custom-ladder size field accepts units written next to each number (`5000bp, 3000bp`, `5 kb`, `100kDa`), with a live preview and the same validation before saving. Bare numbers still follow the current gel type.
+- Marker labels can show the unit inline (`5000 bp`) instead of a single `(bp)` heading, or omit the unit entirely (`不显示单位`). The old global header switch is gone; each marker lane chooses its own style.
+- Every text item has its own weight control (Regular / Medium / Semibold / Bold) in the same panel as colour and italic: lane names, marker labels, groups, condition rows, side text, boxes, brackets and in-gel notes. PPTX maps ≥600 to native bold.
+- Side text accepts any rotation angle (−180° to 180°), not only the three default directions, and keeps its rotated bounds clear of the gel and figure edge.
+- A single free text box replaces the separate in-gel text and arrow tools. It supports multiple lines, free rotation, left/centre/right alignment, transparent or white background, an optional border and an optional leader arrow; it can be dragged anywhere on the raw image or the figure, and it is stored with the project and templates.
+- The marker-library backup and import actions live in a dedicated “Marker 库管理…” dialog instead of the first-level marker panel.
+
+### Fixed
+- Font-weight menus now share the same labelled 400/500/600/700 choices. The dark inline toolbar no longer renders white text on a white menu, and its text editor immediately previews the selected weight.
+- Region-box and side-bracket labels now apply their own weight in previews and exports, with weighted text bounds; bracket weights also survive style-template round trips.
+- Style templates preserve the automatic left/right side-text angle instead of turning an explicit `null` into 0°.
+- The lane/condition row-order switch now names the ordering it actually enables, in both languages.
+- Free text boxes and their arrow targets follow deskew, mirrors and quarter turns; quarter turns retain their text and per-item weights. Applying a second mirror now restores lane order and annotation coordinates, including the deskew direction.
+- White-background text boxes use black text by default on dark gels, while explicit red and the gel-facing leader arrow retain their colours. Multiline text boxes export as one editable PowerPoint text shape.
+- Lane numbering reserves its own text bounds in the exported figure. Numbers no longer disappear above the crop when lane names are empty; SVG, PNG, TIFF and editable PPTX retain the number row, including after lanes are cut.
+- Faint protein-marker bands (including 180 kDa) detected below the ladder fitter's initial strength threshold can be recovered after a reliable strong-band match. Recovery requires a single detected peak near the predicted position; it never invents absent bands, shifts strong/manual matches or changes DNA matching and initial ladder-model selection.
+- The custom-ladder field rejects explicit DNA/protein unit conflicts in both gel modes, converts Da to kDa, and accepts whitespace-separated entries such as `5000 bp 3000 bp`; bare numbers still follow the current gel type.
+- The blue highlight that marks an editable or selected item on the figure now appears in Safari. WebKit draws nothing at all for a CSS `drop-shadow()` on an inline SVG group, so lane names, condition cells, group labels, arrows and brackets gave no hover or edit feedback there; the highlight is now an SVG filter (hover and active variants) that every engine renders, kept in the preview only so exported figures are unchanged.
+- Drop-down menus are the same height as the text fields beside them in Safari. WebKit draws a native `<select>` that ignores padding (21 px against a 31.5 px input on the same row); the control now uses its own box model with a drawn chevron, in both the light panels and the dark top bar.
+- Opening a compressed `.gelfig` project in a browser without `DecompressionStream` (Safari before 16.4) now says so instead of failing with a parse error; saving still falls back to plain JSON.
+- Safari's "ResizeObserver loop completed with undelivered notifications" no longer appears in the console. Observer callbacks are coalesced to the next frame and skip writes that would not change the box.
+
+### Changed
+- Font weight is no longer a figure-wide setting; it sits with each item's colour and italic controls, so a single lane, group or condition can be emphasised without changing the rest of the figure.
+- The page declares `color-scheme: light`, so native menus, checkboxes and scrollbars stay light when macOS is in dark mode, and `text-size-adjust: 100%` keeps text from being rescaled.
+- Local project history asks for persistent storage once, so Safari's seven-day eviction of script-written storage does not silently drop saved projects.
+- Text selection uses the interface accent colour instead of each engine's default.
+
 ## [0.6.14] - 2026-10-28
 
 Whole-image orientation, gel-hugging lane names and freely placed side text.
@@ -355,7 +395,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.14...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.15...HEAD
+[0.6.15]: https://github.com/poplarity/GelFigure/compare/v0.6.14...v0.6.15
 [0.6.14]: https://github.com/poplarity/GelFigure/compare/v0.6.13...v0.6.14
 [0.6.13]: https://github.com/poplarity/GelFigure/compare/v0.6.12...v0.6.13
 [0.6.12]: https://github.com/poplarity/GelFigure/compare/v0.6.11...v0.6.12
