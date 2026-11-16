@@ -337,18 +337,28 @@
   $('btnRotCCW').onclick = () => applyOrient({ r: 270, f: 0 }, L('逆时针 90°', 'Rotated 90° anticlockwise'));
   $('btnFlipH').onclick = () => applyOrient({ r: 0, f: 1 }, L('水平翻转', 'Mirrored left to right'));
   $('btnFlipV').onclick = () => applyOrient({ r: 180, f: 1 }, L('垂直翻转', 'Mirrored top to bottom'));
+  let straightenRequest=0;
   $('btnDeskew').onclick = () => {
     if (!S()) return;
-    App.busy(true, L('正在检测角度…', 'Measuring the angle…'));
+    const state=S(),request=++straightenRequest,busyLabel=L('正在检测角度…','Measuring the angle…');
+    App.busy(true,busyLabel);
     setTimeout(() => {
-      const a = App.autoDeskew(); App.afterRotation(); App.busy(false); App.commit();
-      toast(Math.abs(a) >= App.AUTO_ROT_LIMIT - 0.3
-        ? L(`自动转正到达上限 ${a}°，可能还没转正，请手动确认`, `Auto-straightening hit its limit at ${a}°; the gel may still be tilted — please check`)
-        : L(`已转正为 ${a}°（标注已随图转动）`, `Straightened to ${a}° (annotations rotated with the image)`), 3600);
-    }, 20);
+      try {
+        if(S()!==state)return;
+        const a=App.autoDeskew();App.afterRotation();App.commit();
+        toast(Math.abs(a)>=App.AUTO_ROT_LIMIT-.3
+          ? L(`自动转正到达上限 ${a}°，可能还没转正，请手动确认`,`Auto-straightening hit its limit at ${a}°; the gel may still be tilted — please check`)
+          : L(`已转正为 ${a}°（标注已随图转动）`,`Straightened to ${a}° (annotations rotated with the image)`),3600);
+      } finally {
+        // A canceled request still owns its waiting screen, but must not dismiss a newer image load.
+        if(request===straightenRequest&&$('busyText').textContent===busyLabel)App.busy(false);
+      }
+    },20);
   };
   $('btnResetRot').onclick = () => { if (!S()) return; App.resetRotation(); App.commit(); toast(L(`已回到自动角度 ${S().rotation}°`, `Back to the automatic angle ${S().rotation}°`)); };
   $('showGrid').addEventListener('change', e => { G.Editor.setGrid(e.target.checked); });
+  function clearImageGrid(){ $('showGrid').checked=false;G.Editor.setGrid(false); }
+  $('rotationFine').addEventListener('toggle',()=>{if(!$('rotationFine').open)clearImageGrid();});
   $('btnResetLv').onclick = done(() => { App.resetLevels(); toast(L('对比度已重置（Ctrl+Z 可撤销）', 'Contrast reset (Ctrl+Z to undo)')); });
   $('btnAutoLv').onclick = done(() => App.autoLevels());
   function updateClipLine() {
@@ -858,6 +868,10 @@
     const st = S(), y = st.style;
     $('invChk').checked = !!st.levels.invert;
     const colour = App.isColour();
+    $('imageColourField').classList.toggle('hidden',!App.hasColour());
+    $('imageAngleState').textContent=L(`当前 ${st.rotation}°`,`Current ${st.rotation}°`);
+    $('imageAdjustState').textContent=st.levels.gamma!==1?'Gamma '+st.levels.gamma+' · '+L('非线性','nonlinear'):L('线性调整','Linear');
+    $('imageAdjustState').classList.toggle('warn-text',st.levels.gamma!==1);
     $('displayModeSeg').querySelectorAll('[data-display]').forEach(b => {
       b.disabled = b.dataset.display === 'colour' && !App.hasColour();
       b.classList.toggle('on', b.dataset.display === (colour ? 'colour' : 'gray'));
@@ -980,7 +994,7 @@
   }
 
   App.on(what => {
-    if(what==='loaded')closeMarkerLibrary(false);
+    if(what==='loaded'){closeMarkerLibrary(false);for(const id of ['rotationFine','contrastManual','gammaControls','gelDetectionDetails'])$(id).open=false;clearImageGrid();}
     else if(what==='change'&&!$('markerLibDlg').classList.contains('hidden')&&(S()!==libraryState||libraryMarkers.some(m=>!S()?.markers.includes(m))))closeMarkerLibrary(false);
     if (!S()) return;
     if (what === 'loaded') {

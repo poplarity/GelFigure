@@ -89,67 +89,48 @@
 
     <div id="sections" class="hidden">
       <!-- image -->
-      <section class="sec">
+      <section class="sec" id="imageSection">
         <div class="sec-head"><span class="sec-n">1</span><span data-en="Image">图像</span><span class="sec-status" id="stImage"></span></div>
-        <div class="field">
+        <div class="image-block">
           <label><span data-en="Gel type">胶的类型</span> <span class="h3-note" id="gelTypeNote"></span></label>
-          <div class="seg full" id="gelSeg">
-            <button data-gel="dna" data-en="DNA (bp)">DNA 胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button>
+          <div class="seg full" id="gelSeg"><button data-gel="dna" data-en="DNA (bp)">DNA 胶（bp）</button><button data-gel="protein" data-en="Protein (kDa)">蛋白胶（kDa）</button></div>
+          <details class="image-more" id="gelDetectionDetails"><summary data-en="How was this detected?">查看识别依据</summary><p class="hint" id="gelTypeWhy"></p></details>
+        </div>
+        <div class="image-block">
+          <div class="image-block-title"><b data-en="Orientation">摆正图像</b><span class="h3-note" id="orientNote"></span></div>
+          <div class="image-direction-grid">
+            <button class="btn sm" id="btnRotCCW" title="逆时针 90°" data-en-title="Rotate 90° anticlockwise" aria-label="Rotate 90 degrees anticlockwise"><span aria-hidden="true">⟲ 90°</span></button>
+            <button class="btn sm" id="btnRotCW" title="顺时针 90°" data-en-title="Rotate 90° clockwise" aria-label="Rotate 90 degrees clockwise"><span aria-hidden="true">⟳ 90°</span></button>
+            <button class="btn sm" id="btnFlipH" data-en="⇋ Mirror horizontally">⇋ 水平翻转</button>
+            <button class="btn sm" id="btnFlipV" data-en="⇅ Mirror vertically">⇅ 垂直翻转</button>
           </div>
-          <p class="hint" id="gelTypeWhy"></p>
-          <p class="hint storage-note hidden" data-en="Preference storage is unavailable; editing and export still work. Check the separate marker-library cache status. Save a project before closing.">偏好存储不可用，仍可编辑和导出；Marker 库是否保存成功请看其缓存状态。关闭前请保存项目。</p>
+          <div class="image-auto-row"><button class="btn sm" id="btnDeskew" data-en="Auto straighten">自动转正</button><span class="hint" id="imageAngleState"></span></div>
+          <details class="image-more" id="rotationFine"><summary data-en="Fine-tune angle…">微调角度…</summary>
+            <div class="field"><label><span data-en="Angle">角度</span> <b id="rotV"></b> <span class="h3-note" id="rotAuto"></span></label>
+              <div class="inline nowrap"><button class="btn sm ghost step-btn" id="rotMinus" title="−0.5°">−</button><input type="range" id="rot" min="-45" max="45" step="0.1" value="0" aria-label="Rotation angle"><button class="btn sm ghost step-btn" id="rotPlus" title="+0.5°">+</button><input type="number" id="rotNum" step="0.1" min="-45" max="45" class="num" style="width:58px" aria-label="Rotation degrees"></div>
+              <div class="inline mt"><button class="btn sm ghost" id="btnResetRot" data-en="Restore auto angle">恢复自动角度</button><label class="switch"><input type="checkbox" id="showGrid"><span data-en="Reference grid">参考网格</span></label></div>
+            </div>
+            <p class="hint" data-en="90° turns re-detect lanes and retain names in order. Fine rotation and mirrors carry annotations with the gel.">90° 旋转会重新识别泳道并按顺序保留名称；角度微调和镜像会让标注随胶图移动。</p>
+          </details>
         </div>
-        <div class="field">
-          <label data-en="Image appearance">图像显示</label>
-          <div class="seg full" id="displayModeSeg"><button data-display="colour" data-en="Original colour">保留原色</button><button data-display="gray" data-en="Grayscale">灰度</button></div>
-          <p class="hint" id="displayModeNote"></p>
+        <div class="image-block" id="imageAppearance">
+          <b data-en="Appearance">显示方式</b>
+          <div id="imageColourField"><div class="seg full" id="displayModeSeg"><button data-display="colour" data-en="Original colour">保留原色</button><button data-display="gray" data-en="Grayscale">灰度</button></div><p class="hint" id="displayModeNote"></p></div>
+          <div class="image-auto-row" id="grayPolarity"><label class="switch"><input type="checkbox" id="invChk"><span data-en="Swap black / white">黑白反转</span></label><span class="hint" id="invNote"></span></div>
         </div>
-        <div class="field" id="grayPolarity">
-          <label class="switch"><input type="checkbox" id="invChk"><span data-en="Invert (swap black and white)">反色（黑白对调）</span></label>
-          <p class="hint" id="invNote"></p>
+        <div class="image-block" id="grayAdjustments">
+          <div class="image-block-title"><b data-en="Contrast">亮暗与对比度</b><span class="hint" id="imageAdjustState"></span></div>
+          <button class="btn sm" id="btnAutoLv" data-en="Auto contrast for this crop">按当前范围自动调整</button>
+          <div class="clipline" id="clipLine"></div>
+          <details class="image-more" id="contrastManual"><summary data-en="Manual contrast…">手动调节…</summary>
+            <div class="field"><label><span data-en="Black point">暗部（黑点）</span> <b id="lvBlackV"></b></label><input type="range" id="lvBlack" min="0" max="1000" aria-label="Black point"></div>
+            <div class="field"><label><span data-en="White point">亮部（白点）</span> <b id="lvWhiteV"></b></label><input type="range" id="lvWhite" min="0" max="1000" aria-label="White point"></div>
+            <canvas id="histo" height="40"></canvas>
+            <div class="field inline"><button class="btn sm" id="btnResetLv" data-en="Restore import contrast">恢复导入时对比度</button><label class="switch"><input type="checkbox" id="showSat"><span data-en="Highlight saturation">标红过曝像素</span></label></div>
+            <details class="adv" id="gammaControls"><summary data-en="Gamma · nonlinear (state in legend)">Gamma · 非线性（需在图注说明）</summary><div class="field inline"><label class="switch"><input type="checkbox" id="gammaUnlock"><span data-en="Unlock">解锁</span></label><input type="number" id="gamma" min="0.2" max="5" step="0.05" value="1" class="num" disabled></div></details>
+          </details>
         </div>
-        <div class="field">
-          <label><span data-en="Rotation">旋转</span> <b id="rotV"></b> <span class="h3-note" id="rotAuto"></span></label>
-          <div class="inline nowrap">
-            <button class="btn sm ghost step-btn" id="rotMinus" title="−0.5°">−</button>
-            <input type="range" id="rot" min="-45" max="45" step="0.1" value="0">
-            <button class="btn sm ghost step-btn" id="rotPlus" title="+0.5°">+</button>
-            <input type="number" id="rotNum" step="0.1" min="-45" max="45" class="num" style="width:58px">
-          </div>
-          <div class="inline mt">
-            <button class="btn sm" id="btnDeskew" data-en="Auto straighten">自动转正</button>
-            <button class="btn sm ghost" id="btnResetRot" data-en="Back to auto angle">回到自动角度</button>
-            <label class="switch"><input type="checkbox" id="showGrid"><span data-en="Grid">参考网格</span></label>
-          </div>
-        </div>
-        <div class="field">
-          <label><span data-en="Orientation">方向</span> <span class="h3-note" id="orientNote"></span></label>
-          <div class="inline nowrap">
-            <button class="btn sm ghost" id="btnRotCCW" title="逆时针 90°" data-en-title="Rotate 90° anticlockwise" aria-label="Rotate 90 degrees anticlockwise">⟲</button>
-            <button class="btn sm ghost" id="btnRotCW" title="顺时针 90°" data-en-title="Rotate 90° clockwise" aria-label="Rotate 90 degrees clockwise">⟳</button>
-            <button class="btn sm ghost" id="btnFlipH" title="水平翻转" data-en-title="Mirror left to right" data-en="⇋ Flip">⇋ 水平翻转</button>
-            <button class="btn sm ghost" id="btnFlipV" title="垂直翻转" data-en-title="Mirror top to bottom" data-en="⇅ Flip">⇅ 垂直翻转</button>
-          </div>
-          <p class="hint" data-en-html="Photos taken sideways or upside down can be turned here instead of in another app. Flips keep every label; quarter turns re-detect the lanes and keep the names in order.">拍歪、倒置或镜像的胶图可以直接在这里转正，不必先用别的软件处理。翻转会保留全部标注；90° 旋转会重新识别泳道，并按顺序保留泳道名。</p>
-        </div>
-        <div id="grayAdjustments">
-        <div class="field"><label><span data-en="Black point">暗部</span> <b id="lvBlackV"></b></label><input type="range" id="lvBlack" min="0" max="1000"></div>
-        <div class="field"><label><span data-en="White point">亮部</span> <b id="lvWhiteV"></b></label><input type="range" id="lvWhite" min="0" max="1000"></div>
-        <canvas id="histo" height="40"></canvas>
-        <div class="clipline" id="clipLine"></div>
-        <div class="field inline">
-          <button class="btn sm" id="btnResetLv" title="回到导入时的自动对比度，Gamma 归 1，黑白极性不变" data-en-title="Back to the automatic contrast from import; gamma 1; polarity unchanged" data-en="Reset contrast">重置对比度</button>
-          <button class="btn sm ghost" id="btnAutoLv" data-en="Auto for current crop">按当前范围自动</button>
-          <label class="switch"><input type="checkbox" id="showSat"><span data-en="Show saturated pixels">标红过曝像素</span></label>
-        </div>
-        <details class="adv">
-          <summary data-en="Gamma (non-linear, must be stated in the legend)">Gamma（非线性，需在图注说明）</summary>
-          <div class="field inline">
-            <label class="switch"><input type="checkbox" id="gammaUnlock"><span data-en="Unlock">解锁</span></label>
-            <input type="number" id="gamma" min="0.2" max="5" step="0.05" value="1" class="num" disabled>
-          </div>
-        </details>
-        </div>
+        <p class="hint storage-note hidden" data-en="Browser storage is unavailable. Editing and export still work; save a project before closing.">浏览器缓存不可用；仍可编辑和导出，关闭前请保存项目。</p>
       </section>
 
       <!-- range -->

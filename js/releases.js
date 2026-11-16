@@ -2,11 +2,11 @@
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
   {version:'0.6.16-dev',date:'2026-11-16',zh:[
-    'Marker 侧栏聚焦泳道、型号、单位和核对条带；样式与明细按需展开。',
+    '图像与 Marker 侧栏精简：常用操作直达，角度微调、手动对比度、样式与明细按需展开。',
     '统一型号搜索与预览，明确应用到当前泳道；参考卡提供清晰的定位与完成操作。',
     '收藏、自定义和备份集中到库管理；保存自定义型号不再误改第一个 Marker。'
   ],en:[
-    'Marker cards focus on lane, ladder, units and band review, with folded style and band details.',
+    'Image and Marker controls focus on common actions, with folded fine angles, manual contrast, styles and band details.',
     'One searchable ladder preview applies explicitly to the current lane; calibration has a clear finish action.',
     'Favourites, custom models and backups share library management; saving no longer overwrites the first Marker.'
   ]},

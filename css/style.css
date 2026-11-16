@@ -701,3 +701,22 @@ html, body { height: 100dvh; }
 @media(max-width:600px) { .marker-model-columns { grid-template-columns:1fr; } .marker-model-results { max-height:190px; } .marker-model-body { padding:18px; } .marker-model-columns { gap:8px; } .marker-model-preview { padding:9px; } }
 .marker-reference-card .btn.ghost,.marker-library-body .btn.ghost { color:#4b5563; }
 .marker-reference-card .btn.ghost:hover,.marker-library-body .btn.ghost:hover { color:var(--accent); background:var(--accent-bg); }
+
+/* Image controls follow the same common-first pattern as Marker cards. */
+.image-block { padding:12px 0; border-bottom:1px solid var(--line); }
+.image-block:first-of-type { padding-top:4px; }
+.image-block > label,.image-block-title { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:7px; font-size:12px; }
+.image-block-title > .hint { margin:0 0 0 auto; }
+.image-more { margin-top:9px; font-size:12px; }
+.image-more > summary { color:var(--muted); cursor:pointer; }
+.image-more[open] > summary { margin-bottom:10px; }
+.image-more .field { margin-top:10px; }
+.image-direction-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.image-direction-grid .btn { min-height:30px; font-size:11.5px; }
+.image-auto-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+.image-auto-row > .hint { margin:0; font-size:11px; }
+#imageAppearance > b { display:block; font-size:12px; margin-bottom:7px; }
+#imageAppearance #displayModeSeg { margin-top:6px; }
+#imageAdjustState { color:var(--muted); }
+#imageAdjustState.warn-text { color:var(--warn); }
+#imageSection .clipline { font-size:10.8px; }

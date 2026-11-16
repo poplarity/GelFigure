@@ -14,11 +14,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) first (no build step, bilingual strings,
 
 ## Dev update — 2026-11-16 (not released)
 
-`dev` adds the approved Marker UI simplification; `main`/`v0.6.15` remain the published version. Design and implementation plan: `docs/plans/2026-11-16-marker-workflow*.md`. `MarkerUI.chooseModel` is the single target-scoped searchable chooser; previews do not mutate state and `applyModel` updates only the marker object still present in current state. Clear pending calibration sizes on model changes. `UI.openMarkerLibrary` defaults to library-only saves; never fall back to `markers[0]`. Capture state/marker identities before async saves and apply only if still current. Shared unit options come from `UI.markerUnitOptions`. Keep style/band details, scroll and focus across sidebar rebuilds.
+`dev` adds the approved Marker UI simplification and the subsequently requested Image-step simplification; `main`/`v0.6.15` remain the published version. Design and implementation plan: `docs/plans/2026-11-16-marker-workflow*.md`. `MarkerUI.chooseModel` is the single target-scoped searchable chooser; previews do not mutate state and `applyModel` updates only the marker object still present in current state. Clear pending calibration sizes on model changes. `UI.openMarkerLibrary` defaults to library-only saves; never fall back to `markers[0]`. Capture state/marker identities before async saves and apply only if still current. Shared unit options come from `UI.markerUnitOptions`. Keep style/band details, scroll and focus across sidebar rebuilds.
+
+Image controls: `#rotationFine`, `#contrastManual`, `#gelDetectionDetails` and `#gammaControls` fold advanced UI without changing processing. Keep `clipLine` and an active non-default Gamma summary visible; hide `#imageColourField` only when the source has no colour. Clear transient grids on closing fine controls and on `loaded`. Delayed auto-straighten checks state identity before editing. Tests: `tests/image-controls.mjs`.
 
 The reported unequal spacing screenshot was checked: lane guide / label anchor spacing is even. Start-anchored 45° text of different lengths has unequal horizontal bounding-box whitespace; 90° is a suitable existing option. Do not equalize source gel pixels or move lane coordinates to balance text whitespace.
 
-验证：三引擎完整回归各 247 项通过；独立复核后的同型号识别与库管理焦点修复，连同 15 项改版检查及原 Marker 工作流，在三引擎再次通过。最终单文件双语搜索、库保存、条带核对离线检查无外部请求/运行错误。WebKit 桌面 1024/1280/1440 双语窗口通过显示核验；原生 Safari 加载新版侧栏，维护者开始试用后未干预其编辑。
+验证：整合图像区与 Marker 后，三引擎完整回归各 256 项通过；最终复核修复后，图像区、Marker 改版及原 Marker 工作流专项各 43 项在三引擎再次通过。最终单文件双语搜索、图像折叠控件、库保存、条带核对离线检查无外部请求/运行错误。桌面 WebKit 已检查中英文及窄桌面显示；原生 Safari 加载新版 Marker 侧栏，维护者开始试用后未干预其编辑。
 
 ## 在另一台电脑继续 / Continuing on another computer
 

@@ -5,11 +5,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ## [Unreleased]
 
 ### Changed
+- Simplified the Image step: gel type, direction, automatic straighten, appearance and automatic contrast stay directly available; fine angles, manual contrast/histogram, detection reasons and Gamma expand on demand. Grayscale-only sources omit the unavailable colour toggle; active nonlinear Gamma and clipping evidence stay visible.
 - Simplified each Marker card to lane, ladder, units and Review bands. Label style and band details are folded, with contextual re-detection and removal.
 - A single searchable ladder chooser previews model names, catalogue numbers, sizes and reference bands without changing the figure. Apply and detect updates only the named lane. Calibration uses this same chooser and has a visible Done action.
 - Moved favourites and custom ladder creation into library management alongside backup/import. Custom saves default to library-only; using a new model on a figure requires an explicit target Marker.
 
 ### Fixed
+- A delayed automatic-straighten request no longer edits a replacement project. Closing fine-angle controls or loading a project clears the transient reference grid.
 - Saving a custom ladder no longer silently replaces the first Marker. A save completing after project replacement only adds the model to the library.
 - Sidebar controls preserve folded-section state, scroll and keyboard focus across edits. No-unit display is available consistently in the card and contextual label editor.
 - Closing or replacing projects dismisses stale model/library editors; changing a model clears a pending size from the previous model. Reference/library action labels stay readable on white backgrounds.
