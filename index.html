@@ -137,11 +137,11 @@
       <section class="sec">
         <div class="sec-head"><span class="sec-n">2</span><span data-en="Lane alignment">泳道对齐</span><span class="sec-status" id="stRange"></span></div>
         <div id="laneControls" class="lane-grid-control">
-          <div class="raw-grid-row"><label for="cropLaneN" data-en="Lanes">泳道数</label><div class="lane-count-stepper"><button class="btn sm" id="laneCountMinus" title="减少一条" data-en-title="One fewer lane">−</button><input type="number" id="cropLaneN" min="1" max="60" class="num"><button class="btn sm" id="laneCountPlus" title="增加一条" data-en-title="One more lane">＋</button></div></div>
+          <div class="raw-grid-row"><label for="cropLaneN" data-en="Lanes in this crop">框内泳道数</label><div class="lane-count-stepper"><button class="btn sm" id="laneCountMinus" title="减少一条" data-en-title="One fewer lane">−</button><input type="number" id="cropLaneN" min="1" max="60" class="num"><button class="btn sm" id="laneCountPlus" title="增加一条" data-en-title="One more lane">＋</button></div></div>
           <label class="switch"><input id="laneLinked" type="checkbox" checked><span data-en="Link end-lane spacing">首尾等距联动</span></label>
-          <p class="hint" data-en="Include marker and empty lanes. Drag the two end lines; the middle follows. Alt-drag adjusts one lane.">条数含 Marker 和空道。拖首尾线，中间联动；Alt 拖动可单独微调。</p>
+          <p class="hint" data-en="Set the count or press Enter to keep only this crop, numbered from 1. Includes marker and empty lanes.">修改条数或按回车后，仅保留框内泳道并从 1 编号，包含 Marker 和空道。</p>
           <button class="btn sm primary" id="btnRedetectCrop" data-en="Re-detect lanes + markers in crop">框内重新识别泳道和 Marker</button>
-          <p class="hint" data-en="Runs both steps inside the red crop. Confirmed marker choices and manual anchors are kept.">在红框内一起识别；保留手动确认的 Marker 和定位点。</p>
+          <p class="hint" data-en="Rebuilds lanes in the crop from 1 and clears old outside guides. Keeps confirmed in-crop markers and anchors; undo is available.">按红框重建泳道，从 1 编号并清理框外旧标记；保留框内已确认的 Marker 和定位点，可撤销。</p>
         </div>
         <p class="hint" data-en="Drag the red box directly to change the figure crop.">出图范围直接拖动原图上的红框调整。</p>
 

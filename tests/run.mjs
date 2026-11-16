@@ -33,6 +33,7 @@ import { proteinFeedbackChecks } from './protein-feedback.mjs';
 import { devAuditChecks } from './dev-audit.mjs';
 import { markerSimplifyChecks } from './marker-simplify.mjs';
 import { imageControlChecks } from './image-controls.mjs';
+import { cropLaneResetChecks } from './crop-lane-reset.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -156,6 +157,7 @@ async function runIn(name, base) {
     const devAudit=await devAuditChecks(browser,base,ROOT,name);out.results.push(...devAudit);if(devAudit.some(r=>r[0]==='FAIL'))out.ok=false;
     const simplified=await markerSimplifyChecks(browser,base,ROOT,name);out.results.push(...simplified);if(simplified.some(r=>r[0]==='FAIL'))out.ok=false;
     const imageControls=await imageControlChecks(browser,base,ROOT,name);out.results.push(...imageControls);if(imageControls.some(r=>r[0]==='FAIL'))out.ok=false;
+    const cropReset=await cropLaneResetChecks(browser,base,ROOT,name);out.results.push(...cropReset);if(cropReset.some(r=>r[0]==='FAIL'))out.ok=false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];

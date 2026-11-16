@@ -46,7 +46,7 @@ export async function markerWorkflowChecks(browser,base,root,engine){
      return {calls,x:S.lanes.map(l=>l.x),names:S.lanes.map(l=>l.name),markers:S.markers.map(m=>[S.lanes[m.lane].x,m.bands[0].y]),values:S.conditions[0].values,excluded:S.lanes.find(l=>l.x===300).markerExcluded};
     }finally{Engine.detectLanes=det;App.autoMarkers=auto;App.matchMarkers=match;App.S=JSON.parse(before);App.emit('loaded');}
    });
-   assert.deepEqual(r,{calls:1,x:[10,100,150,200,300,400,490],names:['outside','A','','M','B','M','outside2'],markers:[[200,300],[400,300]],values:['out','a','','m1','b','m2','out2'],excluded:true});
+   assert.deepEqual(r,{calls:1,x:[100,150,200,300,400],names:['A','','M','B','M'],markers:[[200,300],[400,300]],values:['a','','m1','b','m2'],excluded:true});
   });
   await check('crop detection also discovers unassigned markers; plain cropping does not invent new roles',async()=>{
    const r=await p.evaluate(()=>{

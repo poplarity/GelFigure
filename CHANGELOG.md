@@ -11,6 +11,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Moved favourites and custom ladder creation into library management alongside backup/import. Custom saves default to library-only; using a new model on a figure requires an explicit target Marker.
 
 ### Fixed
+- Grid resizing preserves exact crop endpoints so floating-point rounding cannot drop an edge Marker.
+- Explicit in-crop lane-count correction and successful combined re-detection clear stale outside guides, remap retained annotations and restart working-gel numbering at 1. Plain crop moves and failed detection keep prior state; corrections remain undoable.
 - A delayed automatic-straighten request no longer edits a replacement project. Closing fine-angle controls or loading a project clears the transient reference grid.
 - Saving a custom ladder no longer silently replaces the first Marker. A save completing after project replacement only adds the model to the library.
 - Sidebar controls preserve folded-section state, scroll and keyboard focus across edits. No-unit display is available consistently in the card and contextual label editor.

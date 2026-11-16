@@ -4,11 +4,11 @@ window.GelFigureReleases = Object.freeze([
   {version:'0.6.16-dev',date:'2026-11-16',zh:[
     '图像与 Marker 侧栏精简：常用操作直达，角度微调、手动对比度、样式与明细按需展开。',
     '统一型号搜索与预览，明确应用到当前泳道；参考卡提供清晰的定位与完成操作。',
-    '收藏、自定义和备份集中到库管理；保存自定义型号不再误改第一个 Marker。'
+    '框内重识别或修改条数会清理框外旧泳道并从 1 编号；保留框内标注并支持撤销。'
   ],en:[
     'Image and Marker controls focus on common actions, with folded fine angles, manual contrast, styles and band details.',
     'One searchable ladder preview applies explicitly to the current lane; calibration has a clear finish action.',
-    'Favourites, custom models and backups share library management; saving no longer overwrites the first Marker.'
+    'Crop corrections clear stale outside lanes and restart numbering at 1, preserving in-crop annotations and undo.'
   ]},
   {version:'0.6.15',date:'2026-11-11',zh:[
     '改进桌面 Safari 的编辑高亮和控件显示，统一逐项字重菜单；支持直接粘贴胶图。',

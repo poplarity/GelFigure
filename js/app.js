@@ -654,7 +654,8 @@
     const pitch = n > 1 ? (right - left) / (n - 1) : S.lanePitch || S.crop.w;
     S.lanes = order.map((o, i) => {
       const l = o >= 0 ? { ...old[o] } : { name: '', hidden: false };
-      if (i >= a && i < a + n) l.x = left + (i - a) * (n > 1 ? pitch : 0);
+      // Preserve the exact endpoints: n*pitch may overshoot the crop by a floating-point epsilon.
+      if (i >= a && i < a + n) l.x = i===a ? left : i===a+n-1 ? right : E.clamp(left+(i-a)*pitch,left,right);
       return l;
     });
     const removed = S.markers.filter(mk => !remap.has(mk.lane)).length;
@@ -667,6 +668,26 @@
     S.lanePitch = pitch; S.laneHalfW = Math.max(1, pitch * 0.3); S.laneLinked = true;
     App.selLane = remap.has(App.selLane) ? remap.get(App.selLane) : -1;
     return { n, removedMarkers: removed };
+  };
+
+  // Explicit count/re-detect actions make the crop the current working gel. Ordinary cropping
+  // deliberately does not call this: only a correction discards old out-of-crop detection guesses.
+  function retainCropLanes() {
+    const S=App.S,c=S.crop,old=S.lanes,keep=old.map((l,i)=>i).filter(i=>old[i].x>=c.x&&old[i].x<=c.x+c.w);
+    const remap=new Map(keep.map((i,k)=>[i,k]));
+    if(keep.length===old.length)return 0;
+    const before=S.markers.length;
+    S.lanes=keep.map(i=>old[i]);
+    S.markers=S.markers.filter(m=>remap.has(m.lane)).map(m=>({...m,lane:remap.get(m.lane)}));
+    S.conditions.forEach(row=>{const values=row.values;row.values=keep.map(i=>values[i]||'');});
+    S.groups=S.groups.flatMap(g=>{const ids=keep.filter(i=>i>=Math.min(g.from,g.to)&&i<=Math.max(g.from,g.to));return ids.length?[{...g,from:remap.get(ids[0]),to:remap.get(ids.at(-1))}]:[];});
+    App.selLane=remap.get(App.selLane)??-1;
+    return before-S.markers.length;
+  }
+  App.setCropLaneCount = function (count) {
+    const result=App.resizeLaneGrid(count);
+    result.removedMarkers+=retainCropLanes();
+    return result;
   };
 
   // indices of lanes whose centre lies inside the crop
@@ -1183,7 +1204,7 @@
   };
   App.redetectCrop = function () {
     const n=App.redetectLanesInCrop();
-    if(n)App.detectMarkersInCrop();
+    if(n){retainCropLanes();App.detectMarkersInCrop();}
     return {lanes:n,markers:App.S.markers.filter(m=>{const r=App.laneRange();return r&&m.lane>=r[0]&&m.lane<=r[1];}).length};
   };
   App.alignMarker = function (mi) {

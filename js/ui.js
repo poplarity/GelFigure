@@ -386,11 +386,11 @@
     if (!S()) return;
     if (!Number.isFinite(n) || n < 1) { const r = App.laneRange(); $('cropLaneN').value = r ? r[1] - r[0] + 1 : 1; return; }
     G.FigEdit && G.FigEdit.flush();
-    const res = App.resizeLaneGrid(n); App.commit();
-    if (res.removedMarkers) toast(L('减少条数移除了对应的 Marker，Ctrl/⌘+Z 可撤销', 'Reducing the count removed a marker; Ctrl/⌘+Z undoes it'));
+    const res = App.setCropLaneCount(n); App.commit();
+    if (res.removedMarkers) toast(L('已移除框外或不再保留的 Marker，Ctrl/⌘+Z 可撤销', 'Markers outside the corrected lane set were removed; Ctrl/⌘+Z undoes it'));
   }
   $('cropLaneN').addEventListener('change', e => setGridCount(+e.target.value));
-  $('cropLaneN').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.blur(); } });
+  $('cropLaneN').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); const n=+e.target.value;e.target.blur();setGridCount(n); } });
   $('laneCountMinus').onclick = () => setGridCount(Math.max(1, +$('cropLaneN').value - 1));
   $('laneCountPlus').onclick = () => setGridCount(Math.min(60, +$('cropLaneN').value + 1));
   function gridLabels() {
