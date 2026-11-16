@@ -71,7 +71,7 @@ export async function markerWorkflowChecks(browser,base,root,engine){
    const r=await p.evaluate(()=>{
     const before=App.snapshot(),first=App.S.markers[0],other=UI.figLanes().find(i=>i!==first.lane);
     App.S.markers.push({...App.newMarker(other),userAssigned:true,bands:[{bp:500,y:345,manual:true,matched:true,show:true}]});App.commit();
-    const saved=JSON.stringify(App.S.markers[1]),model=first.ladderId;document.querySelector('[data-mi="0"] [data-f="align"]').click();
+    const saved=JSON.stringify(App.S.markers[1]),model=first.ladderId;document.querySelector('[data-mi="0"] details[data-section="bands"]').open=true;document.querySelector('[data-mi="0"] [data-f="align"]').click();
     const result={model:App.S.markers[0].ladderId===model,other:JSON.stringify(App.S.markers[1])===saved,confirmed:App.S.markers[0].userAssigned};
     App.S=JSON.parse(before);App.emit('loaded');return result;
    });assert.deepEqual(r,{model:true,other:true,confirmed:true});
@@ -85,9 +85,11 @@ export async function markerWorkflowChecks(browser,base,root,engine){
   });
   await check('reference preview is non-destructive, and real-image clicks place manual anchors',async()=>{
    const saved=await p.evaluate(()=>JSON.stringify(App.S.markers)),model=await p.evaluate(()=>App.S.markers[0].ladderId);
-   const other=await p.locator('#markerReferenceModel option').evaluateAll(os=>os.find(o=>!o.selected).value);
-   await p.locator('#markerReferenceModel').selectOption(other);assert.equal(await p.evaluate(()=>JSON.stringify(App.S.markers)),saved);assert(await p.locator('#markerUseModel').isVisible());
-   await p.locator('#markerReferenceModel').selectOption(model);
+   await p.locator('#markerReferenceChange').click();
+   const other=p.locator('#markerModelResults [data-model-id]');
+   const alternative=await other.evaluateAll(es=>es.find(e=>e.getAttribute('aria-pressed')!=='true').dataset.modelId);
+   await p.locator(`[data-model-id="${alternative}"]`).click();assert.equal(await p.evaluate(()=>JSON.stringify(App.S.markers)),saved);assert(await p.locator('#markerModelApply').isVisible());
+   await p.locator('#markerModelCancel').click();
    const bp=await p.evaluate(()=>App.S.markers[0].bands.find(b=>b.show&&b.y>App.S.crop.y+App.S.crop.h*.4)?.bp);
    assert(bp);await selectSize(bp);const q=await imagePoint(bp);await p.mouse.click(q.x,q.y);
    assert(await p.evaluate(bp=>App.S.markers[0].bands.find(b=>b.bp===bp).manual,bp));
@@ -163,7 +165,7 @@ export async function markerWorkflowChecks(browser,base,root,engine){
   });
   await check('protein reference contains protein ladders, and editors never appear in exported SVG',async()=>{
    await p.evaluate(async()=>{await App.load({name:'synthetic-protein.tif',buffer:Demo.encodeTiff16(Demo.makeProteinGel())});MarkerUI.open(0);});
-   assert(await p.locator('#markerReferenceModel option').evaluateAll(os=>os.every(o=>Ladders.kindOf(Ladders.get(o.value))==='protein')));
+   await p.locator('#markerReferenceChange').click();assert(await p.locator('#markerModelResults [data-model-id]').evaluateAll(es=>es.every(e=>Ladders.kindOf(Ladders.get(e.dataset.modelId))==='protein')));await p.locator('#markerModelCancel').click();
    assert((await p.locator('.marker-ref-lane').textContent()).includes('kDa'));
    assert(await p.evaluate(()=>{const svg=App.buildFigure(false).svg;return !svg.includes('data-edit=')&&!svg.includes('markerReference')&&!svg.includes('ladder-reference');}));await p.locator('#markerReferenceClose').click();
   });

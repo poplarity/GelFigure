@@ -191,28 +191,14 @@
       </section>
 
       <!-- marker -->
-      <section class="sec">
+      <section class="sec" id="markerSection">
         <div class="sec-head"><span class="sec-n">3</span>Marker<span class="sec-status" id="stMarker"></span></div>
-        <p class="lead" data-en="Pick a marker lane, choose its ladder, then Detect bands. The reference stays beside the image; click a number on the figure to edit its label.">选泳道、选型号，再点“识别此泳道”。图例留在原图旁；点成图数字可改显示、删除和字号。</p>
+        <p class="lead" data-en="Check the lane and ladder below. Wrong band positions? Use Review bands to correct them on the image.">先核对泳道和型号；条带位置不对时，点“核对条带”在原图上修正。</p>
         <div id="markerList"></div>
         <div class="field inline">
           <button class="btn sm" id="btnAddMarker" data-en="Pick a marker lane">点选 Marker 泳道</button>
-          <button class="btn sm ghost" id="btnAutoMarkers" data-en="Re-detect">重新识别</button>
         </div>
-        <details class="adv" id="favAdv">
-          <summary><span data-en="Ladders we use">我们实验室常用的型号</span><span class="h3-note" id="favNote"></span></summary>
-          <p class="hint" style="margin-top:2px" data-en="Tick the ladders your lab actually buys. Detection prefers them, and still says so when it has to pick another one that fits better.">勾选你们实验室实际在用的型号。自动识别会优先选它们；确实不吻合时会换成更吻合的型号并提示你。</p>
-          <div id="favList" class="list"></div>
-          <label class="switch"><input type="checkbox" id="onlyFav"><span data-en="Use only these (falls back to all if none fits)">只用勾选的型号（都不吻合时自动回退全库）</span></label>
-        </details>
-        <details class="adv" id="customLadderAdv">
-          <summary data-en="Custom ladder">自定义 Ladder</summary>
-          <div class="field"><input type="text" id="customName" placeholder="名称" data-en-placeholder="Name"></div>
-          <div class="field"><input type="text" id="customSizes" placeholder="条带大小：5000bp, 3000bp, 2000bp（也支持 5kb / 100kDa；只写数字 = 当前胶的类型）" data-en-placeholder="Band sizes: 5000bp, 3000bp, 2000bp (5kb / 100kDa also work; bare numbers use the current gel type)"></div>
-          <p class="hint" id="customParse" role="status" aria-live="polite"></p>
-          <button class="btn sm" id="btnSaveLadder" data-en="Save and use">保存并使用</button>
-          <div id="customList" class="list"></div>
-        </details>
+        <details class="adv"><summary data-en="Find markers automatically">自动查找 Marker</summary><p class="hint" data-en="Use this if a marker was missed. Your manual lane and band choices are kept.">漏识别时可重新查找，保留手动指定的泳道和条带。</p><button class="btn sm" id="btnAutoMarkers" data-en="Find markers in the crop">查找框内 Marker</button></details>
         <button class="btn sm ghost" id="btnMarkerLib" data-en="Manage marker library…">Marker 库管理…</button>
         <p class="hint" id="ladderCacheStatus" role="status" aria-live="polite"></p>
       </section>
@@ -486,7 +472,7 @@
   <ol>
     <li>Drop the gel image — straightening, cropping, lanes, markers and contrast are automatic. Several exposures of one gel can be dropped together; the best is chosen.</li>
     <li><b>Click a lane name</b> on the figure and type; Enter jumps to the next. “Paste names” above the figure accepts a whole row.</li>
-    <li>Pick the marker lane and model, then “Detect bands here”. “Calibrate / reference” opens a small card beside the source image.</li>
+    <li>Check the marker lane, ladder and units. Click the ladder to search and preview; Apply and detect changes that Marker. Review bands opens the reference beside the source image.</li>
     <li>“Export PNG” at the top right. A pre-flight check points out problems first.</li>
   </ol>
   <h3>Common tasks</h3>
@@ -502,7 +488,7 @@
     <li><b>Lane-name rotation</b>: use “Name angle” above the figure. Auto keeps the existing layout rule; presets, the slider or numeric input set 0–90° for all lane names. Choose Auto to restore it. The angle is included in projects, styles and exports.</li>
     <li><b>Individual names and text formatting</b>: click a lane name and select text for Upright, Italic, x² or x₂. With no selection the whole name is formatted; click x²/x₂ again to restore the baseline. Clear removes local formatting and follows the shared face. Ctrl/⌘+Z undoes edits while typing. Shared size/angle settings remain the default; enable “Individual lane settings” only when needed, and untick to follow shared settings again.</li>
     <li><b>Region box</b>: drag a rectangle on the image; optionally show it enlarged beside the figure. <b>Side bracket</b>: drag over a size range (smear, (Ub)n). <b>Side text</b>: stain, antibody or exposure beside or below the gel; drag it along the edge (or use the position slider) to clear other labels. A target band can also be marked <code>*</code> (non-specific), <code>#</code> or <code>†</code>.</li>
-    <li><b>A marker band is wrong</b>: select its lane and model, then “Detect bands here” to align only that marker. Open “Calibrate / reference”, select a size and click its actual band on the original image; or click a band first to choose the size. Drag yellow lines to fine-tune (Alt disables snapping). Browsing reference models changes nothing until “Use this ladder”. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
+    <li><b>A marker band is wrong</b>: check its lane and use the searchable ladder chooser; Apply and detect changes only that Marker. Open Review bands, choose a size and click its actual band on the image, then Done. Drag yellow lines to fine-tune (Alt disables snapping). Model previews do not change the figure. Favourites, custom models and backups are in Manage marker library; choose the target lane explicitly when saving a custom model for use. The diagram is schematic, not measured migration; predicted unmatched bands start hidden.</li>
     <li><b>Rotation</b>: annotations rotate with the image. Use the grid to judge by eye.</li>
   </ul>
   <h3>Image integrity</h3>
@@ -522,7 +508,7 @@
   <ol>
     <li>拖入胶图 —— 转正、裁切、泳道、Marker、对比度全部自动完成。同一块胶的多张曝光可以一起拖进来，自动挑最好的一张。</li>
     <li>在右侧成图上<b>点泳道名</b>输入，回车自动跳到下一条；也可用成图上方的“批量粘贴”一次填入整行。</li>
-    <li>选 Marker 泳道和型号，点“识别此泳道”；“校准 / 图例”在原图旁打开小型参考卡。</li>
+    <li>核对 Marker 泳道、型号和单位。点型号搜索预览，“应用并识别”后生效；“核对条带”在原图旁打开参考卡。</li>
     <li>右上角"导出 PNG"。导出前会自动检查常见问题。</li>
   </ol>
   <h3>常用操作</h3>
@@ -538,7 +524,7 @@
     <li><b>泳道名旋转</b>：点成图上方“泳道名角度”。默认自动沿用原有排版规则；可选预设、拖动滑块或输入 0–90°，对所有泳道名生效。选回“自动”即可恢复，角度会随项目、样式和导出保存。</li>
     <li><b>单个名称与局部格式</b>：点泳道名，选中文字可设正体、斜体、上标、下标；未选中则作用于整段，再点一次上/下标可恢复基线。“清除格式”恢复统一字形，输入时可用 Ctrl/⌘+Z 撤销。默认统一字号与角度，按需开启“此泳道单独设置”，取消勾选即可恢复统一。</li>
     <li><b>区域框</b>：在原图上拖出矩形，可选在成图旁放大展示。<b>侧边括号</b>：在原图上拖过一段区域（拖尾、多聚体）。<b>侧边文字</b>：染色方法、抗体、曝光时间，放在胶图侧边或下方；可拖动（或用位置滑杆）沿胶边移动，避开其它文字。目标条带也可标成 <code>*</code>（非特异条带）、<code>#</code> 或 <code>†</code>。</li>
-    <li><b>Marker 条带不对</b>：选好泳道和型号后点“识别此泳道”，只对齐这一个 Marker。打开“校准 / 图例”，先选大小再点原图上的实际条带，也可先点条带再选大小；拖黄线微调，Alt 关闭吸附。参考卡里切换型号先预览，点“使用此型号”才应用。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
+    <li><b>Marker 条带不对</b>：先核对泳道，再点型号搜索预览；“应用并识别”只改这一个 Marker。打开“核对条带”，选大小、点原图实际条带，最后点“完成”；拖黄线微调，Alt 关闭吸附。常用、自定义和备份在“Marker 库管理”；自定义型号默认仅保存，使用时需明确选择目标泳道。图例仅作示意；未匹配到的预测条带默认隐藏。</li>
     <li><b>旋转</b>：标注会跟着图一起转；可打开参考网格目测。</li>
   </ul>
   <h3>图像规范</h3>
@@ -553,9 +539,25 @@
   </div>
 </div></div>
 
-<div id="markerLibDlg" class="dlg hidden"><div class="dlg-body">
+<div id="markerLibDlg" class="dlg hidden"><div class="dlg-body marker-library-body" role="dialog" aria-modal="true" aria-labelledby="markerLibTitle">
   <button class="dlg-x" id="btnMarkerLibClose" title="关闭" data-en-title="Close">×</button>
-  <h3 data-en="Marker library">Marker 库管理</h3>
+  <h3 id="markerLibTitle" data-en="Marker library">Marker 库管理</h3>
+        <details class="adv" id="favAdv">
+          <summary><span data-en="Ladders we use">我们实验室常用的型号</span><span class="h3-note" id="favNote"></span></summary>
+          <p class="hint" style="margin-top:2px" data-en="Tick the ladders your lab actually buys. Detection prefers them, and still says so when it has to pick another one that fits better.">勾选你们实验室实际在用的型号。自动识别会优先选它们；确实不吻合时会换成更吻合的型号并提示你。</p>
+          <div id="favList" class="list"></div>
+          <label class="switch"><input type="checkbox" id="onlyFav"><span data-en="Use only these (falls back to all if none fits)">只用勾选的型号（都不吻合时自动回退全库）</span></label>
+        </details>
+        <details class="adv" id="customLadderAdv">
+          <summary data-en="Custom ladder">自定义 Ladder</summary>
+          <div class="field"><input type="text" id="customName" placeholder="名称" data-en-placeholder="Name"></div>
+          <div class="field"><input type="text" id="customSizes" placeholder="条带大小：5000bp, 3000bp, 2000bp（也支持 5kb / 100kDa；只写数字 = 当前胶的类型）" data-en-placeholder="Band sizes: 5000bp, 3000bp, 2000bp (5kb / 100kDa also work; bare numbers use the current gel type)"></div>
+          <p class="hint" id="customParse" role="status" aria-live="polite"></p>
+          <label class="field"><span data-en="Use after saving">保存后使用在</span><select id="customApplyTarget"><option value="" data-en="Library only — keep the figure unchanged">仅保存到库，不改变当前图</option></select></label>
+          <button class="btn sm primary" id="btnSaveLadder" data-en="Save to library">保存到库</button>
+          <div id="customList" class="list"></div>
+        </details>
+
   <p class="hint" data-en="Custom models and favourites are cached together. A different browser or offline HTML file may use separate storage; back up the library to move it. Backups contain models and favourites only, not images.">自定义型号与常用收藏一起缓存。换浏览器或换离线 HTML 文件可能使用不同缓存，可通过备份迁移；备份仅含型号和收藏，不含图片。</p>
   <div class="field inline" style="flex-wrap:wrap">
     <button class="btn sm ghost" id="btnBackupLadders" data-en="Back up marker library">备份 Marker 库</button>

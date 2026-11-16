@@ -12,6 +12,14 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) first (no build step, bilingual strings,
 - **检测验证范围**：本机没有真实胶图；原反馈的 180 kDa 条带缺失只用合成图回归，具体品牌、型号与真实胶图尚未核验。恢复仅使用可靠匹配后已有的邻近淡峰，不补造缺失条带。真实胶图回归集仍需维护者维护；手机端仍仅有模拟视口验证，本次没有新增手机端范围。
 - **GitHub issue #1（Pierce 26610）** 已在 v0.6.14 发布：116 / 66.2 / 45 / 35 / 25 / 18.4 / 14.4 kDa，7 条带、无加亮参考带，来源 MAN0011769。
 
+## Dev update — 2026-11-16 (not released)
+
+`dev` adds the approved Marker UI simplification; `main`/`v0.6.15` remain the published version. Design and implementation plan: `docs/plans/2026-11-16-marker-workflow*.md`. `MarkerUI.chooseModel` is the single target-scoped searchable chooser; previews do not mutate state and `applyModel` updates only the marker object still present in current state. Clear pending calibration sizes on model changes. `UI.openMarkerLibrary` defaults to library-only saves; never fall back to `markers[0]`. Capture state/marker identities before async saves and apply only if still current. Shared unit options come from `UI.markerUnitOptions`. Keep style/band details, scroll and focus across sidebar rebuilds.
+
+The reported unequal spacing screenshot was checked: lane guide / label anchor spacing is even. Start-anchored 45° text of different lengths has unequal horizontal bounding-box whitespace; 90° is a suitable existing option. Do not equalize source gel pixels or move lane coordinates to balance text whitespace.
+
+验证：三引擎完整回归各 247 项通过；独立复核后的同型号识别与库管理焦点修复，连同 15 项改版检查及原 Marker 工作流，在三引擎再次通过。最终单文件双语搜索、库保存、条带核对离线检查无外部请求/运行错误。WebKit 桌面 1024/1280/1440 双语窗口通过显示核验；原生 Safari 加载新版侧栏，维护者开始试用后未干预其编辑。
+
 ## 在另一台电脑继续 / Continuing on another computer
 
 1. Clone `https://github.com/poplarity/GelFigure.git`, read this file and `CONTRIBUTING.md`, then inspect `git status -sb`, recent commits, and the current remote `main`/`dev` before editing. Preserve existing uncommitted work. `CLAUDE.md` imports this file; keep one authoritative handover rather than separate divergent copies.

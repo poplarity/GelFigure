@@ -655,3 +655,49 @@ html, body { height: 100dvh; }
 .sel-bar button { min-width: 40px; height: 38px; padding: 0 10px; border: none; border-radius: 10px; background: rgba(255,255,255,.13); color: #fff; font-size: 13px; cursor: pointer; touch-action: manipulation; }
 .sel-bar button.danger { background: rgba(255,90,90,.22); color: #ffc2c2; }
 .sel-bar button.x { min-width: 34px; padding: 0 6px; background: none; font-size: 18px; }
+
+/* Marker cards: four primary decisions; correction and typography stay nearby but folded. */
+.marker-field { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:start; gap:8px; margin:9px 0; font-size:12px; }
+.marker-field > span:first-child { color:var(--muted); padding-top:6px; }
+.marker-field select { min-width:0; }
+.marker-model-button { min-width:0; width:100%; text-align:left; border:1px solid #d3d8de; border-radius:6px; background:#fff; padding:7px 9px; cursor:pointer; }
+.marker-model-button > span { display:block; overflow-wrap:anywhere; line-height:1.45; }
+.marker-model-button small { display:block; color:var(--accent); margin-top:3px; }
+.marker-model-button:hover,.marker-model-button:focus-visible { border-color:var(--accent); background:var(--accent-bg); }
+.marker-match-summary { color:var(--muted); font-size:11.5px; margin:8px 0; }
+.marker-review { width:100%; }
+.marker-detail { border-top:1px solid var(--line); padding-top:9px; margin-top:10px; }
+.marker-detail summary { cursor:pointer; color:var(--muted); }
+.marker-detail .item { gap:5px; flex-wrap:wrap; }
+.marker-detail .item > .switch { margin-right:auto; }
+.marker-detail .item .tag { font-size:10px; }
+.marker-empty { color:var(--muted); padding:10px; background:var(--accent-bg); border-radius:7px; line-height:1.7; }
+.marker-library-body { width:min(660px,calc(100vw - 24px)); }
+.marker-library-body .adv { margin:15px 0; padding:12px; border:1px solid var(--line); border-radius:8px; }
+.marker-library-body summary { cursor:pointer; font-weight:600; }
+.marker-library-body .fav-row { font-size:12px; }
+.marker-model-body { width:min(820px,calc(100vw - 24px)); }
+.marker-model-target { color:var(--accent); background:var(--accent-bg); padding:9px 12px; border-radius:7px; }
+#markerModelSearch { width:100%; border:1px solid #d3d8de; border-radius:6px; padding:8px 10px; background:#fff; }
+.marker-model-columns { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; margin:12px 0; min-height:230px; }
+.marker-model-results { max-height:min(380px,45vh); overflow:auto; border:1px solid var(--line); border-radius:8px; overscroll-behavior:contain; }
+.marker-model-result { width:100%; padding:12px; border:0; border-bottom:1px solid var(--line); background:#fff; color:var(--text); text-align:left; cursor:pointer; }
+.marker-model-result span { display:block; font-size:12.5px; line-height:1.5; overflow-wrap:anywhere; }
+.marker-model-result small { display:block; color:var(--muted); margin-top:4px; }
+.marker-model-result:hover { background:#f5f8fe; }
+.marker-model-result.selected { background:var(--accent-bg); box-shadow:inset 3px 0 var(--accent); }
+.marker-model-result:focus-visible { outline:2px solid var(--accent); outline-offset:-3px; }
+.marker-model-preview { padding:12px; border:1px solid var(--line); border-radius:8px; min-width:0; }
+.marker-model-preview h4 { margin:0 0 10px; overflow-wrap:anywhere; }
+.model-size-chips { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
+.model-size-chips span { padding:4px 7px; border:1px solid var(--line); border-radius:5px; font-size:12px; }
+.model-size-chips .reference { border-color:#e9b98b; color:#955012; background:#fff7ed; }
+.marker-model-footer { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:8px; margin-top:16px; }
+#markerModelCustom { margin-right:auto; }
+.marker-model-empty { padding:18px 12px; line-height:1.7; color:var(--muted); }
+.marker-ref-model { font-size:11px; line-height:1.5; overflow-wrap:anywhere; margin:6px 0; }
+.marker-ref-instruction { padding:7px; border-radius:5px; background:var(--accent-bg); color:#244a7d; font-size:11px; line-height:1.5; }
+.marker-ref-head #markerReferenceClose { font:inherit; color:var(--accent); border:1px solid #cedbf2; border-radius:5px; padding:4px 6px; background:#fff; }
+@media(max-width:600px) { .marker-model-columns { grid-template-columns:1fr; } .marker-model-results { max-height:190px; } .marker-model-body { padding:18px; } .marker-model-columns { gap:8px; } .marker-model-preview { padding:9px; } }
+.marker-reference-card .btn.ghost,.marker-library-body .btn.ghost { color:#4b5563; }
+.marker-reference-card .btn.ghost:hover,.marker-library-body .btn.ghost:hover { color:var(--accent); background:var(--accent-bg); }

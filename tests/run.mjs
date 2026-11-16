@@ -31,6 +31,7 @@ import { figureOrderChecks } from './figure-order.mjs';
 import { p0p1Checks } from './p0-p1.mjs';
 import { proteinFeedbackChecks } from './protein-feedback.mjs';
 import { devAuditChecks } from './dev-audit.mjs';
+import { markerSimplifyChecks } from './marker-simplify.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').split('=')[1];
@@ -152,6 +153,7 @@ async function runIn(name, base) {
     const p0p1=await p0p1Checks(browser,base,ROOT,name);out.results.push(...p0p1);if(p0p1.some(r=>r[0]==='FAIL'))out.ok=false;
     const proteinFeedback=await proteinFeedbackChecks(browser,base);out.results.push(...proteinFeedback);if(proteinFeedback.some(r=>r[0]==='FAIL'))out.ok=false;
     const devAudit=await devAuditChecks(browser,base,ROOT,name);out.results.push(...devAudit);if(devAudit.some(r=>r[0]==='FAIL'))out.ok=false;
+    const simplified=await markerSimplifyChecks(browser,base,ROOT,name);out.results.push(...simplified);if(simplified.some(r=>r[0]==='FAIL'))out.ok=false;
     const ctx = await browser.newContext({ viewport: { width: 1600, height: 960 } });
     const watch = page => {
       const errs = [];

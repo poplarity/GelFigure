@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+- Simplified each Marker card to lane, ladder, units and Review bands. Label style and band details are folded, with contextual re-detection and removal.
+- A single searchable ladder chooser previews model names, catalogue numbers, sizes and reference bands without changing the figure. Apply and detect updates only the named lane. Calibration uses this same chooser and has a visible Done action.
+- Moved favourites and custom ladder creation into library management alongside backup/import. Custom saves default to library-only; using a new model on a figure requires an explicit target Marker.
+
+### Fixed
+- Saving a custom ladder no longer silently replaces the first Marker. A save completing after project replacement only adds the model to the library.
+- Sidebar controls preserve folded-section state, scroll and keyboard focus across edits. No-unit display is available consistently in the card and contextual label editor.
+- Closing or replacing projects dismisses stale model/library editors; changing a model clears a pending size from the previous model. Reference/library action labels stay readable on white backgrounds.
+
 ## [0.6.15] - 2026-11-11
 
 Desktop Safari compatibility, flexible text annotations and dependable lane-number exports.

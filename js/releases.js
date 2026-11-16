@@ -1,6 +1,15 @@
 /* Short bilingual release summaries, newest first. Keep the first version equal to App.VERSION.
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
+  {version:'0.6.16-dev',date:'2026-11-16',zh:[
+    'Marker 侧栏聚焦泳道、型号、单位和核对条带；样式与明细按需展开。',
+    '统一型号搜索与预览，明确应用到当前泳道；参考卡提供清晰的定位与完成操作。',
+    '收藏、自定义和备份集中到库管理；保存自定义型号不再误改第一个 Marker。'
+  ],en:[
+    'Marker cards focus on lane, ladder, units and band review, with folded style and band details.',
+    'One searchable ladder preview applies explicitly to the current lane; calibration has a clear finish action.',
+    'Favourites, custom models and backups share library management; saving no longer overwrites the first Marker.'
+  ]},
   {version:'0.6.15',date:'2026-11-11',zh:[
     '改进桌面 Safari 的编辑高亮和控件显示，统一逐项字重菜单；支持直接粘贴胶图。',
     'Marker 面板可选逐条单位；新增可拖动的多行文本框、引导箭头和侧边文字自由旋转。',

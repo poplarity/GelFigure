@@ -503,28 +503,56 @@
       el.classList.add('warn-text'); el.textContent = e.message; return null;
     }
   }
+  let libraryState=null,libraryMarkers=[],libraryFocus=null;
+  function bindMarkerDialog(dialog,closeDialog) {
+    dialog.addEventListener('keydown',e=>{
+      e.stopPropagation();if(e.isComposing)return;
+      if(e.key==='Escape'){e.preventDefault();closeDialog();return;}
+      if(e.key!=='Tab')return;
+      const all=[...dialog.querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length&&el.tabIndex>=0);
+      if(!all.length)return;const first=all[0],last=all.at(-1);
+      if(e.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    });
+    dialog.addEventListener('click',e=>{if(e.target===dialog)closeDialog();});
+  }
+  function closeMarkerLibrary(restore=true){
+    $('markerLibDlg').classList.add('hidden');libraryState=null;libraryMarkers=[];
+    if(restore){const target=libraryFocus?.isConnected&&libraryFocus.getClientRects().length?libraryFocus:$('btnMarkerLib');target.focus({preventScroll:true});}libraryFocus=null;
+  }
+  function openMarkerLibrary(mi=null,anchor){
+    const trigger=anchor||document.activeElement;
+    flushPending();libraryState=S();libraryMarkers=S()?.markers.slice()||[];libraryFocus=trigger;
+    $('customApplyTarget').innerHTML=`<option value="">${L('仅保存到库，不改变当前图','Library only — keep the figure unchanged')}</option>`+libraryMarkers.map((m,i)=>`<option value="${i}">${L('泳道','Lane')} ${m.lane+1} · ${esc(G.Ladders.get(m.ladderId)?.name||m.ladderId)}</option>`).join('');
+    $('customApplyTarget').value=mi!=null&&libraryMarkers[mi]?String(mi):'';
+    $('btnSaveLadder').textContent=mi!=null&&libraryMarkers[mi]?L(`保存并用于泳道 ${libraryMarkers[mi].lane+1}`,`Save and use in lane ${libraryMarkers[mi].lane+1}`):L('保存到库','Save to library');
+    $('customLadderAdv').open=mi!=null;renderFavs();$('markerLibDlg').classList.remove('hidden');
+    (mi!=null?$('customName'):$('btnMarkerLibClose')).focus({preventScroll:true});
+  }
   $('customSizes').addEventListener('input', customParse);
   $('btnSaveLadder').onclick = async () => {
-    const name = $('customName').value.trim();
-    const state = S(), kind = App.gelKind();
+    const name=$('customName').value.trim(),state=S(),kind=App.gelKind();
+    const choice=$('customApplyTarget').value,target=libraryState===state&&choice!==''?libraryMarkers[+choice]:null;
     let parsed;
-    try { parsed = G.Ladders.parseSizes($('customSizes').value, kind); }
-    catch (e) { $('customParse').classList.add('warn-text'); $('customParse').textContent = e.message; toast(e.message, 4500); return; }
+    try{parsed=G.Ladders.parseSizes($('customSizes').value,kind);}
+    catch(e){$('customParse').classList.add('warn-text');$('customParse').textContent=e.message;toast(e.message,4500);return;}
     $('btnSaveLadder').disabled=true;
     try{
       await G.Ladders.ready;const lad=G.Ladders.saveCustom(name,parsed.sizes,kind);
       if(!G.Ladders.isFavorite(lad.id))G.Ladders.toggleFavorite(lad.id);
-      if(state&&state===S()&&state.markers.length){const m=state.markers[0];m.ladderId=lad.id;m.bands=[];m.ladderLocked=true;App.alignMarker(0);App.commit();}
+      const applied=!!(target&&state===S()&&G.MarkerUI.applyModel(target,lad.id));
       renderFavs();const saved=await G.Ladders.flush();
       $('customSizes').value='';$('customParse').textContent='';
-      toast(saved?L('Marker 已存入本机库并加入常用，下次打开仍可选择','Marker saved locally and added to favourites; available next time'):
-        L('Marker 本次可用，但未能存入本机；请点“备份 Marker 库”保存','Marker available for this session but not cached; use Back up marker library'),saved?3200:6500);
+      toast(!saved?L('已保存到本次库；本机缓存不可用，请备份 Marker 库','Saved for this session; local cache unavailable, so back up the marker library'):
+        applied?L(`已保存，并用于泳道 ${target.lane+1}；可撤销`,`Saved and applied to lane ${target.lane+1}; undo is available`):
+        L('已保存到库；当前图没有改变，可在“型号”中选择使用','Saved to the library; figure unchanged. Choose it under Ladder to use it.'),4500);
     }catch(e){toast(e.message,4500);}finally{$('btnSaveLadder').disabled=false;}
   };
-  $('btnMarkerLib').onclick = () => $('markerLibDlg').classList.remove('hidden');
-  $('btnMarkerLibClose').onclick = () => $('markerLibDlg').classList.add('hidden');
-  $('btnMarkerLibDone').onclick = () => $('markerLibDlg').classList.add('hidden');
-  $('markerLibDlg').addEventListener('click', e => { if (e.target === $('markerLibDlg')) $('markerLibDlg').classList.add('hidden'); });
+  $('customApplyTarget').onchange=()=>{const v=$('customApplyTarget').value,m=v!==''?libraryMarkers[+v]:null;$('btnSaveLadder').textContent=m?L(`保存并用于泳道 ${m.lane+1}`,`Save and use in lane ${m.lane+1}`):L('保存到库','Save to library');};
+  $('btnMarkerLib').onclick=()=>openMarkerLibrary();
+  $('btnMarkerLibClose').onclick=()=>closeMarkerLibrary();
+  $('btnMarkerLibDone').onclick=()=>closeMarkerLibrary();
+  bindMarkerDialog($('markerLibDlg'),closeMarkerLibrary);
   $('btnBackupLadders').onclick=async()=>{await G.Ladders.ready;G.Export.download(new Blob([JSON.stringify(G.Ladders.backup(),null,2)],{type:'application/json'}),'GelFigure_markers.json');};
   $('btnImportLadders').onclick=()=>$('ladderLibraryInput').click();
   $('ladderLibraryInput').onchange=async e=>{
@@ -590,59 +618,62 @@
     return (favs.length ? `<optgroup label="${L('★ 常用', '★ Ours')}">${favs.map(opt).join('')}</optgroup>` : '')
       + [...groups].map(([v, ls]) => `<optgroup label="${esc(v)}">${ls.map(opt).join('')}</optgroup>`).join('');
   }
+  function markerUnitOptions(kind) {
+    const rows = kind === 'protein' ? [
+      ['kDa', 'kDa（顶部单位）', 'kDa (heading)'], ['kDa-inline', '每条带带 kDa', 'kDa on each band']
+    ] : [
+      ['bp', 'bp（顶部单位）', 'bp (heading)'], ['kb', 'kb（顶部单位）', 'kb (heading)'],
+      ['auto', 'bp / kb 自动', 'bp / kb auto'], ['bp-inline', '每条带带 bp', 'bp on each band'], ['kb-inline', '每条带带 kb', 'kb on each band']
+    ];
+    rows.push(['none', '不显示单位', 'No unit']);
+    return rows.map(([v,zh,en]) => `<option value="${v}">${L(zh,en)}</option>`).join('');
+  }
   function renderMarkers() {
-    const st = S(), all = G.Ladders.ordered(App.gelKind()), r = range();
-    // the card list is rebuilt on every change: remember which band lists were open (and how far
-    // they were scrolled) so ticking a band does not fold the list away
-    const openWas = new Map();
-    $('markerList').querySelectorAll('details[data-lane]').forEach(d => {
-      if (d.open) openWas.set(d.dataset.lane, (d.querySelector('.list') || {}).scrollTop || 0);
+    const st = S(), r = range(), host = $('markerList'), scroll = $('panel').scrollTop;
+    const a = document.activeElement, fc = a?.closest('.mk-card');
+    const focus = host.contains(a) ? {id:a.id,mi:fc?.dataset.mi,f:a.dataset.f,band:a.dataset.band} : null;
+    const opened = new Map();
+    host.querySelectorAll('details[data-section]').forEach(d => {
+      if(d.open)opened.set(d.dataset.lane+':'+d.dataset.section,d.querySelector('.list')?.scrollTop||0);
     });
-    $('markerList').innerHTML = st.markers.map((m, mi) => {
-      const sc = m.score != null ? Math.round(m.score * 100) : null;
-      const out = !r || m.lane < r[0] || m.lane > r[1];
-      const shown = m.bands.filter(b => b.show).length;
-      return `<div class="mk-card${out ? ' out' : ''}" data-mi="${mi}">
-        <div class="mk-head"><span class="mk-badge">${L('孔', 'Well')} ${m.lane + 1}</span>
-          ${out ? `<span class="h3-note">${L('不在出图范围', 'outside the figure')}</span>` : sc != null ? `<span class="mk-score${sc < 60 ? ' low' : ''}">${sc < 60 ? L('吻合度低，请核对型号', 'Poor fit — check the ladder') : L('吻合 ', 'Fit ') + sc + '%'}</span>` : ''}
-          <button class="star${G.Ladders.isFavorite(m.ladderId) ? '' : ' off'}" data-f="fav" title="${L('把这个型号设为/取消常用（常用型号在自动识别时优先）', 'Add this ladder to / remove it from favourites (preferred during detection)')}">★</button>
-          <button class="x" data-f="del" title="${L('不作为 Marker', 'Not a marker')}">×</button></div>
-        <label class="marker-lane-select">${L('所在泳道', 'Marker lane')}<select data-f="lane">${st.lanes.map((l,i) => laneOpt(i,m.lane)).join('')}</select></label>
-        <select data-f="ladder" aria-label="${L('Marker 型号', 'Ladder model')}">${ladderOptions(all, m.ladderId)}</select>
-        <div class="marker-actions"><button class="btn sm primary" data-f="align">${L('识别此泳道', 'Detect bands here')}</button><button class="btn sm" data-f="guide">${L('校准 / 图例', 'Calibrate / reference')}</button><button class="btn sm ghost" data-f="labels">${L('显示 / 字号', 'Labels / font')}</button><button class="btn sm ghost" data-f="move">${L('换泳道', 'Change lane')}</button></div>
-        <div class="row2">
-          <select data-f="side"><option value="auto">${L('标签：自动分侧', 'Labels: auto side')}</option><option value="left">${L('标签在左', 'Labels left')}</option><option value="right">${L('标签在右', 'Labels right')}</option></select>
-          <select data-f="unit">${App.gelKind() === 'protein'
-            ? `<option value="kDa">${L('kDa（表头）', 'kDa (header)')}</option><option value="kDa-inline">${L('55 kDa（每个数字带单位）', '55 kDa (unit on each)')}</option>`
-            : `<option value="bp">${L('bp（表头）', 'bp (header)')}</option><option value="kb">${L('kb（表头）', 'kb (header)')}</option><option value="auto">${L('bp / kb 自动', 'bp / kb auto')}</option><option value="bp-inline">${L('5000 bp（每个数字带单位）', '5000 bp (unit on each)')}</option><option value="kb-inline">${L('5 kb（每个数字带单位）', '5 kb (unit on each)')}</option>`}</select>
-        </div>
-        <details class="adv" data-lane="${m.lane}"${openWas.has(String(m.lane)) ? ' open' : ''}><summary>${L(`条带（显示 ${shown}/${m.bands.length}）`, `Bands (${shown}/${m.bands.length} shown)`)}</summary>
-          <div class="list">${m.bands.map((b, k) => `<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" ${b.show ? 'checked' : ''} ${b.excluded ? 'disabled' : ''}></label>
-            <span style="flex:1">${App.fmtSize(b.bp)}${b.ref ? ' ★' : ''}</span><span class="tag ${b.manual ? 'man' : b.matched ? 'ok' : ''}">${b.excluded ? L('已删除','deleted') : b.manual ? L('手动', 'manual') : b.matched ? L('已对上', 'matched') : L('推测', 'predicted')}</span></div>`).join('')}</div>
-          <div class="field inline"><button class="btn sm" data-f="thin">${L('精简标签', 'Thin labels')}</button><button class="btn sm ghost" data-f="match">${L('重新匹配', 'Re-match')}</button></div>
-          <p class="hint">${L('某条带对错了：在原图上把那条黄线拖到正确位置，其余会围绕它重新匹配。', 'A band is wrong? Drag its yellow line on the image to the right place; the others re-fit around it.')}</p>
-        </details>
+    host.innerHTML = st.markers.map((m,mi) => {
+      const sc=m.score!=null?Math.round(m.score*100):null, out=!r||m.lane<r[0]||m.lane>r[1];
+      const shown=m.bands.filter(b=>b.show&&!b.excluded).length,matched=m.bands.filter(b=>b.matched||b.manual).length;
+      const detail=(section,title,body)=>`<details class="adv marker-detail" data-lane="${m.lane}" data-section="${section}"${opened.has(m.lane+':'+section)?' open':''}><summary>${title}</summary>${body}</details>`;
+      return `<div class="mk-card${out?' out':''}" data-mi="${mi}">
+        <div class="mk-head"><b class="mk-badge">${L('泳道','Lane')} ${m.lane+1}</b><span class="mk-score${sc!=null&&sc<60?' low':''}">${out?L('不在出图范围','Outside figure'):sc==null?L('请核对','Check bands'):sc<60?L('请核对型号','Check ladder'):L('吻合 ','Fit ')+sc+'%'}</span></div>
+        <label class="marker-field"><span>${L('泳道','Lane')}</span><select data-f="lane" aria-label="${L('Marker 所在泳道','Marker lane')}">${st.lanes.map((l,i)=>laneOpt(i,m.lane).replace('<option ',`<option ${l.hidden||st.markers.some((q,j)=>j!==mi&&q.lane===i)?'disabled ':''}`)).join('')}</select></label>
+        <div class="marker-field"><span>${L('型号','Ladder')}</span><button type="button" data-f="ladder" class="marker-model-button" aria-haspopup="dialog"><span>${esc(G.Ladders.get(m.ladderId)?.name||m.ladderId)}</span><small>${L('更换…','Change…')}</small></button></div>
+        <label class="marker-field"><span>${L('单位','Units')}</span><select data-f="unit">${markerUnitOptions(App.gelKind())}</select></label>
+        <p class="marker-match-summary">${L(`已定位 ${matched}/${m.bands.length} 条带 · 显示 ${shown} 条`,`Located ${matched}/${m.bands.length} bands · ${shown} shown`)}</p>
+        <button class="btn sm primary marker-review" data-f="guide">${L('核对条带','Review bands')}</button>
+        ${detail('style',L('标签样式','Label style'),`<label class="marker-field"><span>${L('标签位置','Label side')}</span><select data-f="side"><option value="auto">${L('自动','Auto')}</option><option value="left">${L('左侧','Left')}</option><option value="right">${L('右侧','Right')}</option></select></label>${G.FigEdit.weightField('markerCardWeight-'+mi,m.weight)}${G.FigEdit.colorField('markerCardColor-'+mi,m.color)}<p class="hint">${L('字号在成图上方的“字体与字号”统一设置；点成图数字可单独标红。','Set the shared size in Fonts and sizes above the figure. Click a figure number to colour an individual label.')}</p>`)}
+        ${detail('bands',L('条带明细与修正','Band details and correction'),`<p class="hint">${L('勾选控制显示；未定位的条带请先点“定位”。','Tick to show a label; use Locate for a band that has not been located.')}</p><div class="list">${m.bands.map((b,k)=>`<div class="item"><label class="switch"><input type="checkbox" data-band="${k}" aria-label="${L('显示','Show')} ${esc(App.fmtSize(b.bp))}" ${b.show?'checked':''} ${b.excluded?'disabled':''}><span>${esc(App.fmtSize(b.bp))}${b.ref?' ★':''}</span></label><span class="tag ${b.manual?'man':b.matched?'ok':''}">${b.excluded?L('已移除','Removed'):b.manual?L('手动','Manual'):b.matched?L('已定位','Located'):L('未定位','Not located')}</span><button class="btn sm ghost" data-locate="${k}">${L('定位','Locate')}</button></div>`).join('')}</div><div class="marker-actions"><button class="btn sm" data-f="thin">${L('精简标签','Thin labels')}</button><button class="btn sm" data-f="align">${L('重新识别此泳道','Re-detect this lane')}</button></div><button class="btn sm ghost danger" data-f="del">${L('取消此 Marker','Remove marker role')}</button><p class="hint">${L('重新识别保留手动定位与隐藏/删除选择。操作均可撤销。','Re-detection keeps manual anchors and hidden/removed labels. Changes can be undone.')}</p>`)}
       </div>`;
-    }).join('') || `<p class="hint">${L('出图范围内没有 Marker。点下面按钮把一条泳道设为 Marker。', 'No marker in the figure range. Use the button below to mark a lane as the marker.')}</p>`;
-    $('markerList').querySelectorAll('.mk-card').forEach(card => {
-      const m = st.markers[+card.dataset.mi], q = f => card.querySelector(`[data-f="${f}"]`);
-      q('side').value = m.side; q('unit').value = m.unit;
-      q('guide').onclick = () => G.MarkerUI.open(+card.dataset.mi);
-      q('align').onclick = done(() => { App.alignMarker(+card.dataset.mi); toast(L('按当前型号识别此泳道，保留手动定位；其他泳道不变', 'Detected this lane with its current ladder; manual anchors kept, other lanes unchanged')); });
-      q('labels').onclick = () => G.MarkerUI.labelPopover(+card.dataset.mi,-1,q('labels'));
-      q('move').onclick = () => G.MarkerUI.pickLane(+card.dataset.mi);
-      q('lane').onchange = e => { if (!G.MarkerUI.assignLane(+e.target.value, +card.dataset.mi)) e.target.value = String(m.lane); };
-      q('ladder').addEventListener('change', done(e => { m.ladderId = e.target.value; m.bands = []; m.ladderLocked = true; App.prefLadder = m.ladderId; App.alignMarker(+card.dataset.mi); }));
-      q('side').addEventListener('change', done(e => { m.side = e.target.value; }));
-      q('unit').addEventListener('change', done(e => { m.unit = e.target.value; App.prefUnit = m.unit; }));
-      q('del').onclick = done(() => { App.removeMarker(+card.dataset.mi); });
-      q('fav').onclick = () => { const on = G.Ladders.toggleFavorite(m.ladderId); renderFavs(); renderMarkers(); toast(on ? L('已加入常用型号', 'Added to favourites') : L('已移出常用型号', 'Removed from favourites')); };
-      q('thin').onclick = done(() => { m.bands.forEach(b => { b.show = !b.excluded && (b.show || b.matched || b.manual); }); App.thinMarkerLabels(m, false); });
-      q('match').onclick = done(() => { App.alignMarker(+card.dataset.mi); });
-      card.querySelectorAll('[data-band]').forEach(inp => inp.addEventListener('change', done(e => { m.bands[+inp.dataset.band].show = e.target.checked; })));
-      const d = card.querySelector('details[data-lane]'), top = openWas.get(String(m.lane));
-      if (d && top) { const lst = d.querySelector('.list'); if (lst) lst.scrollTop = top; }
+    }).join('')||`<p class="marker-empty">${L('还没有 Marker。点“点选 Marker 泳道”，再点原图中的 Marker。','No marker yet. Choose Pick a marker lane, then click its lane on the image.')}</p>`;
+    host.querySelectorAll('.mk-card').forEach(card => {
+      const mi=+card.dataset.mi,m=st.markers[mi],q=f=>card.querySelector(`[data-f="${f}"]`);
+      q('unit').value=m.unit;q('side').value=m.side;
+      q('ladder').onclick=()=>G.MarkerUI.chooseModel(mi,q('ladder'));
+      q('guide').onclick=()=>G.MarkerUI.open(mi);
+      q('lane').onchange=e=>{if(!G.MarkerUI.assignLane(+e.target.value,mi))e.target.value=String(m.lane);};
+      q('unit').onchange=done(e=>{m.unit=e.target.value;App.prefUnit=m.unit;});
+      q('side').onchange=done(e=>{m.side=e.target.value;});
+      $('markerCardWeight-'+mi).onchange=done(e=>{const w=+e.target.value;if(w===400)delete m.weight;else m.weight=w;});
+      G.FigEdit.bindColor('markerCardColor-'+mi,m,true);
+      q('align').onclick=done(()=>{App.alignMarker(mi);toast(L('已更新当前泳道，请核对条带','Updated this lane; check the bands'));});
+      q('del').onclick=done(()=>App.removeMarker(mi));
+      q('thin').onclick=done(()=>{m.bands.forEach(b=>b.show=!b.excluded&&(b.show||b.matched||b.manual));App.thinMarkerLabels(m,false);});
+      card.querySelectorAll('[data-band]').forEach(cb=>cb.onchange=done(()=>{m.bands[+cb.dataset.band].show=cb.checked;}));
+      card.querySelectorAll('[data-locate]').forEach(btn=>btn.onclick=()=>G.MarkerUI.open(mi,+btn.dataset.locate));
+      card.querySelectorAll('details[data-section]').forEach(d=>{const top=opened.get(d.dataset.lane+':'+d.dataset.section);if(top&&d.querySelector('.list'))d.querySelector('.list').scrollTop=top;});
     });
+    if(focus){
+      const card=host.querySelector(`[data-mi="${focus.mi}"]`);
+      const el=focus.id?$(focus.id):focus.f?card?.querySelector(`[data-f="${focus.f}"]`):focus.band!=null?card?.querySelector(`[data-band="${focus.band}"]`):null;
+      el?.focus({preventScroll:true});
+    }
+    $('panel').scrollTop=scroll;
   }
 
   /* ---------- lane list (advanced) ---------- */
@@ -809,8 +840,8 @@
       `Next: <b>click a grey lane number</b> on the figure and type its name; Enter moves on (${fl.length - named} to go)`),
       L(`下一步：在「成图」页<b>点灰色泳道号</b>输入名称，键盘上的“下一项”跳到下一条（还差 ${fl.length - named} 条）`,
         `Next: on the Figure tab <b>tap a grey lane number</b> and type; the keyboard’s Next key moves on (${fl.length - named} to go)`));
-    else if (!visMk.length) msg = P(L('没有 Marker：在左侧 Marker 区点“点选 Marker 泳道”，再选型号和识别', 'No marker: use Pick a marker lane in the left Marker section, choose a ladder and detect its bands'),
-      L('没有 Marker：在「设置 → Marker」点“点选 Marker 泳道”，再选型号和识别', 'No marker: use Pick a marker lane in Settings → Marker, choose a ladder and detect its bands'));
+    else if (!visMk.length) msg = P(L('没有 Marker：在左侧 Marker 区点“点选 Marker 泳道”，再核对型号和条带', 'No marker: use Pick a marker lane in the left Marker section, choose a ladder and review its bands'),
+      L('没有 Marker：在「设置 → Marker」点“点选 Marker 泳道”，再核对型号和条带', 'No marker: use Pick a marker lane in Settings → Marker, choose a ladder and review its bands'));
     else if (lowMk.length) msg = L(`孔 ${lowMk[0].lane + 1} 的 Marker 与所选 Ladder 吻合度低，<b>请核对型号</b>`, `The marker in well ${lowMk[0].lane + 1} fits the chosen ladder poorly — <b>check the ladder</b>`);
     else {
       msg = P(L('已可导出 —— 右上角<b>导出 PNG</b>；需要分组、箭头、+/− 时用左侧"标注"', 'Ready — <b>Export PNG</b> at the top right; add groups, arrows or +/− rows under "Annotations"'),
@@ -949,6 +980,8 @@
   }
 
   App.on(what => {
+    if(what==='loaded')closeMarkerLibrary(false);
+    else if(what==='change'&&!$('markerLibDlg').classList.contains('hidden')&&(S()!==libraryState||libraryMarkers.some(m=>!S()?.markers.includes(m))))closeMarkerLibrary(false);
     if (!S()) return;
     if (what === 'loaded') {
       $('figureTools').classList.remove('hidden'); $('figureNames').classList.add('hidden');
@@ -976,7 +1009,7 @@
   window.addEventListener('resize', () => { if (S()) { updatePreview(); drawHisto(); } });
 
   G.UI = {
-    toast, updatePreview, figLanes, range, esc, flushPending, archiveCurrent, offerDraft, ladderOptions, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
+    toast, updatePreview, figLanes, range, esc, markerUnitOptions, openMarkerLibrary, bindMarkerDialog, flushPending, archiveCurrent, offerDraft, ladderOptions, lastFig: () => lastFig, preflight, renderExposures, openProject, load, isPhone, phoneMq,
     figZoom: () => figZoom,
     setFigZoom(z) { figZoom = z; if (S()) updatePreview(); }
   };

@@ -57,9 +57,8 @@ export async function ladderCacheChecks(browser,base,root){
         const unchanged=before===JSON.stringify(Ladders.backup());Ladders.importLibrary(collision);await Ladders.flush();
         return {n,same,dedup:count===Ladders.all().length-1,invalid,unchanged,oldSizes:Ladders.get(d.id).sizes,models:Ladders.all().filter(l=>l.custom).length,keys:Object.keys(backup).sort()};
       });assert.deepEqual(r,{n:1,same:true,dedup:true,invalid:true,unchanged:true,oldSizes:[8000,4000,1000],models:3,keys:['custom','favorites','gelfigureMarkerLibrary','version']});
-      await p.locator('#customLadderAdv').evaluate(e=>e.open=true);await p.locator('#customName').fill('UI marker');await p.locator('#customSizes').fill('6000,3000,1000');await p.locator('#btnSaveLadder').click();
+      await p.locator('#btnMarkerLib').click();await p.locator('#customLadderAdv').evaluate(e=>e.open=true);await p.locator('#customName').fill('UI marker');await p.locator('#customSizes').fill('6000,3000,1000');await p.locator('#btnSaveLadder').click();
       await p.waitForFunction(()=>Ladders.all().some(l=>l.name==='UI marker')&&Ladders.cacheStatus==='saved');
-      await p.locator('#btnMarkerLib').click();
       const dl=p.waitForEvent('download');await p.locator('#btnBackupLadders').click();assert.equal((await dl).suggestedFilename(),'GelFigure_markers.json');
       await p.locator('#ladderLibraryInput').setInputFiles({name:'models.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({gelfigureMarkerLibrary:1,version:1,custom:[{id:'imported_test',name:'Imported marker',sizes:[200,100,50],kind:'protein'}],favorites:['imported_test']}))});
       await p.waitForFunction(()=>!!Ladders.get('imported_test'));assert(await p.evaluate(()=>Ladders.isFavorite('imported_test')));

@@ -368,12 +368,12 @@
     document.title = 'UITEST-AT 22 ' + JSON.stringify(R);
     // 23. the band list of a marker stays open while bands are ticked
     {
-      const d = document.querySelector('#markerList details[data-lane]');
+      const d = document.querySelector('#markerList details[data-section="bands"]');
       d.open = true;
       const cb = d.querySelector('[data-band]');
       cb.click();
       await wait(30);
-      const d2 = document.querySelector('#markerList details[data-lane]');
+      const d2 = document.querySelector('#markerList details[data-section="bands"]');
       R.bandsOpen = { open: !!(d2 && d2.open), rebuilt: d2 !== d };
       cb.click && d2.querySelector('[data-band]').click();
     }
