@@ -4,17 +4,17 @@
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first (no build step, bilingual strings, ladder sources, `npm test`). This file adds what is not obvious from the code: how the pieces fit, the rules that keep the project healthy, how releases are made, and what is still open.
 
-## 接手状态 / Handover checkpoint — 2026-11-11
+## 接手状态 / Handover checkpoint — 2026-11-16
 
-- **已发布 v0.6.15**：桌面 Safari 高亮与控件、图片粘贴、Marker 单位和库管理、逐项字重、自由文本框和侧边文字旋转，以及泳道编号导出和淡蛋白 Marker 峰恢复。以标签 [`v0.6.15`](https://github.com/poplarity/GelFigure/tree/v0.6.15) 为准；上一个正式版保留在 [`release/0.6.14`](https://github.com/poplarity/GelFigure/tree/release/0.6.14)，请勿覆盖。
-- **`dev` 与 `main` 在本次发布时一致**。接手前仍须检查实时分支、工作区和用户最新要求；本节是发布快照。v0.6.14 的整图方向、泳道名紧贴胶图和侧边文字定位也已发布，不要当作未完成任务重做。
-- **验证情况**：三引擎（Chromium、Firefox、WebKit）完整回归；离线 HTML 的双语字重菜单、项目恢复和无外部请求也已核验。实际 macOS Safari 27.0 打开单文件 HTML，选择粗体并导出带泳道编号的 PNG。PPTX 通过 ZIP/XML 结构与位置校验，未在原生 PowerPoint 中打开。
-- **检测验证范围**：本机没有真实胶图；原反馈的 180 kDa 条带缺失只用合成图回归，具体品牌、型号与真实胶图尚未核验。恢复仅使用可靠匹配后已有的邻近淡峰，不补造缺失条带。真实胶图回归集仍需维护者维护；手机端仍仅有模拟视口验证，本次没有新增手机端范围。
+- **已发布 v0.6.16**：图像区与 Marker 操作精简、统一型号搜索/预览、明确自定义型号应用对象，以及框内泳道清理和从 1 编号。以标签 [`v0.6.16`](https://github.com/poplarity/GelFigure/tree/v0.6.16) 为准；上一个正式版保留在 [`release/0.6.15`](https://github.com/poplarity/GelFigure/tree/release/0.6.15)，请勿覆盖。
+- **`dev` 与 `main` 在本次发布时一致**。接手前检查实时分支、工作区和用户最新要求；本节是发布快照。v0.6.15 的 Safari、字重、自由文本框、粘贴和导出修复均已发布，不要当作未完成任务重做。
+- **检测验证范围**：原反馈的 180 kDa 漏识别修复随 v0.6.15 发布，只通过合成图回归，具体品牌、型号与真实胶图尚未核验。恢复仅使用可靠匹配后已有的邻近淡峰，不补造缺失条带。真实胶图回归集需维护者维护；手机仍仅有模拟视口验证，本次未新增手机端范围。
+- **原生应用核验**：v0.6.15 曾在 macOS Safari 27.0 打开离线版并导出带编号的 PNG；v0.6.16 开发期间原生 Safari 加载过新侧栏，详细交互与显示由 Chromium/Firefox/WebKit 自动回归及桌面 WebKit 截图检查覆盖。PPTX 通过 ZIP/XML 结构与位置校验，未在原生 PowerPoint 中打开。
 - **GitHub issue #1（Pierce 26610）** 已在 v0.6.14 发布：116 / 66.2 / 45 / 35 / 25 / 18.4 / 14.4 kDa，7 条带、无加亮参考带，来源 MAN0011769。
 
-## Dev update — 2026-11-16 (not released)
+## v0.6.16 maintenance notes
 
-`dev` adds the approved Marker UI simplification and the subsequently requested Image-step simplification; `main`/`v0.6.15` remain the published version. Design and implementation plan: `docs/plans/2026-11-16-marker-workflow*.md`. `MarkerUI.chooseModel` is the single target-scoped searchable chooser; previews do not mutate state and `applyModel` updates only the marker object still present in current state. Clear pending calibration sizes on model changes. `UI.openMarkerLibrary` defaults to library-only saves; never fall back to `markers[0]`. Capture state/marker identities before async saves and apply only if still current. Shared unit options come from `UI.markerUnitOptions`. Keep style/band details, scroll and focus across sidebar rebuilds.
+Design and implementation plans: `docs/plans/2026-11-16-*.md`. `MarkerUI.chooseModel` is the single target-scoped searchable chooser; previews do not mutate state and `applyModel` updates only the marker object still present in current state. Clear pending calibration sizes on model changes. `UI.openMarkerLibrary` defaults to library-only saves; never fall back to `markers[0]`. Capture state/marker identities before async saves and apply only if still current. Shared unit options come from `UI.markerUnitOptions`. Keep style/band details, scroll and focus across sidebar rebuilds.
 
 Image controls: `#rotationFine`, `#contrastManual`, `#gelDetectionDetails` and `#gammaControls` fold advanced UI without changing processing. Keep `clipLine` and an active non-default Gamma summary visible; hide `#imageColourField` only when the source has no colour. Clear transient grids on closing fine controls and on `loaded`. Delayed auto-straighten checks state identity before editing. Tests: `tests/image-controls.mjs`.
 

@@ -1,7 +1,7 @@
 /* Short bilingual release summaries, newest first. Keep the first version equal to App.VERSION.
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
-  {version:'0.6.16-dev',date:'2026-11-16',zh:[
+  {version:'0.6.16',date:'2026-11-16',zh:[
     '图像与 Marker 侧栏精简：常用操作直达，角度微调、手动对比度、样式与明细按需展开。',
     '统一型号搜索与预览，明确应用到当前泳道；参考卡提供清晰的定位与完成操作。',
     '框内重识别或修改条数会清理框外旧泳道并从 1 编号；保留框内标注并支持撤销。'

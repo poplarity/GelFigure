@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.16] - 2026-11-16
+
+Simpler image and Marker workflows, with crop-based lane corrections and consistent numbering.
+
+**中文摘要**
+- 精简图像设置：转正、旋转翻转、显示与自动对比度直接可用，精确角度、手动调节、直方图和 Gamma 按需展开，过曝信息仍清晰可见。
+- Marker 侧栏聚焦泳道、型号、单位和核对条带。统一型号搜索与预览，明确应用到当前泳道；常用、自定义和备份集中到库管理，保存自定义型号不再误改第一个 Marker。
+- 修改框内泳道数（或按回车确认）及成功的框内重识别，会清理框外旧泳道并从 1 编号，保留框内名称、Marker 和条件对应关系，可撤销。单纯裁切和识别失败仍保留原状态。
+- 修复最右侧 Marker 因浮点误差被误删，以及切换项目后自动转正和编辑面板的状态问题。泳道名称的原文字排版保持不变。
+
 ### Changed
 - Simplified the Image step: gel type, direction, automatic straighten, appearance and automatic contrast stay directly available; fine angles, manual contrast/histogram, detection reasons and Gamma expand on demand. Grayscale-only sources omit the unavailable colour toggle; active nonlinear Gamma and clipping evidence stay visible.
 - Simplified each Marker card to lane, ladder, units and Review bands. Label style and band details are folded, with contextual re-detection and removal.
@@ -409,7 +419,8 @@ First public release.
 - Content Security Policy that blocks all network access.
 - Engine and interaction self-tests, run in Chromium, Firefox and WebKit.
 
-[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.15...HEAD
+[Unreleased]: https://github.com/poplarity/GelFigure/compare/v0.6.16...HEAD
+[0.6.16]: https://github.com/poplarity/GelFigure/compare/v0.6.15...v0.6.16
 [0.6.15]: https://github.com/poplarity/GelFigure/compare/v0.6.14...v0.6.15
 [0.6.14]: https://github.com/poplarity/GelFigure/compare/v0.6.13...v0.6.14
 [0.6.13]: https://github.com/poplarity/GelFigure/compare/v0.6.12...v0.6.13
