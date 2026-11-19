@@ -1,6 +1,15 @@
 /* Short bilingual release summaries, newest first. Keep the first version equal to App.VERSION.
  * Detailed history lives in CHANGELOG.md; this small local catalogue also works in offline HTML. */
 window.GelFigureReleases = Object.freeze([
+  {version:'0.6.17-dev',date:'2026-11-19',zh:[
+    '新增本地 Agent CLI、MCP 和配套 skill，先核对实验信息再出图。',
+    '生成可编辑项目、规范检查与处理记录，支持对话继续修改。',
+    'Agent 项目的 Marker 校准选择在网页重开后保持一致。'
+  ],en:[
+    'Local Agent CLI, MCP and skill prepare experimental information before final export.',
+    'Editable projects, structured quality reports and processing records support continued revisions.',
+    'Marker calibration choices in Agent projects survive reopening in the web editor.'
+  ]},
   {version:'0.6.16',date:'2026-11-16',zh:[
     '图像与 Marker 侧栏精简：常用操作直达，角度微调、手动对比度、样式与明细按需展开。',
     '统一型号搜索与预览，明确应用到当前泳道；参考卡提供清晰的定位与完成操作。',

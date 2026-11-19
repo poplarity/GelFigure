@@ -162,6 +162,12 @@ GelFigure 帮你合规，但**是否符合期刊要求仍由作者负责**。
 
 其他型号可在 **Marker → 自定义 Ladder** 中添加，自定义 Ladder 会随样式和项目文件一起保存。想把型号加进内置库供所有人使用，请看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
+## Agent 工具（开发版）
+
+`dev` 提供本地 CLI、MCP 与可移植 skill。Agent 先阅读用户提供或授权的实验记录、分析图片，集中询问未确认的信息；只有准备方案就绪后才正式出图。支持 PNG/TIFF/SVG/可编辑 PPTX、`.gelfig` 项目、处理记录和检查报告，复用网页版的处理与导出引擎。
+
+参见 [Agent 安装与操作说明](docs/agent-interface.zh-CN.md)。独立的 `agent/` 工具管理 Chromium，不要求用户另装 Chrome；便携构建包含 Node 和匹配的无界面运行时。当前是开发版工具分发，请核对文档中的平台验证和字体限制。Agent 宿主需要支持本地命令或 MCP，网页本身仍无需 Node 或 MCP。
+
 ## 浏览器支持
 
 Windows、macOS、Linux 上较新的 Chrome、Edge、Firefox，以及 Safari 16.4 及以上。每次改动都会在 Chromium、Firefox、WebKit 三个内核上自动测试。v0.6.15 的桌面界面与 PNG 导出也已在 macOS Safari 27.0 中实际检查。

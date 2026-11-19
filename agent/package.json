@@ -1,0 +1,20 @@
+{
+  "name": "gelfigure-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local, evidence-first GelFigure CLI and MCP tools",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "bin": { "gelfigure": "bin/gelfigure.mjs" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "doctor": "node bin/gelfigure.mjs doctor",
+    "setup": "playwright install --only-shell chromium",
+    "bundle": "node scripts/bundle.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "playwright": "1.64.1"
+  }
+}

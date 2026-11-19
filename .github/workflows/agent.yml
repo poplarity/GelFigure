@@ -1,0 +1,49 @@
+name: Agent tools
+on:
+  push:
+    branches: [dev, main]
+    paths: ['agent/**', 'skills/gelfigure/**', 'js/**', '.github/workflows/agent.yml']
+  pull_request:
+    paths: ['agent/**', 'skills/gelfigure/**', 'js/**', '.github/workflows/agent.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  agent:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: agent/package-lock.json
+      - run: npm ci
+        working-directory: agent
+      - run: npx playwright install --with-deps --only-shell chromium
+        working-directory: agent
+      - run: npm test
+        working-directory: agent
+      - name: Assemble offline portable directory
+        run: node agent/scripts/bundle.mjs --out dist/GelFigure-Agent
+      - name: Test portable runtime without system Node
+        run: node --test agent/test/package.test.mjs
+        env:
+          GELFIGURE_PORTABLE_TEST: dist/GelFigure-Agent
+      - name: Archive preserving executable permissions
+        run: node agent/scripts/archive.mjs pack dist/GelFigure-Agent dist/GelFigure-Agent.tar.gz
+      - name: Test extracted distribution
+        run: node agent/scripts/archive.mjs extract dist/GelFigure-Agent.tar.gz dist/extracted
+      - name: Verify extracted portable runtime
+        run: node --test agent/test/package.test.mjs
+        env:
+          GELFIGURE_PORTABLE_TEST: dist/extracted/GelFigure-Agent
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GelFigure-Agent-${{ runner.os }}-${{ runner.arch }}
+          path: dist/GelFigure-Agent.tar.gz
+          retention-days: 7

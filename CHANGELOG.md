@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+- Agent projects persist explicit Marker calibration participation for stable size labels in the bundled/dev web editor; legacy projects retain their prior behavior.
+
+### Added
+- Local Agent tools in a separate `agent/` package: strict, versioned analysis/prepare/render/revise/validate contracts, CLI and stdio MCP using the same web engine, with isolated offline browser execution and immutable run directories.
+- Pre-render questions for missing/conflicting experimental information, explicit warning acceptance, source/project/custom-ladder revision and plan integrity checks, compact results and bounded diagnostic/preview MCP resources.
+- A portable `gelfigure` skill that reads authorized experimental records, preserves evidence and sample identities, asks unresolved questions before export and supports continued project edits.
+- Portable-bundle assembly with official checksum-verified Node, matched managed Chromium, launchers, licenses and platform CI; ordinary web/offline HTML remains independent of Node/MCP.
+
+
 ## [0.6.16] - 2026-11-16
 
 Simpler image and Marker workflows, with crop-based lane corrections and consistent numbering.

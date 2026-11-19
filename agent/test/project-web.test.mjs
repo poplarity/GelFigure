@@ -1,0 +1,12 @@
+import test from'node:test';import assert from'node:assert/strict';import fs from'node:fs/promises';import os from'node:os';import path from'node:path';import zlib from'node:zlib';import{pathToFileURL}from'node:url';import{chromium}from'playwright';import{AgentService}from'../src/service.mjs';import{root,synthetic,completeSpec}from'./helpers.mjs';
+test('saved Agent projects keep size labels unchanged when reopened in the normal webpage',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'gel-web-roundtrip-')),service=new AgentService({workspace:dir});let browser;
+ try{
+ await fs.writeFile(path.join(dir,'gel.tif'),await synthetic());await service.analyze({input:'gel.tif',out:'base'});
+ const P=JSON.parse(zlib.gunzipSync(await fs.readFile(path.join(dir,'base/project.gelfig')))),last=P.state.lanes.length-1;P.state.lanes[last].hidden=true;P.state.markers[0].userAssigned=true;P.state.markers[0].bands.forEach(b=>b.manual=b.matched);P.state.markers.push({...structuredClone(P.state.markers[0]),lane:last,userAssigned:true,bands:P.state.markers[0].bands.map(b=>({...b,y:b.y+40}))});await fs.writeFile(path.join(dir,'hidden.gelfig'),zlib.gzipSync(JSON.stringify(P)));
+ await service.analyze({input:'hidden.gelfig',out:'a'});const a=JSON.parse(await fs.readFile(path.join(dir,'a/analysis.json'),'utf8')),spec=completeSpec(a);spec.markers=spec.markers.filter(m=>!a.lanes.find(l=>l.id===m.laneId).hidden);spec.annotations=[{type:'arrow',laneId:a.lanes[1].id,size:1000,text:'Target'}];const prepared=await service.prepare({analysis:'a/analysis.json',spec,out:'p'});assert.equal(prepared.status,'ready_to_render',JSON.stringify(prepared));await service.render({plan:'p/plan.json',out:'r'});
+ const before=JSON.parse(await fs.readFile(path.join(dir,'r/processing-log.json'),'utf8')).arrows[0];browser=await chromium.launch();const context=await browser.newContext({offline:true}),page=await context.newPage();await page.goto(pathToFileURL(path.join(root,'index.html')).href+'?lang=en');
+ const b64=(await fs.readFile(path.join(dir,'r/project.gelfig'))).toString('base64');const after=await page.evaluate(async b64=>{await App.openProject(Uint8Array.from(atob(b64),c=>c.charCodeAt(0)).buffer);const a=App.S.arrows[0];return {label:App.arrowLabel(a),size:App.estimateInfo(a.y)?.bp};},b64);
+ assert.equal(after.label,before.label);assert(Math.abs(after.size-before.estimatedSize)<.1,JSON.stringify({before,after}));
+ }finally{await browser?.close();await service.close();await fs.rm(dir,{recursive:true,force:true});}
+});

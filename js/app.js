@@ -59,7 +59,7 @@
   App.defaultStyle = defaultStyle;
   App.onDropFile = null;   // set by the UI layer
 
-  App.VERSION = '0.6.16';
+  App.VERSION = '0.6.17-dev';
   App.prefs = prefs;
   App.setPref = function (k, v) { const p = prefs(); p[k] = v; G.PrefStorage.setItem(PREF_KEY, JSON.stringify(p)); };
 
@@ -1209,7 +1209,7 @@
   };
   App.alignMarker = function (mi) {
     const m=App.S.markers[mi];if(!m)return;
-    m.userAssigned=true;App.matchMarkers(false,[m]);
+    m.userAssigned=true;m.calibrationEnabled=true;App.matchMarkers(false,[m]);
   };
   App.removeMarker = function (mi) {
     const S=App.S,m=S.markers[mi];if(!m)return;
@@ -1316,7 +1316,9 @@
    * over extrapolating ones; the result is the geometric mean of those used. */
   App.estimateInfo = function (yAbs) {
     const S = App.S;
-    const per = S.markers.map(m => {
+    // Agent plans can retain a hidden marker for editing while explicitly excluding its calibration.
+    // Missing flags preserve legacy projects' use of every saved marker.
+    const per = S.markers.filter(m => m.calibrationEnabled !== false).map(m => {
       const r = E.estimateSizeInfo(yAbs, m.bands.filter(b => b.matched || b.manual).map(b => ({ bp: b.bp, y: b.y })));
       return r && { lane: m.lane, ladderId: m.ladderId, bp: r.bp, extrap: r.extrap, range: r.range };
     }).filter(Boolean);

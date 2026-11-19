@@ -253,7 +253,7 @@
         removal: l.hidden ? { reason: l.hiddenReason || 'manual', xFrom: Math.round(bounds[i][0]), xTo: Math.round(bounds[i][1]) } : undefined })),
       gel: { type: A.gelKind(), sizeUnit: A.sizeUnit(), detection: A.gelDetection ? { kind: A.gelDetection.kind, confidence: Math.round((A.gelDetection.confidence || 0) * 100) / 100, manual: !!A.gelDetection.manual, reasons: (A.gelDetection.reasons || []).map(r => A.gelReasonText(r)).filter(Boolean) } : null },
       annotationColours: { default:'black; region boxes use white on a dark gel', red:'#d32f2f' },
-      markers: S.markers.map(m => ({ well: m.lane + 1, ladder: (G.Ladders.get(m.ladderId) || {}).name, unit: m.unit, color:m.color==='red'?'red':'default', fitScore: m.score, bands: m.bands.map(b => ({ bp: b.bp, y: Math.round(b.y * 10) / 10, autoMatched: b.matched, manual: b.manual, labelled: b.show, color:b.color==='red'?'red':'inherit' })) })),
+      markers: S.markers.map(m => ({ well: m.lane + 1, ladder: (G.Ladders.get(m.ladderId) || {}).name, unit: m.unit, color:m.color==='red'?'red':'default', fitScore: m.score, calibrationEnabled:m.calibrationEnabled!==false, bands: m.bands.map(b => ({ bp: b.bp, y: Math.round(b.y * 10) / 10, autoMatched: b.matched, manual: b.manual, labelled: b.show, color:b.color==='red'?'red':'inherit' })) })),
       arrows: S.arrows.map(a => {
         const e = A.estimateInfo(a.y);
         const isBp = A.sizeUnit() === 'bp';

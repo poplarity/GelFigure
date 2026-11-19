@@ -1,0 +1,6 @@
+interface:
+  display_name: "GelFigure"
+  short_description: "Prepare gel figures with evidence and explicit review"
+  default_prompt: "Use $gelfigure to prepare this gel figure from my image and experiment records."
+policy:
+  allow_implicit_invocation: true

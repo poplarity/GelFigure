@@ -162,6 +162,12 @@ GelFigure helps you comply, but **you remain responsible** for following your jo
 
 Any other ladder can be added under **Marker → Custom ladder**; custom ladders travel inside style and project files. To add a ladder for everyone, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Agent tools (development)
+
+Local CLI and MCP tools plus a portable skill are available on `dev`. The Agent first reads the supplied/authorized experiment records, analyzes the image, collects unresolved questions, and prepares a version-bound plan before final export. The tools generate PNG/TIFF/SVG/editable PPTX, a `.gelfig` project, processing records and checks using the same browser engine as the webpage.
+
+See [Agent installation and workflow](docs/agent-interface.md). The separate `agent/` package manages its Chromium runtime; system Chrome is not required. Portable builds bundle Node and the matching headless shell. This is a development tool distribution; check its documented platform validation and font limitations. Your Agent host must support local commands or MCP. The webpage itself keeps working without Node or MCP.
+
 ## Browser support
 
 Current Chrome, Edge, Firefox and Safari 16.4+ on Windows, macOS and Linux. The test suite runs in Chromium, Firefox and WebKit on every change. The v0.6.15 desktop interface and PNG export were also checked in Safari 27.0 on macOS.
