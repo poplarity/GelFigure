@@ -415,11 +415,15 @@ test('CLI stdio runs a genuine SDK handshake without emitting nonprotocol stdout
 });
 
 test('CLI doctor uses the real offline service when managed Chromium is installed', async t => {
-  try { await fs.access(chromium.executablePath()); }
-  catch { t.skip('Managed Chromium not installed; this test never downloads it.'); return; }
   const result = await execute(['doctor', '--workspace', workspace]);
+  if(result.code!==0&&JSON.parse(result.stdout).error?.code==='RUNTIME_MISSING'){t.skip('Managed Chromium not installed; this test never downloads it.');return;}
   assert.equal(result.code, 0, result.stdout + result.stderr);
   const data = JSON.parse(result.stdout);
   assert.equal(data.status, 'succeeded'); assert.equal(data.network, 'offline');
   assert.equal(data.workspace, await fs.realpath(workspace));
+});
+
+test('CLI executes when the main module is reached through a preserved symlink',async t=>{
+ const root=await portableFixture('entry alias fixture'),target=path.join(root,'agent/bin/gelfigure.mjs'),alias=path.join(root,'agent/bin/entry-alias.mjs');try{await fs.symlink(target,alias,'file');}catch(e){if(e.code==='EPERM'){t.skip('File symlink permission is unavailable; Windows short-path fixture covers canonicalization.');return;}throw e;}
+ const child=spawn(process.execPath,['--preserve-symlinks-main',alias,'--version'],{shell:false});let stdout='',stderr='';child.stdout.on('data',d=>stdout+=d);child.stderr.on('data',d=>stderr+=d);const code=await new Promise((r,j)=>{child.on('close',r);child.on('error',j);});assert.equal(code,0,stderr);assert.match(stdout,/^\d+\.\d+\.\d+\n$/,'entry point silently did not execute');
 });

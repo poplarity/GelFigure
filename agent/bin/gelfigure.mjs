@@ -58,7 +58,7 @@ function argumentsFor(argv) {
 }
 async function portableEnvironment() {
   const browsers = path.join(root, 'runtime', 'browsers');
-  try { if ((await fs.stat(browsers)).isDirectory()) process.env.PLAYWRIGHT_BROWSERS_PATH = browsers; }
+  try { if ((await fs.stat(browsers)).isDirectory()) process.env.PLAYWRIGHT_BROWSERS_PATH = await fs.realpath(browsers); }
   catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
 function geometry(args) {
@@ -165,6 +165,9 @@ export async function runCli(argv, { stdout = process.stdout, stderr = process.s
 }
 
 const entry = process.argv[1] && await fs.realpath(process.argv[1]).catch(() => undefined);
-if (entry && pathToFileURL(entry).href === import.meta.url) {
+// Both sides must resolve filesystem aliases: Windows temp paths may use 8.3 names,
+// and --preserve-symlinks-main retains the caller's spelling in import.meta.url.
+const moduleEntry = await fs.realpath(fileURLToPath(import.meta.url));
+if (entry && entry === moduleEntry) {
   process.exitCode = await runCli(process.argv.slice(2));
 }
