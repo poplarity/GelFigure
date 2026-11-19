@@ -14,4 +14,4 @@ User approved design on 2026-11-19. `agent/CONTRACT.md` is authoritative impleme
 - [x] MCP same service: real SDK client tests tools/list/call and errors; stdout protocol only; bounded results. Skill includes grounded record intake and staged questions; independent realistic review.
 - [x] Portable packaging: bundled host Node+managed headless shell+licenses+launchers+skill, verify host zip offline cold-start; CI for other supported platforms, explicit support statement.
 - [x] Bilingual user/developer docs and changelog; full original web regression if sources changed; agent full suite + final independent code review.
-- [ ] Commit/push dev; deliver portable host package and skill with working invocation. No main/tag/release unless requested.
+- [x] Commit/push dev; deliver portable host package and skill with working invocation. No main/tag/release unless requested.
